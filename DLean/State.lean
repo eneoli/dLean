@@ -2,12 +2,9 @@ import DLean.Syntax
 
 def State : Type := Assignable → ℝ
 
-def updateState (s : State) (assignable : Assignable) (r : ℝ) : State :=
-    fun a =>
-        if a = assignable then
-            r
-        else
-            s a
+def updateState (s : State) (assignable : Assignable) (r : ℝ) : State := fun a =>
+    if a = assignable then r
+    else s a
 
 -- Lemmas
 

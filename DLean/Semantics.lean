@@ -1,13 +1,13 @@
 import DLean.Syntax
+import DLean.Interpretation
 import DLean.State
 
-def dynamicSemantics (s : State) (t : Term) : ℝ :=
+def dynamicSemantics (i: Interpretation) (s : State) (t : Term) : ℝ :=
   match t with
-    | Term.real r           => r
-    | Term.var  v           => s v
-    | Term.neg  t           => - dynamicSemantics s t
-    | Term.plus x y         => dynamicSemantics s x + dynamicSemantics s y
-    | Term.minus x y        => dynamicSemantics s x - dynamicSemantics s y
-    | Term.times x y        => dynamicSemantics s x * dynamicSemantics s y
-    | Term.applyFn f n args => sorry
-    | Term.differential t   => sorry
+    | Term.var  v         => s v
+    | Term.neg  t         => - dynamicSemantics i s t
+    | Term.plus x y       => dynamicSemantics i s x + dynamicSemantics i s y
+    | Term.times x y      => dynamicSemantics i s x * dynamicSemantics i s y
+    | Term.applyFn f args => let argValues := List.map (dynamicSemantics i s) args.toList;
+                             i f argValues
+    | Term.differential t => sorry
