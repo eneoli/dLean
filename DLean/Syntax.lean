@@ -200,17 +200,17 @@ deriving DecidableEq
 inductive Formula : Type where
   | True     : Formula
   | False    : Formula
-  | equal    : Term      → Term    → Formula
-  | notEqual : Term      → Term    → Formula
+  -- | equal    : Term      → Term    → Formula
+  -- | notEqual : Term      → Term    → Formula
   | gte      : Term      → Term    → Formula
-  | gt       : Term      → Term    → Formula
-  | lt       : Term      → Term    → Formula
-  | lte      : Term      → Term    → Formula
-  | not      : Formula   → Formula → Formula
+  -- | gt       : Term      → Term    → Formula
+  -- | lt       : Term      → Term    → Formula
+  -- | lte      : Term      → Term    → Formula
+  | not      : Formula → Formula
   | and      : Formula   → Formula → Formula
-  | or       : Formula   → Formula → Formula
-  | imply    : Formula   → Formula → Formula
-  | equiv    : Formula   → Formula → Formula
+  -- | or       : Formula   → Formula → Formula
+  -- | imply    : Formula   → Formula → Formula
+  -- | equiv    : Formula   → Formula → Formula
   | forall   : Variable  → Formula → Formula
   | exists   : Variable  → Formula → Formula
   | diamond  : Program   → Formula → Formula
