@@ -36,8 +36,8 @@ def TermVector.toList {n : ℕ} (xs : TermVector n) : List Term := match xs with
   | cons x xs => x :: TermVector.toList xs
 
 def TermVector.toVector {n : ℕ} (xs : TermVector n) : Vector Term n := match xs with
-  | nil => Vector.mkEmpty 0
-  | cons x xs => Vector.cast (by simp_arith) $ Vector.append (Vector.singleton x) (TermVector.toVector xs)
+  | nil => Vector.emptyWithCapacity 0
+  | cons x xs => Vector.cast (by simp +arith) $ Vector.append (Vector.singleton x) (TermVector.toVector xs)
 
 def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
   apply @a.elimAsArray Term
@@ -45,7 +45,7 @@ def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
 
   let rec go (m : ℕ) (hm : m < n) : TermVector (n - m) :=
     if hmn : m + 1 = n then
-      cast (by rw[←hmn]; simp) $ TermVector.cons (a.get m (by omega)) TermVector.nil
+      cast (by rw[←hmn]; simp) $ TermVector.cons a[m] TermVector.nil
     else
       let rest := go (m + 1) (by omega)
       cast (
@@ -53,7 +53,7 @@ def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
           rw[Nat.sub_add_eq]
           rw[Nat.sub_one_add_one]
           omega
-      ) $ TermVector.cons (a.get m (by omega)) rest
+      ) $ TermVector.cons a[m] rest
 
   if h : n = 0 then
     exact cast (by simp[h]) TermVector.nil
