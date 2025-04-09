@@ -200,7 +200,7 @@ deriving DecidableEq
 inductive Formula : Type where
   | True     : Formula
   | False    : Formula
-  -- | equal    : Term      → Term    → Formula
+  | eq       : Term      → Term    → Formula
   -- | notEqual : Term      → Term    → Formula
   | gte      : Term      → Term    → Formula
   -- | gt       : Term      → Term    → Formula
