@@ -176,9 +176,9 @@ decreasing_by
   have ha : sizeOf ts.toList <= sizeOf ts := TermVector.toList_eq_size ts
   decreasing_trivial
 
-inductive ProgramConstName : Type where
-  | programConstName (name: String) : ProgramConstName
-deriving DecidableEq
+structure ProgramSymbol where
+  name : String
+deriving Repr, DecidableEq, BEq
 
 -- Differential equations x′ = θ & ψ have to be in explicit form, so y′ and (η)′ cannot occur in θ and x 6 ∈ V ′
 structure ODE : Type where
@@ -188,7 +188,7 @@ deriving DecidableEq
 
 mutual
 inductive Program : Type where
-  | const   : ProgramConstName  → Program
+  | const   : ProgramSymbol → Program
   | assign  : Assignable → Term → Program
   | test    : Formula    → Program
   | ode     : List ODE   → Formula → Program
