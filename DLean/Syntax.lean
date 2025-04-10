@@ -176,11 +176,18 @@ decreasing_by
   have ha : sizeOf ts.toList <= sizeOf ts := TermVector.toList_eq_size ts
   decreasing_trivial
 
+structure PredicateSymbol : Type where
+  name  : String
+  arity : ℕ
+deriving Repr, DecidableEq, BEq
+
 structure ProgramSymbol where
   name : String
 deriving Repr, DecidableEq, BEq
 
--- Differential equations x′ = θ & ψ have to be in explicit form, so y′ and (η)′ cannot occur in θ and x 6 ∈ V ′
+-- This represents an ODE x' = Θ
+-- var contains the variable that is primed.
+-- i.e. If var = x, then the struct represents x' = Θ.
 structure ODE : Type where
   var: Assignable
   term: Term
@@ -198,23 +205,24 @@ inductive Program : Type where
 deriving DecidableEq
 
 inductive Formula : Type where
-  | True     : Formula
-  | False    : Formula
-  | eq       : Term      → Term    → Formula
+  | True      : Formula
+  | False     : Formula
+  | applyPred : (p : PredicateSymbol) → TermVector p.arity → Formula
+  | eq        : Term → Term → Formula
   -- | notEqual : Term      → Term    → Formula
-  | gte      : Term      → Term    → Formula
+  | gte       : Term → Term → Formula
   -- | gt       : Term      → Term    → Formula
   -- | lt       : Term      → Term    → Formula
   -- | lte      : Term      → Term    → Formula
-  | not      : Formula → Formula
-  | and      : Formula   → Formula → Formula
+  | not       : Formula → Formula
+  | and       : Formula → Formula → Formula
   -- | or       : Formula   → Formula → Formula
   -- | imply    : Formula   → Formula → Formula
   -- | equiv    : Formula   → Formula → Formula
-  | forall   : Variable  → Formula → Formula
-  | exists   : Variable  → Formula → Formula
-  | diamond  : Program   → Formula → Formula
-  | box      : Program   → Formula → Formula
+  | forall    : Variable → Formula → Formula
+  | exists    : Variable → Formula → Formula
+  | diamond   : Program  → Formula → Formula
+  | box       : Program  → Formula → Formula
   deriving DecidableEq
 end
 
