@@ -78,7 +78,7 @@ def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ w
   termination_by Φ.size
   decreasing_by
   all_goals simp[Formula.size]
-  all_goals try omega
+  all_goals omega
 
 -- notation i"〚"Φ"〛" => Formula.denote i Φ
 
@@ -109,27 +109,12 @@ def Program.denote (i : Interpretation) (α : Program) : Set (State × State) :=
   all_goals try omega
   induction system
   simp[Program.denote.buildOdeFormula]
-
-  next h =>
-  unfold Program.denote.buildOdeFormula
-  simp[Formula.size]
-  simp +arith
-  next head tail =>
-    have x : (Program.denote.buildOdeFormula tail Q).size + sizeOf head.var + sizeOf head.term < 1 + sizeOf tail + Q.size + 2 * tail.length + sizeOf head.var + sizeOf head.term := by
-      simp
-      exact h
-    apply le_of_lt
-    apply lt_of_lt_of_le
-
-    exact x
-    have hx : sizeOf head = 1 + sizeOf head.var + sizeOf head.term := by
-      simp[sizeOf]
-      constructor
+  next head tail h =>
+    unfold Program.denote.buildOdeFormula
+    simp +arith[Formula.size]
+    have hx : sizeOf head = 1 + sizeOf head.var + sizeOf head.term := by constructor
     rw[hx]
-    simp +arith
     omega
-
-
   where
     odeAssignables (system : List ODE) := List.map ODE.var system
     buildOdeFormula (system : List ODE) (Ψ : Formula) := match system with
