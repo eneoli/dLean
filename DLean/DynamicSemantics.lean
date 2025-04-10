@@ -10,7 +10,7 @@ noncomputable def Term.denote (i: Interpretation) (s : State) (t : Term) : ℝ :
     | Term.plus x y       => denote i s x + denote i s y
     | Term.times x y      => denote i s x * denote i s y
     | Term.applyFn f args => let argValues := .map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
-                             i f argValues
+                             i (Symbol.FunctionSymbol f) argValues
     | Term.differential t => let fvars := t.freeAssignables
                              List.sum $ fvars.map (
                               fun x =>
@@ -60,7 +60,7 @@ noncomputable def Program.size (α : Program) := match α with
   | Program.seq α₁ α₂     => 1 + α₁.size + α₂.size
   | Program.loop α        => 1 + α.size
   | Program.const c       => 1 + sizeOf c
-  | Program.ode system Q  => 1 + sizeOf system + Q.size + 2*system.length
+  | Program.ode system Q  => 1 + sizeOf system + Q.size + system.length
 end
 
 mutual
@@ -83,12 +83,12 @@ def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ w
 -- notation i"〚"Φ"〛" => Formula.denote i Φ
 
 def Program.denote (i : Interpretation) (α : Program) : Set (State × State) := match α with
+  | Program.const a       => i (Symbol.ProgramSymbol a)
   | Program.test Φ        => {(s, s) | s ∈ Φ.denote i}
   | Program.assign x t    => {(s₁, s₂) | s₂ = s₁.update x (t.denote i s₁)}
   | Program.choice α₁ α₂  => (α₁.denote i) ∪ (α₂.denote i)
   | Program.seq α₁ α₂     => {(s₁, s₂) | ∃v:State, (s₁, v) ∈ α₁.denote i ∧ (v, s₂) ∈ α₂.denote i}
   | Program.loop α        => fun ⟨s₁, s₂⟩ => LoopClosure (α.denote i) s₁ s₂
-  | Program.const _       => sorry
   | Program.ode system Q  => {
       (s₁, s₂) | ∃r:ℝ,
                  ∃φ:ℝ → State,
