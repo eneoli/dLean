@@ -226,6 +226,104 @@ inductive Formula : Type where
   deriving DecidableEq
 end
 
--- declare_syntax_cat dL_program
--- syntax dL_program "*" dL_program : dL_program
--- syntax dL_program ";" dL_program : dL_program
+declare_syntax_cat dL_term
+syntax ident : dL_term
+syntax " - " dL_term : dL_term
+syntax dL_term " + " dL_term : dL_term
+syntax dL_term " * " dL_term : dL_term
+syntax ident "(" dL_term,* ")" : dL_term
+syntax "(" dL_term ")'" : dL_term
+syntax "(" dL_term ")" : dL_term
+
+def parseAssignable (str : String) : Lean.Meta.MetaM Lean.Expr := do
+  let ⟨pre, post⟩ := str.toList.span Char.isAlphanum
+  if post.all (BEq.beq '\'') then
+    let baseVariableExpr ← Lean.Meta.mkAppM `Variable.variable #[Lean.mkStrLit pre.asString]
+    let baseAssignableExpr ← Lean.Meta.mkAppM `Assignable.var #[baseVariableExpr]
+    List.foldlM (fun e _ => Lean.Meta.mkAppM `Assignable.diff #[e]) baseAssignableExpr post
+  else
+    throwError "Assignables can only end with alphanumeric chars or primes."
+
+partial def elabTerm : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
+  | `(dL_term| $var:ident) => do
+    let assignableExpr ← parseAssignable var.getId.toString
+    Lean.Meta.mkAppM `Term.var #[assignableExpr]
+
+  | `(dL_term| - $t:dL_term) => do
+    let termExpr ← elabTerm t
+    Lean.Meta.mkAppM `Term.neg #[termExpr]
+
+  | `(dL_term| $t₁:dL_term + $t₂:dL_term) => do
+    let t₁Expr ← elabTerm t₁
+    let t₂Expr ← elabTerm t₂
+    Lean.Meta.mkAppM `Term.plus #[t₁Expr, t₂Expr]
+
+  | `(dL_term| $t₁:dL_term * $t₂:dL_term) => do
+    let t₁Expr ← elabTerm t₁
+    let t₂Expr ← elabTerm t₂
+    Lean.Meta.mkAppM `Term.times #[t₁Expr, t₂Expr]
+
+  | `(dL_term|$f:ident ($args:dL_term,*)) => do
+    let argsExpr ← Array.mapM id <| ((args : Array Lean.Syntax).map elabTerm)
+    Lean.Meta.mkAppM `Term.applyFn <| #[Lean.mkStrLit f.getId.toString] ++ argsExpr
+
+  | `(dL_term|( $t:dL_term )') => do
+    let tExpr ← elabTerm t
+    Lean.Meta.mkAppM `Term.differential #[tExpr]
+
+  | `(dL_term|( $t:dL_term )) => elabTerm t
+
+  | _ => Lean.Elab.throwUnsupportedSyntax
+
+elab "[Term|" t:dL_term "]" : term => elabTerm t
+
+#check [Term| x]
+
+declare_syntax_cat dL_formula
+
+declare_syntax_cat dL_program
+-- syntax ident : dL_program
+syntax ident " := " term : dL_program
+syntax "?" dL_formula : dL_program
+-- syntax dL_program " & " dL_program : dL_program -- todo ODE
+syntax dL_program " ∪ " dL_program : dL_program
+syntax dL_program " ; " dL_program : dL_program
+syntax dL_program " * " : dL_program
+
+
+def mkVar name := (Assignable.var (Variable.variable name))
+
+
+def elabFormula : Lean.Syntax → Lean.Meta.MetaM Lean.Expr := sorry
+
+partial def elabProgram : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
+  -- | `(dL_program|$const:ident) => sorry
+
+  | `(dL_program| $name:ident := $v:term) => do
+    let var ← Lean.Meta.mkAppM `mkVar #[Lean.mkStrLit name.getId.toString]
+    Lean.Meta.mkAppM `Program.assign #[var]
+
+  | `(dL_program| ?$Φ:dL_formula) => do
+    let ΦExpr ← elabFormula Φ
+    Lean.Meta.mkAppM `Program.test #[ΦExpr]
+
+  | `(dL_program| $α:dL_program ∪ $β:dL_program) => do
+    let αExpr ← elabProgram α
+    let βExpr ← elabProgram β
+    Lean.Meta.mkAppM `Program.choice #[αExpr, βExpr]
+
+  | `(dL_program| $α:dL_program ; $β:dL_program) => do
+    let αExpr ← elabProgram α
+    let βExpr ← elabProgram β
+    Lean.Meta.mkAppM `Program.seq #[αExpr, βExpr]
+
+  | `(dL_program| $α:dL_program *) => do
+    let αExpr ← elabProgram α
+    Lean.Meta.mkAppM `Program.loop #[αExpr]
+
+  | _ => Lean.Elab.throwUnsupportedSyntax
+
+elab "[Formula|" Φ:dL_formula "]" : term => elabFormula Φ
+elab "[Program|" α:dL_program "]" : term => elabProgram α
+
+#check [Program|x := 1]
