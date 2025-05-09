@@ -41,6 +41,10 @@ inductive Term : Type where
 deriving Repr, DecidableEq
 end
 
+def Term.minus (t₁ : Term) (t₂ : Term) :=
+  Term.plus t₁ (Term.neg t₂)
+
+
 def TermVector.toList {n : ℕ} (xs : TermVector n) : List Term := match xs with
   | nil => []
   | cons x xs => x :: TermVector.toList xs
@@ -249,50 +253,52 @@ declare_syntax_cat dL_term (behavior := symbol)
 declare_syntax_cat dL_formula (behavior := symbol)
 declare_syntax_cat dL_program (behavior := symbol)
 
-syntax ident : dL_term
-syntax num : dL_term
-syntax scientific : dL_term
-syntax " - " dL_term : dL_term
-syntax dL_term " + " dL_term : dL_term
-syntax dL_term " * " dL_term : dL_term
-syntax ident "(" dL_term,* ")" : dL_term
-syntax "(" dL_term ")" : dL_term
-syntax "(" dL_term ")'" : dL_term
+syntax:max ident : dL_term
+syntax:max num : dL_term
+syntax:max scientific : dL_term
+syntax:max "(" dL_term ")" : dL_term
+syntax:max "(" dL_term ")'" : dL_term
+syntax:max ident "(" dL_term,* ")" : dL_term
+syntax:30 " - " dL_term:30 : dL_term
+syntax:20 dL_term:20 " * " dL_term:21 : dL_term
+syntax:10 dL_term:10 " + " dL_term:11 : dL_term
+syntax:10 dL_term:10 " - " dL_term:11 : dL_term
 
-syntax "true" : dL_formula
-syntax "false" : dL_formula
-syntax ident : dL_formula
-syntax "¬" dL_formula : dL_formula
-syntax dL_formula "∧" dL_formula : dL_formula
-syntax "∀" ident "," dL_formula : dL_formula
-syntax "∃" ident "," dL_formula : dL_formula
-syntax "[" dL_program "]" dL_formula : dL_formula
-syntax "⟨" dL_program "⟩" dL_formula : dL_formula
-syntax ident "(" dL_term,* ")" : dL_formula
-syntax dL_term " = " dL_term : dL_formula
-syntax dL_term " ≥ " dL_term : dL_formula
-syntax dL_formula " ∨ " dL_formula : dL_formula
-syntax dL_formula " → " dL_formula : dL_formula
-syntax dL_formula " ↔ " dL_formula : dL_formula
-syntax dL_term " ≠ " dL_term : dL_formula
-syntax dL_term " > " dL_term : dL_formula
-syntax dL_term " < " dL_term : dL_formula
-syntax dL_term " ≤ " dL_term : dL_formula
-syntax "(" dL_formula ")" : dL_formula
+syntax:max "true" : dL_formula
+syntax:max "false" : dL_formula
+syntax:max ident : dL_formula
+syntax:max "(" dL_formula ")" : dL_formula
+syntax:max ident "(" dL_term,* ")" : dL_formula
+syntax:max dL_term " = " dL_term : dL_formula
+syntax:max dL_term " ≥ " dL_term : dL_formula
+syntax:max dL_term " ≠ " dL_term : dL_formula
+syntax:max dL_term " > " dL_term : dL_formula
+syntax:max dL_term " < " dL_term : dL_formula
+syntax:max dL_term " ≤ " dL_term : dL_formula
+syntax:60 "¬" dL_formula : dL_formula
+syntax:50 "∀" ident "," dL_formula:50 : dL_formula
+syntax:50 "∃" ident "," dL_formula:50 : dL_formula
+syntax:50 "[" dL_program "]" dL_formula : 50 : dL_formula
+syntax:50 "⟨" dL_program "⟩" dL_formula : 50 : dL_formula
+syntax:40 dL_formula:41 "∧" dL_formula:40 : dL_formula
+syntax:30 dL_formula:31 " ∨ " dL_formula:30 : dL_formula
+syntax:20 dL_formula:21 " → " dL_formula:20 : dL_formula
+syntax:10 dL_formula:11 " ↔ " dL_formula:10 : dL_formula
 
-syntax ident : dL_program
-syntax ident " := " dL_term : dL_program
-syntax "?" dL_formula : dL_program
-syntax (ident " = " dL_term),+ (" & " dL_formula)? : dL_program
-syntax dL_program " ∪ " dL_program : dL_program
-syntax dL_program " ; " dL_program : dL_program
-syntax dL_program " * " : dL_program
-syntax " ( " dL_program " ) " : dL_program
+syntax:max ident : dL_program
+syntax:max " ( " dL_program " ) " : dL_program
+syntax:40 ident " := " dL_term : dL_program
+syntax:40 (ident " = " dL_term),+ (" & " dL_formula)? : dL_program
+syntax:30 "?" dL_formula:30 : dL_program
+syntax:30 dL_program:30 " * " : dL_program
+syntax:20 dL_program:21 " ; " dL_program:20 : dL_program
+syntax:10 dL_program:11 " ∪ " dL_program:10 : dL_program
 
 inductive parseAssignable.Constraint : Type where
   | END_ARBITRARY
   | END_WITH_PRIME
-  | END_WITH_NO_PRIME
+  | END_WITH_NO_PRIME_ASSIGNABLE
+  | END_WITH_NO_PRIME_VARIABLE
 deriving BEq
 
 def parseAssignable (c : parseAssignable.Constraint) (str : String) : Lean.Meta.MetaM Lean.Expr := do
@@ -303,12 +309,15 @@ def parseAssignable (c : parseAssignable.Constraint) (str : String) : Lean.Meta.
     throwError "Assignables can only end with alphanumeric chars or primes."
   else if c == .END_WITH_PRIME && post.isEmpty then
     throwError "Expected primed variable."
-  else if c == .END_WITH_NO_PRIME && not post.isEmpty then
+  else if (c == .END_WITH_NO_PRIME_ASSIGNABLE || c == .END_WITH_NO_PRIME_VARIABLE) && not post.isEmpty then
     throwError "Expected not primed variable."
   else
     let baseVariableExpr ← Lean.Meta.mkAppM `Variable.variable #[Lean.mkStrLit pre.asString]
-    let baseAssignableExpr ← Lean.Meta.mkAppM `Assignable.var #[baseVariableExpr]
-    List.foldlM (fun e _ => Lean.Meta.mkAppM `Assignable.diff #[e]) baseAssignableExpr post
+    if c == .END_WITH_NO_PRIME_VARIABLE then
+      pure baseVariableExpr
+    else
+      let baseAssignableExpr ← Lean.Meta.mkAppM `Assignable.var #[baseVariableExpr]
+      List.foldlM (fun e _ => Lean.Meta.mkAppM `Assignable.diff #[e]) baseAssignableExpr post
 
 partial def elabTerm : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
   | `(dL_term| $var:ident) => do
@@ -334,14 +343,24 @@ partial def elabTerm : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
     let t₂Expr ← elabTerm t₂
     Lean.Meta.mkAppM `Term.plus #[t₁Expr, t₂Expr]
 
+  | `(dL_term| $t₁:dL_term - $t₂:dL_term) => do
+    let t₁Expr ← elabTerm t₁
+    let t₂Expr ← elabTerm t₂
+    Lean.Meta.mkAppM `Term.minus #[t₁Expr, t₂Expr]
+
   | `(dL_term| $t₁:dL_term * $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
     Lean.Meta.mkAppM `Term.times #[t₁Expr, t₂Expr]
 
   | `(dL_term|$f:ident ($args:dL_term,*)) => do
-    let argsExpr ← Array.mapM id <| ((args : Array Lean.Syntax).map elabTerm)
-    Lean.Meta.mkAppM `Term.applyFn <| #[Lean.mkStrLit f.getId.toString] ++ argsExpr
+    let args : Array Lean.Syntax := args
+    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.mk #[Lean.mkStrLit f.getId.toString, Lean.mkNatLit args.size ]
+    let argsExpr ← Array.mapM id <| (args.map elabTerm)
+    let argsTermVectorExpr ← argsExpr.foldrM
+      (λe acc => Lean.Meta.mkAppM `TermVector.cons #[e, acc])
+      (.const `TermVector.nil [])
+    Lean.Meta.mkAppM `Term.applyFn <| #[fnSym, argsTermVectorExpr]
 
   | `(dL_term|( $t:dL_term )') => do Lean.Meta.mkAppM `Term.differential #[← elabTerm t]
 
@@ -357,7 +376,7 @@ partial def elabFormula : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
 
   | `(dL_formula| $P:ident) => pure $ Lean.Expr.const P.getId []
 
-  | `(dL_formula| ¬$Φ:dL_formula) => do Lean.Meta.mkAppM `Formula.Not #[← elabFormula Φ]
+  | `(dL_formula| ¬$Φ:dL_formula) => do Lean.Meta.mkAppM `Formula.not #[← elabFormula Φ]
 
   | `(dL_formula| $Φ₁:dL_formula ∧ $Φ₂:dL_formula) => do
     let Φ₁Expr ← elabFormula Φ₁
@@ -365,12 +384,12 @@ partial def elabFormula : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
     Lean.Meta.mkAppM `Formula.and #[Φ₁Expr, Φ₂Expr]
 
   | `(dL_formula| ∀ $x:ident, $Φ:dL_formula) => do
-    let assignableExpr ← parseAssignable .END_WITH_NO_PRIME x.getId.toString
+    let assignableExpr ← parseAssignable .END_WITH_NO_PRIME_VARIABLE x.getId.toString
     let ΦExpr ← elabFormula Φ
     Lean.Meta.mkAppM `Formula.forall #[assignableExpr, ΦExpr]
 
   | `(dL_formula| ∃ $x:ident, $Φ:dL_formula) => do
-    let assignableExpr ← parseAssignable .END_WITH_NO_PRIME x.getId.toString
+    let assignableExpr ← parseAssignable .END_WITH_NO_PRIME_VARIABLE x.getId.toString
     let ΦExpr ← elabFormula Φ
     Lean.Meta.mkAppM `Formula.exists #[assignableExpr, ΦExpr]
 
