@@ -37,7 +37,7 @@ inductive Term : Type where
   | plus         : Term        → Term       → Term
   | times        : Term        → Term       → Term
   | applyFn      : (f : FunctionSymbol)     → TermVector f.arity → Term
-  | differential : Term        → Term
+  -- | differential : Term        → Term -- intentionally commented out
 deriving Repr, DecidableEq
 end
 
@@ -182,11 +182,11 @@ def Term.freeAssignables : (t : Term) → List Assignable
   | Term.neg  n         => Term.freeAssignables n
   | Term.plus  x y
   | Term.times x y      => Term.freeAssignables x ++ Term.freeAssignables y
-  | Term.differential t => Term.freeAssignables t
   | Term.applyFn f ts   => List.flatten $ List.map (fun ⟨t, _⟩ => Term.freeAssignables t) (TermVector.toList ts).attach
 termination_by t => sizeOf t
 decreasing_by
   all_goals try decreasing_trivial
+  next ts t =>
   have ha : sizeOf ts.toList <= sizeOf ts := TermVector.toList_eq_size ts
   decreasing_trivial
 
@@ -276,11 +276,11 @@ syntax:max dL_term " > " dL_term : dL_formula
 syntax:max dL_term " < " dL_term : dL_formula
 syntax:max dL_term " ≤ " dL_term : dL_formula
 syntax:60 "¬" dL_formula : dL_formula
-syntax:50 "∀" ident "," dL_formula:50 : dL_formula
-syntax:50 "∃" ident "," dL_formula:50 : dL_formula
+syntax:50 "∀" ident ", " dL_formula:50 : dL_formula
+syntax:50 "∃" ident ", " dL_formula:50 : dL_formula
 syntax:50 "[" dL_program "]" dL_formula : 50 : dL_formula
 syntax:50 "⟨" dL_program "⟩" dL_formula : 50 : dL_formula
-syntax:40 dL_formula:41 "∧" dL_formula:40 : dL_formula
+syntax:40 dL_formula:41 " ∧ " dL_formula:40 : dL_formula
 syntax:30 dL_formula:31 " ∨ " dL_formula:30 : dL_formula
 syntax:20 dL_formula:21 " → " dL_formula:20 : dL_formula
 syntax:10 dL_formula:11 " ↔ " dL_formula:10 : dL_formula
@@ -321,7 +321,7 @@ def parseAssignable (c : parseAssignable.Constraint) (str : String) : Lean.Meta.
 
 partial def elabTerm : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
   | `(dL_term| $var:ident) => do
-    let assignableExpr ← parseAssignable .END_ARBITRARY var.getId.toString
+    let assignableExpr ← parseAssignable .END_WITH_NO_PRIME_ASSIGNABLE var.getId.toString
     Lean.Meta.mkAppM `Term.var #[assignableExpr]
 
   | `(dL_term| $n:num) => do
@@ -403,9 +403,14 @@ partial def elabFormula : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
     let formulaExpr ← elabFormula Φ
     Lean.Meta.mkAppM `Formula.diamond #[programExpr, formulaExpr]
 
-  | `(dL_formula| $f:ident ($args:dL_term,*)) => do
+  | `(dL_formula| $p:ident ($args:dL_term,*)) => do
+    let args : Array Lean.Syntax := args
+    let predSym ← Lean.Meta.mkAppM `PredicateSymbol.mk #[Lean.mkStrLit p.getId.toString, Lean.mkNatLit args.size]
     let argsExpr ← Array.mapM id <| (args : Array Lean.Syntax).map elabTerm
-    Lean.Meta.mkAppM `Formula.applyPred <| #[Lean.mkStrLit f.getId.toString] ++ argsExpr
+    let argsTermVector ← argsExpr.foldrM
+      (λe acc => Lean.Meta.mkAppM `TermVector.cons #[e, acc])
+      (.const `TermVector.nil [])
+    Lean.Meta.mkAppM `Formula.applyPred <| #[predSym, argsTermVector]
 
   | `(dL_formula| $t₁:dL_term = $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
@@ -497,3 +502,282 @@ end
 elab "[Term|" t:dL_term "]" : term => elabTerm t
 elab "[Formula|" Φ:dL_formula "]" : term => elabFormula Φ
 elab "[Program|" α:dL_program "]" : term => elabProgram α
+
+section Delaborators
+open Lean PrettyPrinter Delaborator SubExpr
+
+def extractString (expr : Expr) : String :=
+  match expr with
+    | Lean.Expr.lit lit => match lit with
+      | Lean.Literal.strVal s => s
+      | _ => unreachable!
+    | _ => unreachable!
+
+@[delab app.Variable.variable]
+def delabVariable : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Variable.variable 1
+  let name := Lean.mkIdent $ Lean.Name.mkSimple (extractString expr.appArg!)
+  `($name)
+
+def delabVariableH (expr : Lean.Expr) : DelabM String := do
+  guard $ expr.isAppOfArity' ``Variable.variable 1
+  let ident := expr.appArg!
+  match ident with
+    | Lean.Expr.lit lit => match lit with
+      | Lean.Literal.strVal s => pure s
+      | _ => unreachable!
+    | _ => unreachable!
+
+partial def delabAssignableH (expr : Lean.Expr) : DelabM String := do
+  guard $ (expr.isAppOfArity' ``Assignable.var 1 || expr.isAppOfArity' ``Assignable.diff 1)
+  if expr.isAppOfArity' `Assignable.var 1 then
+    delabVariableH expr.appArg!
+  else
+    pure $ (← delabAssignableH expr.appArg!) ++ "'"
+
+@[delab app.Assignable.var]
+def delabAssignable.var : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Assignable.var 1
+  let name ← delab expr.appArg!
+  `($name)
+
+@[delab app.Assignable.diff]
+def delabAssignable.diff : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Assignable.diff 1
+  let name := mkIdent $ Name.mkSimple ((← delabAssignableH expr.appArg!) ++ "'")
+  `($name)
+
+section Delaborators.Term
+
+def delabSymbol (ctor: Lean.Name) (arity: ℕ) (expr : Lean.Expr) : DelabM String := do
+  guard $ expr.isAppOfArity' ctor arity
+  let name := expr.appFn!'.appArg!'
+  pure $ extractString name
+
+partial def delabTermVector (expr : Lean.Expr) : DelabM (List (Lean.TSyntax `term)) := do
+  if expr.isAppOfArity' ``TermVector.nil 0 then
+    pure []
+  else
+    let tail := expr.appArg!
+    let head := expr.appFn!.appArg!
+    pure $ (← delab head) :: (← delabTermVector tail)
+
+@[delab app.Term.var]
+def delabTerm.var : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Term.var 1
+  let name := ⟨← delab expr.appArg!⟩
+  return ⟨← `(dL_term| $name)⟩
+
+@[delab app.Term.neg]
+def delabTerm.neg : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Term.neg 1
+  let t ← withAppArg delab
+  `(-$t)
+
+@[delab app.Term.plus]
+def delabTerm.plus : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Term.plus 2
+  let t₁ ← withNaryArg 0 delab
+  let t₂ ← withNaryArg 1 delab
+  `($t₁ + $t₂)
+
+@[delab app.Term.times]
+def delabTerm.times : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Term.times 2
+  let t₁ ← withNaryArg 0 delab
+  let t₂ ← withNaryArg 1 delab
+  `($t₁ * $t₂)
+
+@[delab app.Term.applyFn]
+def delabTerm.applyFn : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Term.applyFn 2
+  let f := Lean.mkIdent $ Lean.Name.mkSimple (← delabSymbol `FunctionSymbol.mk 2 (expr.appFn!.appArg!))
+  let args := (← delabTermVector expr.appArg!).toArray
+
+  if args.size == 0 then
+    `($f)
+  else if args.size == 1 then
+    let a := args[0]!
+    `($f ($a))
+  else
+    let a := args[0]!
+    let as := args[1:].toArray
+    `($f ($a, $[$as],*))
+
+end Delaborators.Term
+
+section Delaborators.Program
+
+@[delab app.Program.const]
+def delabConst : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Program.const 1
+  let programSymbol := expr.appArg!
+  let symbolName := Lean.mkIdent $ Lean.Name.mkSimple (extractString programSymbol.appArg!)
+  `($symbolName)
+
+@[delab app.Program.test]
+def delabTest : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Program.test 1
+  let Φ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_program| ? $Φ)⟩
+
+@[delab app.Program.assign]
+def delabAssign : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Program.assign 2
+  let assignable := ⟨← delab expr.appFn!.appArg!⟩
+  let t := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_program| $assignable:ident := $t)⟩
+
+@[delab app.Program.seq]
+def delabSequence : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Program.seq 2
+  let α₁ := ⟨← delab expr.appFn!.appArg!⟩
+  let α₂ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_program| $α₁ ; $α₂)⟩
+
+@[delab app.Program.choice]
+def delabChoice : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Program.choice 2
+  let α₁ := ⟨← delab expr.appFn!.appArg!⟩
+  let α₂ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_program| $α₁ ∪ $α₂)⟩
+
+@[delab app.Program.loop]
+def delabLoop : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Program.loop 1
+  let α := ⟨← delab expr.appFn!.appArg!⟩
+  return ⟨←`(dL_program| $α*)⟩
+
+/-
+  | ode     : List ODE   → Formula → Program
+-/
+
+
+end Delaborators.Program
+
+section Delaborators.Formula
+
+syntax formulaEmbed := dL_formula
+
+@[delab app.Formula.True]
+def delabTrue : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.True 0
+  return ⟨← `(dL_formula| true)⟩
+
+@[delab app.Formula.False]
+def delabFalse : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.False 0
+  return ⟨← `(dL_formula| false)⟩
+
+@[delab app.Formula.and]
+def delabAnd : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.and 2
+  let Φ₁ ← delab expr.appFn!.appArg!
+  let Φ₂ ← delab expr.appArg!
+  `($Φ₁ ∧ $Φ₂)
+
+@[delab app.Formula.applyPred]
+def delabApplyPred : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.applyPred 2
+  let args := (← delabTermVector expr.appArg!).toArray
+  let p := Lean.mkIdent $ Lean.Name.mkSimple (← delabSymbol `PredicateSymbol.mk 2 (expr.appFn!.appArg!))
+  if args.size == 0 then
+    `($p)
+  else if args.size == 1 then
+    let a := args[0]!
+    `($p ($a))
+  else
+    let a := args[0]!
+    let as := args[1:].toArray
+    `($p ($a, $[$as],*))
+
+def delabInEquality(ctor : Name) (fn: Lean.Term → Lean.Term → Delab) : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ctor 2
+  let t₁ := ⟨← delab expr.appFn!.appArg!⟩
+  let t₂ := ⟨← delab expr.appArg!⟩
+  return ⟨← fn t₁ t₂⟩
+
+@[delab app.Formula.eq]
+def delabEq : Delab := delabInEquality ``Formula.eq (λt₁ t₂ => `($t₁ = $t₂))
+
+@[delab app.Formula.gte]
+def delabGte : Delab := delabInEquality ``Formula.gte (λt₁ t₂ => `($t₁ ≥ $t₂))
+
+@[delab app.Formula.not]
+def delabNot : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.not 1
+  let Φ ← delab expr.appArg!
+  `(¬$Φ)
+
+@[delab app.Formula.or]
+def delabOr : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.or 2
+  let Φ₁ ← delab expr.appFn!.appArg!
+  let Φ₂ ← delab expr.appArg!
+  `($Φ₁ ∨ $Φ₂)
+
+@[delab app.Formula.forall]
+def delabForall : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.forall 2
+  let x := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| ∀$x, $Φ)⟩
+
+@[delab app.Formula.exists]
+def delabExists : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.exists 2
+  let x := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| ∃$x, $Φ)⟩
+
+@[delab app.Formula.box]
+def delabBox : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.box 2
+  let α := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| [$α]$Φ)⟩
+
+@[delab app.Formula.diamond]
+def delabDiamond : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.diamond 2
+  let α := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| ⟨$α⟩$Φ)⟩
+
+end Delaborators.Formula
+
+end Delaborators
+
+set_option pp.rawOnError true
+#check [Term| f(x, y, z) + x]
+#check [Program| y':= 1]
+
+#check [Formula| ⟨?1=1 ; a*⟩1=1]
+#check false
+
+#check [Formula| 0.0 ≤ x ∧ x = H ∧ v = 0 ∧ g > 0 ∧ 1 ≥ c ∧ c ≥ 0]
