@@ -9,10 +9,15 @@ inductive Assignable : Type where
   | diff : Assignable → Assignable
 deriving Repr, DecidableEq, BEq
 
-structure FunctionSymbol : Type  where
-    name: String
-    arity: ℕ
+inductive FunctionSymbol : Type where
+  -- if sign then n * 10 ^ (0 - e) else n * 10 ^ e
+  | num   : (n : ℕ) → (sign : Bool) → (e : ℕ) → FunctionSymbol
+  | const : (name : String) → (arity : ℕ) → FunctionSymbol
 deriving Repr, DecidableEq, BEq
+
+def FunctionSymbol.arity {f : FunctionSymbol} : ℕ := match f with
+  | .num _ _ _ => 0
+  | .const _ arity => arity
 
 structure PredicateSymbol : Type where
   name  : String
@@ -44,6 +49,7 @@ end
 def Term.minus (t₁ : Term) (t₂ : Term) :=
   Term.plus t₁ (Term.neg t₂)
 
+section Theorems.TermVector
 
 def TermVector.toList {n : ℕ} (xs : TermVector n) : List Term := match xs with
   | nil => []
@@ -177,6 +183,8 @@ theorem TermVector.mem_toVector_iff {n : ℕ} (t: Term) (ts: TermVector n) : t �
     apply Iff.mpr $ TermVector.mem_toVector_iff t ts
     assumption
 
+end Theorems.TermVector
+
 def Term.freeAssignables : (t : Term) → List Assignable
   | Term.var  v         => [v]
   | Term.neg  n         => Term.freeAssignables n
@@ -224,8 +232,6 @@ inductive Formula : Type where
 deriving DecidableEq
 end
 
--- Derived Connectives for Formulas
-
 def Formula.or (P : Formula) (Q: Formula) :=
   Formula.not $ Formula.and (Formula.not P) (Formula.not Q)
 
@@ -247,7 +253,7 @@ def Formula.lt (t₁ : Term) (t₂ : Term) :=
 def Formula.lte (t₁ : Term) (t₂ : Term) :=
   Formula.gte t₂ t₁
 
--- Syntax Embedding
+section SyntaxEmbedding
 
 declare_syntax_cat dL_term (behavior := symbol)
 declare_syntax_cat dL_formula (behavior := symbol)
@@ -299,6 +305,10 @@ syntax:30 dL_program:30 "* " : dL_program
 syntax:20 dL_program:21 " ; " dL_program:20 : dL_program
 syntax:10 dL_program:11 " ∪ " dL_program:10 : dL_program
 
+end SyntaxEmbedding
+
+section Elaborators
+
 inductive parseAssignable.Constraint : Type where
   | END_ARBITRARY
   | END_WITH_PRIME
@@ -330,14 +340,19 @@ partial def elabTerm : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
     Lean.Meta.mkAppM `Term.var #[assignableExpr]
 
   | `(dL_term| $n:num) => do
-    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.mk #[Lean.mkStrLit n.getNat.repr, Lean.mkNatLit 0]
+    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.num #[
+      Lean.mkNatLit n.getNat,
+      Lean.Expr.const ``Bool.false [],
+      Lean.mkNatLit 0
+    ]
     Lean.Meta.mkAppM `Term.applyFn #[fnSym, .const `TermVector.nil []]
 
   | `(dL_term| $r:scientific) => do
     let (n, sign, e) := r.getScientific
-    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.mk #[
-      Lean.mkStrLit s!"({n}, {sign}, {e})",
-      Lean.mkNatLit 0,
+    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.num #[
+      Lean.mkNatLit n,
+      if sign then Lean.Expr.const ``Bool.false [] else Lean.Expr.const ``Bool.true [],
+      Lean.mkNatLit e,
     ]
     Lean.Meta.mkAppM `Term.applyFn #[fnSym, .const `TermVector.nil []]
 
@@ -360,7 +375,10 @@ partial def elabTerm : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
 
   | `(dL_term|$f:ident ($args:dL_term,*)) => do
     let args : Array Lean.Syntax := args
-    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.mk #[Lean.mkStrLit f.getId.toString, Lean.mkNatLit args.size ]
+    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.const #[
+      Lean.mkStrLit f.getId.toString,
+      Lean.mkNatLit args.size,
+    ]
     let argsExpr ← Array.mapM id <| (args.map elabTerm)
     let argsTermVectorExpr ← argsExpr.foldrM
       (λe acc => Lean.Meta.mkAppM `TermVector.cons #[e, acc])
@@ -508,21 +526,39 @@ elab "[Term|" t:dL_term "]" : term => elabTerm t
 elab "[Formula|" Φ:dL_formula "]" : term => elabFormula Φ
 elab "[Program|" α:dL_program "]" : term => elabProgram α
 
+end Elaborators
+
 section Delaborators
 open Lean PrettyPrinter Delaborator SubExpr
 
-def extractString (expr : Expr) : String :=
-  match expr with
-    | Lean.Expr.lit lit => match lit with
-      | Lean.Literal.strVal s => s
-      | _ => unreachable!
-    | _ => unreachable!
+def extractString (expr : Expr) : DelabM String := do
+  let e ← Lean.Meta.reduce expr
+  match e with
+    | .lit lit => match lit with
+      | .strVal s => pure s
+      | _ => throwError "Exptected String Literal"
+    | _ => throwError "Expected Literal Expression"
+
+def extractNat (expr : Expr) : DelabM ℕ := do
+  let e ← Lean.Meta.reduce expr
+  match e with
+    | .lit lit => match lit with
+      | .natVal n => pure n
+      | _ => throwError "Exptected Nat Literal"
+    | _ => throwError "Expected Literal Expression"
+
+def extractBool (expr : Expr) : DelabM Bool := do
+  let e ← Lean.Meta.reduce expr
+  match e with
+    | .const ``Bool.true _ => pure true
+    | .const ``Bool.false _ => pure false
+    | _ => throwError "Expected Boolean Expression Constant"
 
 @[delab app.Variable.variable]
 def delabVariable.variable : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Variable.variable 1
-  let ident := mkIdent $ Name.mkSimple $ extractString expr.appArg!
+  let ident := mkIdent $ Name.mkSimple $ (← extractString expr.appArg!)
   return ident
 
 @[delab app.Assignable.var]
@@ -558,7 +594,36 @@ section Delaborators.Term
 def delabSymbol (ctor: Lean.Name) (arity: ℕ) (expr : Lean.Expr) : DelabM String := do
   guard $ expr.isAppOfArity' ctor arity
   let name := expr.appFn!'.appArg!'
-  pure $ extractString name
+  extractString name
+
+@[delab app.FunctionSymbol.num]
+def delabFunctionSymbol.num : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``FunctionSymbol.num 3
+  let n ← extractNat expr.appFn!'.appFn!'.appArg!'
+  let sign ← extractBool expr.appFn!'.appArg!'
+  let e ← extractNat expr.appArg!'
+  let value := (if sign then (n) * 10 ^ (0 - e) else n * 10 ^ e).toFloat
+  let t := Syntax.mkNumLit $ trimTrailingZeros value.toString
+  `($t)
+  where
+    trimTrailingZeros (s : String) : String :=
+      if s.contains '.' then
+        let s := s.dropRightWhile (·= '0')
+        if s.endsWith "." then
+          let s := s.dropRight 1
+          s
+        else
+          s
+      else
+        s
+
+@[delab app.FunctionSymbol.const]
+def delabFunctionSymbol.const : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``FunctionSymbol.const 2
+  let name := expr.appFn!.appArg!
+  pure <| Lean.mkIdent $ Lean.Name.mkSimple (← extractString name)
 
 partial def delabTermVector (expr : Lean.Expr) : DelabM (List (Lean.TSyntax `term)) := do
   if expr.isAppOfArity' ``TermVector.nil 0 then
@@ -602,7 +667,7 @@ def delabTerm.times : Delab := do
 def delabTerm.applyFn : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Term.applyFn 2
-  let f := Lean.mkIdent $ Lean.Name.mkSimple (← delabSymbol `FunctionSymbol.mk 2 (expr.appFn!.appArg!))
+  let f ← delab expr.appFn!.appArg!
   let args := (← delabTermVector expr.appArg!).toArray
 
   if args.size == 0 then
@@ -624,7 +689,7 @@ def delabConst : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.const 1
   let programSymbol := expr.appArg!
-  let symbolName := Lean.mkIdent $ Lean.Name.mkSimple (extractString programSymbol.appArg!)
+  let symbolName := Lean.mkIdent $ Lean.Name.mkSimple (← extractString programSymbol.appArg!)
   `($symbolName)
 
 @[delab app.Program.test]
@@ -696,10 +761,7 @@ def delabODE : Delab := do
   let system ← delabOdeSystem
 
   if system.size == 0 then
-    return ⟨← `(dL_program| x' = 12 & $Ψ)⟩
-  else if system.size == 1 then
-    let s := system[0]!
-    return ⟨← `(dL_program| $s:dL_ode & $Ψ)⟩
+    throwError "Cannot have empty ODE system."
   else
     return ⟨← `(dL_program| $[$system:dL_ode],* & $Ψ:dL_formula)⟩
 
@@ -803,16 +865,35 @@ def delabDiamond : Delab := do
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| ⟨$α⟩$Φ)⟩
 
+@[delab app.Formula.implies]
+def delabImplies : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.implies 2
+  let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ₂ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| $Φ₁ → $Φ₂)⟩
+
+@[delab app.Formula.implies]
+def delabEquiv : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.equiv 2
+  let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ₂ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| $Φ₁ ↔ $Φ₂)⟩
+
+@[delab app.Formula.neq]
+def delabNeq : Delab := delabInEquality ``Formula.neq (λt₁ t₂ => `($t₁ ≠ $t₂))
+
+@[delab app.Formula.gt]
+def delabGt : Delab := delabInEquality ``Formula.gt (λt₁ t₂ => `($t₁ > $t₂))
+
+@[delab app.Formula.lt]
+def delabLt : Delab := delabInEquality ``Formula.lt (λt₁ t₂ => `($t₁ < $t₂))
+
+@[delab app.Formula.lte]
+def delabLte : Delab := delabInEquality ``Formula.lte (λt₁ t₂ => `($t₁ ≤ $t₂))
+
 end Delaborators.Formula
 
 end Delaborators
 
-set_option pp.rawOnError true
-#check [Term| f(x, y, z) + x]
-#check [Program| y':= 1]
-
-#check [Formula| ⟨?1=1 ; a*⟩1=1]
-#check [Program| x' = 41 & true ∧ false ∨ 1=1]
-#check false
-
-#check [Formula| 0.0 ≤ x ∧ x = H ∧ v = 0 ∧ g > 0 ∧ 1 ≥ c ∧ c ≥ 0]
