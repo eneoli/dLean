@@ -252,6 +252,8 @@ def Formula.lte (t₁ : Term) (t₂ : Term) :=
 declare_syntax_cat dL_term (behavior := symbol)
 declare_syntax_cat dL_formula (behavior := symbol)
 declare_syntax_cat dL_program (behavior := symbol)
+declare_syntax_cat dL_ode (behavior := symbol)
+declare_syntax_cat dL_ode_system (behavior := symbol)
 
 syntax:max ident : dL_term
 syntax:max num : dL_term
@@ -285,12 +287,15 @@ syntax:30 dL_formula:31 " ∨ " dL_formula:30 : dL_formula
 syntax:20 dL_formula:21 " → " dL_formula:20 : dL_formula
 syntax:10 dL_formula:11 " ↔ " dL_formula:10 : dL_formula
 
+syntax:40 (ident " = " dL_term) : dL_ode
+syntax:40 dL_ode,+ : dL_ode_system
+
 syntax:max ident : dL_program
 syntax:max " ( " dL_program " ) " : dL_program
 syntax:40 ident " := " dL_term : dL_program
-syntax:40 (ident " = " dL_term),+ (" & " dL_formula)? : dL_program
+syntax:40 dL_ode_system (" & " dL_formula)? : dL_program
 syntax:30 "?" dL_formula:30 : dL_program
-syntax:30 dL_program:30 " * " : dL_program
+syntax:30 dL_program:30 "* " : dL_program
 syntax:20 dL_program:21 " ; " dL_program:20 : dL_program
 syntax:10 dL_program:11 " ∪ " dL_program:10 : dL_program
 
@@ -514,11 +519,17 @@ def extractString (expr : Expr) : String :=
     | _ => unreachable!
 
 @[delab app.Variable.variable]
-def delabVariable : Delab := do
+def delabVariable.variable : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Variable.variable 1
-  let name := Lean.mkIdent $ Lean.Name.mkSimple (extractString expr.appArg!)
-  `($name)
+  let ident := mkIdent $ Name.mkSimple $ extractString expr.appArg!
+  return ident
+
+@[delab app.Assignable.var]
+def delabAssignable.var : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Assignable.var 1
+  delab expr.appArg!
 
 def delabVariableH (expr : Lean.Expr) : DelabM String := do
   guard $ expr.isAppOfArity' ``Variable.variable 1
@@ -536,19 +547,11 @@ partial def delabAssignableH (expr : Lean.Expr) : DelabM String := do
   else
     pure $ (← delabAssignableH expr.appArg!) ++ "'"
 
-@[delab app.Assignable.var]
-def delabAssignable.var : Delab := do
-  let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Assignable.var 1
-  let name ← delab expr.appArg!
-  `($name)
-
 @[delab app.Assignable.diff]
 def delabAssignable.diff : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Assignable.diff 1
-  let name := mkIdent $ Name.mkSimple ((← delabAssignableH expr.appArg!) ++ "'")
-  `($name)
+  return (mkIdent $ Name.mkSimple ((← delabAssignableH expr.appArg!) ++ "'"))
 
 section Delaborators.Term
 
@@ -659,19 +662,50 @@ def delabChoice : Delab := do
 def delabLoop : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.loop 1
-  let α := ⟨← delab expr.appFn!.appArg!⟩
+  let α := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $α*)⟩
 
-/-
-  | ode     : List ODE   → Formula → Program
--/
+@[delab app.ODE.mk]
+def delabOde : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``ODE.mk 2
+  let var := ⟨← delab expr.appFn!.appArg!⟩
+  let term := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_ode| $var:ident = $term)⟩
 
+partial def delabOdeSystem : DelabM (Array (TSyntax `dL_ode)) := do
+  let system ← getExpr
+  guard $ (system.isAppOfArity' ``List.nil 1) || (system.isAppOfArity ``List.cons 3)
+
+  if system.isAppOfArity' ``List.nil 1 then
+    pure #[]
+  else
+    withAppArg do
+    let head := ⟨← delab system.appFn!.appArg!⟩
+    let tail ← delabOdeSystem
+    pure (head :: tail.toList).toArray
+
+@[delab app.Program.ode]
+def delabODE : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Program.ode 2
+  let Ψ := ⟨← delab expr.appArg!⟩
+
+  withAppFn do
+  withAppArg do
+  let system ← delabOdeSystem
+
+  if system.size == 0 then
+    return ⟨← `(dL_program| x' = 12 & $Ψ)⟩
+  else if system.size == 1 then
+    let s := system[0]!
+    return ⟨← `(dL_program| $s:dL_ode & $Ψ)⟩
+  else
+    return ⟨← `(dL_program| $[$system:dL_ode],* & $Ψ:dL_formula)⟩
 
 end Delaborators.Program
 
 section Delaborators.Formula
-
-syntax formulaEmbed := dL_formula
 
 @[delab app.Formula.True]
 def delabTrue : Delab := do
@@ -778,6 +812,7 @@ set_option pp.rawOnError true
 #check [Program| y':= 1]
 
 #check [Formula| ⟨?1=1 ; a*⟩1=1]
+#check [Program| x' = 41 & true ∧ false ∨ 1=1]
 #check false
 
 #check [Formula| 0.0 ≤ x ∧ x = H ∧ v = 0 ∧ g > 0 ∧ 1 ≥ c ∧ c ≥ 0]
