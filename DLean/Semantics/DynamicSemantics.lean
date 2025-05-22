@@ -14,18 +14,14 @@ noncomputable def Term.denote (i: Interpretation) (s : State) (t : Term) : ℝ :
     | Term.times x y      => denote i s x * denote i s y
     | Term.applyFn f args => let argValues := .map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
                              i (Symbol.Function f) argValues
-    | Term.differential t => let fvars := t.freeAssignables
-                             List.sum $ fvars.map (
-                              fun x =>
-                                s (Assignable.diff x) *
-                                (
-                                  deriv (
-                                    fun y => denote i (
-                                      fun x' => if x = x' then y else s x'
-                                    ) t
-                                  ) (s x)
-                                )
-                             )
+    | Term.differential t => ∑ x ∈ t.freeAssignables, s (Assignable.diff x) *
+                                                      (
+                                                        deriv (
+                                                          fun y => denote i (
+                                                            fun x' => if x = x' then y else s x'
+                                                          ) t
+                                                        ) (s x)
+                                                      )
 decreasing_by
   all_goals try decreasing_trivial
   have t : e ∈ args := (TermVector.mem_toVector_iff e args).mpr h
