@@ -1,6 +1,6 @@
 import Mathlib.Analysis.Calculus.Deriv.Basic
 
-import DLean.Syntax
+import DLean.Syntax.Syntax
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 
