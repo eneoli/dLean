@@ -2,12 +2,23 @@ import Mathlib.Data.Real.Basic
 
 inductive Variable : Type where
   | variable (name : String) : Variable
-deriving Repr, DecidableEq, BEq, Ord
+deriving Repr, DecidableEq, BEq
+
+def Variable.name : Variable → String
+  | .variable name => name
 
 inductive Assignable : Type where
   | var  : Variable → Assignable
   | diff : Assignable → Assignable
-deriving Repr, DecidableEq, BEq, Ord
+deriving Repr, DecidableEq, BEq
+
+def Assignable.orderOfDerivate : Assignable → ℕ
+  | .var _ => 0
+  | .diff a => 1 + a.orderOfDerivate
+
+def Assignable.baseVariable : Assignable → Variable
+  | .var v => v
+  | .diff a => a.baseVariable
 
 inductive FunctionSymbol : Type where
   -- if sign then n * 10 ^ (0 - e) else n * 10 ^ e
