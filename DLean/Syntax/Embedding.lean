@@ -1,5 +1,3 @@
-import Mathlib.Data.Real.Basic
-
 import DLean.Syntax.Definitions
 
 section SyntaxCategories
@@ -85,7 +83,7 @@ def parseAssignable (c : parseAssignable.Constraint) (str : String) : Lean.Meta.
 
 partial def elabTerm : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
   | `(dL_term| $var:ident) => do
-    let assignableExpr ← parseAssignable .END_WITH_NO_PRIME_ASSIGNABLE var.getId.toString
+    let assignableExpr ← parseAssignable .END_ARBITRARY var.getId.toString
     Lean.Meta.mkAppM `Term.var #[assignableExpr]
 
   | `(dL_term| $n:num) => do
@@ -421,7 +419,7 @@ def delabTerm.applyFn : Delab := do
   let args := (← delabTermVector expr.appArg!).toArray
 
   if args.size == 0 then
-    `($f)
+    `($f ())
   else if args.size == 1 then
     let a := args[0]!
     `($f ($a))
@@ -429,6 +427,13 @@ def delabTerm.applyFn : Delab := do
     let a := args[0]!
     let as := args[1:].toArray
     `($f ($a, $[$as],*))
+
+@[delab app.Term.differential]
+def delabTerm.differential : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Term.differential 1
+  let t := ⟨← delab expr.appArg!⟩
+  return ⟨← `(dL_term| ($t)')⟩
 
 end Delaborators.Term
 
