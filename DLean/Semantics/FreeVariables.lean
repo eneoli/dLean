@@ -1,6 +1,6 @@
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.Sort
-import DLean.Syntax
+import DLean.Syntax.Syntax
 
 def Term.free_vars (t : Term) : Finset Assignable := match t with
   | .var a  => {a}

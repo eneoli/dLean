@@ -1,6 +1,6 @@
 import Mathlib.Data.Multiset.Basic
 
-import DLean.Syntax
+import DLean.Syntax.Syntax
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Embedding.Shallow
