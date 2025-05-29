@@ -146,17 +146,4 @@ def Assignable.diff_emb : Assignable ↪ Assignable := {
   inj':= by simp[Function.Injective]
 }
 
-def Term.freeAssignables : (t : Term) → Finset Assignable
-  | Term.var  v         => {v}
-  | Term.differential x => let vs := Term.freeAssignables x;
-                            vs ∪ Finset.map Assignable.diff_emb vs
-  | Term.neg  n         => Term.freeAssignables n
-  | Term.plus  x y
-  | Term.times x y      => Term.freeAssignables x ∪ Term.freeAssignables y
-  | Term.applyFn f ts   => List.foldl (fun x y => x ∪ y) ∅ $ List.map (fun ⟨t, _⟩ => Term.freeAssignables t) (TermVector.toList ts).attach
-termination_by t => sizeOf t
-decreasing_by
-  all_goals try decreasing_trivial
-  have ha : sizeOf ts.toList <= sizeOf ts := TermVector.toList_eq_size ts
-  decreasing_trivial
 end Misc
