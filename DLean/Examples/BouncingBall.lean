@@ -1,4 +1,4 @@
-import DLean.Syntax
+import DLean.Syntax.Syntax
 import DLean.Embedding.Embedding
 
 theorem bouncing_ball : Provable (⌈⊢ 0.0 ≤ x ∧ x = H ∧ v = 0 ∧ g > 0 ∧ 1 ≥ c ∧ c ≥ 0 →

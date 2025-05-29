@@ -1,4 +1,4 @@
-import DLean.Syntax
+import DLean.Syntax.Syntax
 
 namespace Semantics
 
