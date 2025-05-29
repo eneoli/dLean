@@ -3,6 +3,7 @@ import Mathlib.Analysis.Calculus.Deriv.Basic
 import DLean.Syntax.Syntax
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
+import DLean.Semantics.FreeVariables
 
 open Semantics
 
@@ -14,7 +15,7 @@ noncomputable def Term.denote (i: Interpretation) (s : State) (t : Term) : ℝ :
     | Term.times x y      => denote i s x * denote i s y
     | Term.applyFn f args => let argValues := .map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
                              i (Symbol.Function f) argValues
-    | Term.differential t => ∑ x ∈ t.freeAssignables, s (Assignable.diff x) *
+    | Term.differential t => ∑ x ∈ t.freeVars, s (Assignable.diff x) *
                                                       (
                                                         deriv (
                                                           fun y => denote i (
@@ -129,33 +130,6 @@ end
 
 def Term.free_vars_dynamic (t : Term) : Set Assignable := {x | ∃i:Interpretation, ∃v:State, ∃v':State, State.isEqExcept v v' {x} ∧ t.denote i v ≠ t.denote i v'}
 
-lemma Term.equal_states_union_iff_both {t₁ : Term}
-                                       {t₂ : Term}
-                                       {v  : State}
-                                       {w  : State}
-                                       : State.isEqOn v w (t₁.free_vars_dynamic ∪ t₂.free_vars_dynamic) ↔
-                                         State.isEqOn v w t₁.free_vars_dynamic ∧
-                                         State.isEqOn v w t₂.free_vars_dynamic := by
-  apply Iff.intro
-  intro h
-  apply And.intro
-  apply State.is_eq_on_subset h
-  simp
-  apply State.is_eq_on_subset h
-  simp
-  intro h
-  unfold State.isEqOn
-  unfold State.isEqOn at h
-  cases' h with h1 h2
-  intro x h'
-  apply Set.mem_or_mem_of_mem_union at h'
-  apply Or.elim h'
-  intro p
-  exact h1 x p
-  intro q
-  exact h2 x q
-
-
 def Formula.free_vars_dynamic (Φ : Formula) : Set Assignable := {x | ∃i:Interpretation, ∃v:State, ∃v':State, State.isEqExcept v v' {x} ∧ v ∈ Φ.denote i ∧ ¬v' ∈ Φ.denote i}
 
 def Program.free_vars_dynamic (α : Program) : Set Assignable := {x | ∃i:Interpretation, ∃v:State, ∃v':State, ∃w:State, State.isEqExcept v v' {x} ∧ (v, w) ∈ α.denote i ∧ ¬∃w', State.isEqExcept w w' {x} ∧ (v', w') ∈ α.denote i}
@@ -199,85 +173,3 @@ lemma Program.bound_effect.smallest (α : Program)
   unfold State.isEqExcept at boom
   have boom2 := boom x hx2
   contradiction
-
-
-
-
-
-
-
-section
-open Classical
-
-lemma Term.coincidence.help (t : Term)
-                            (i : Interpretation)
-                            (v : State)
-                            (w : State)
-                            (S : Set Assignable)
-                            (hc : Set.Countable S)
-                            (h : S ⊆ t.free_vars_dynamicᶜ)
-                            : t.denote i w = t.denote i (
-                              fun x => if x ∈ S then v x else w x
-                            ) := by
-  sorry
-end
-
-lemma Term.coincidence (t : Term)
-                       (i : Interpretation)
-                       (j : Interpretation)
-                       (v : State)
-                       (w : State)
-                       : State.isEqOn v w t.free_vars_dynamic ∧
-                         Interpretation.isEqOn i j t.signature → t.denote i v = t.denote i w := by
-
-  apply @Term.rec (fun _ _ => true) (fun t => State.isEqOn v w t.free_vars_dynamic ∧
-                         Interpretation.isEqOn i j t.signature → t.denote i v = t.denote i w )
-  all_goals try simp
-
-  -- Case var
-  intros x h1 h2
-  unfold Term.denote
-  unfold State.isEqOn at h1
-  apply h1 x
-  unfold Term.free_vars_dynamic
-  simp
-  apply Exists.intro Interpretation.empty
-  apply Exists.intro State.zero
-  apply Exists.intro $ State.singleton x 1
-  apply And.intro
-  intros x' h'
-  unfold State.singleton
-  unfold State.zero
-  unfold State.update
-  exact Eq.symm (if_neg h')
-  unfold State.singleton
-  unfold State.update
-  unfold State.zero
-  unfold Term.denote
-  simp
-
-  -- Case neg
-  intros t h1 h2 h3
-  unfold Term.denote
-  simp
-  apply h1
-  apply State.is_eq_on_subset h2
-  unfold Term.free_vars_dynamic
-  simp
-  intro x i v w h1 h2
-  apply Exists.intro i
-  apply Exists.intro v
-  apply Exists.intro w
-  apply And.intro
-  exact h1
-  simp[Term.denote]
-  exact h2
-  exact h3
-
-  -- Case plus
-  intros t1 t2 h1 h2 h3 h4
-  unfold Term.denote
-  have ih : (State.isEqOn v w t1.free_vars_dynamic) ∧ (State.isEqOn v w t2.free_vars_dynamic)  := by
-    apply Term.equal_states_union_iff_both.mp
-    sorry
-  all_goals sorry
