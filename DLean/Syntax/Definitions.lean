@@ -4,9 +4,6 @@ inductive Variable : Type where
   | variable (name : String) : Variable
 deriving Repr, DecidableEq, BEq
 
-def Variable.name : Variable → String
-  | .variable name => name
-
 inductive Assignable : Type where
   | var  : Variable → Assignable
   | diff : Assignable → Assignable
@@ -60,6 +57,9 @@ end
 def Term.minus (t₁ : Term) (t₂ : Term) :=
   Term.plus t₁ (Term.neg t₂)
 
+-- Utility Functions to replace "induction" tactic on mutually inductive types
+def TermVector.induct (prop : (n : ℕ) → TermVector n → Prop) := @TermVector.rec prop (fun _ => true)
+def Term.induct (prop : Term → Prop) := @Term.rec (fun _ _ => true) prop
 
 structure ODE : Type where
   var: Assignable
