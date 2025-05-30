@@ -47,18 +47,16 @@ theorem TermVector.zero_size_eq_nil : ∀ts : TermVector 0, ts = TermVector.nil 
   cases ts
   simp
 
-theorem TermVector.mem_cons_ {n : ℕ}
-                             {t : Term}
-                             {x : Term}
-                             {ts : TermVector n}
-                             (h : x ∈ TermVector.cons t ts)
-                             : x = t ∨ x ∈ ts := by
+theorem TermVector.mem_cons {n : ℕ}
+                            {t : Term}
+                            {x : Term}
+                            {ts : TermVector n}
+                            (h : x ∈ TermVector.cons t ts)
+                            : x = t ∨ x ∈ ts := by
   cases h
-  .
-    simp
-  .
-    apply Or.inr
-    assumption
+  simp
+  apply Or.inr
+  assumption
 
 theorem TermVector.mem_in_head {n : ℕ}
                                {t : Term}
@@ -68,11 +66,11 @@ theorem TermVector.mem_in_head {n : ℕ}
   simp[h]
   exact List.mem_of_mem_head? rfl
 
-theorem TermVector.mem_cons {n : ℕ}
-                                {t : Term}
-                                {x : Term}
-                                {xs : TermVector n}
-                                (h : t ∈ xs) : t ∈ TermVector.cons x xs := by
+theorem TermVector.mem_of_mem_tail {n : ℕ}
+                                   {t : Term}
+                                   {x : Term}
+                                   {xs : TermVector n}
+                                   (h : t ∈ xs) : t ∈ TermVector.cons x xs := by
   exact List.mem_of_mem_tail h
 
 theorem TermVector.mem_in_tail {n : ℕ}
@@ -145,7 +143,7 @@ theorem TermVector.mem_toVector_iff {n : ℕ} (t: Term) (ts: TermVector n) : t �
     apply TermVector.mem_in_head
     exact htt'
   else
-    apply @TermVector.mem_cons _ t t' ts
+    apply @TermVector.mem_of_mem_tail _ t t' ts
     have hAppend := Vector.mem_cast.mp ha
     simp[*] at ha
     have help := Vector.mem_append.mp ha
