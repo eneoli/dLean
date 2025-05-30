@@ -36,6 +36,30 @@ def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
 instance {n : ℕ} : Membership Term (TermVector n) where
   mem := fun vec elem => elem ∈ vec.toList
 
+@[simp]
+theorem TermVector.mem_nil_iff : ∀ t : Term, ¬ t ∈ TermVector.nil := by
+  intros t ht
+  exact (List.mem_nil_iff t).mp ht
+
+@[simp]
+theorem TermVector.zero_size_eq_nil : ∀ts : TermVector 0, ts = TermVector.nil := by
+  intro ts
+  cases ts
+  simp
+
+theorem TermVector.mem_cons_ {n : ℕ}
+                             {t : Term}
+                             {x : Term}
+                             {ts : TermVector n}
+                             (h : x ∈ TermVector.cons t ts)
+                             : x = t ∨ x ∈ ts := by
+  cases h
+  .
+    simp
+  .
+    apply Or.inr
+    assumption
+
 theorem TermVector.mem_in_head {n : ℕ}
                                {t : Term}
                                {x : Term}
@@ -145,5 +169,9 @@ def Assignable.diff_emb : Assignable ↪ Assignable := {
   toFun:= diff
   inj':= by simp[Function.Injective]
 }
+
+-- Utility Functions to replace "induction" tactic on mutually inductive types
+def TermVector.induct (prop : (n : ℕ) → TermVector n → Prop) := @TermVector.rec prop (fun _ => true)
+def Term.induct (prop : Term → Prop) := @Term.rec (fun _ ts => ∀t ∈ ts, prop t) prop
 
 end Misc

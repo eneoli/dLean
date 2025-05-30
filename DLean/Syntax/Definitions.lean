@@ -57,10 +57,6 @@ end
 def Term.minus (t₁ : Term) (t₂ : Term) :=
   Term.plus t₁ (Term.neg t₂)
 
--- Utility Functions to replace "induction" tactic on mutually inductive types
-def TermVector.induct (prop : (n : ℕ) → TermVector n → Prop) := @TermVector.rec prop (fun _ => true)
-def Term.induct (prop : Term → Prop) := @Term.rec (fun _ _ => true) prop
-
 structure ODE : Type where
   var: Assignable
   term: Term
