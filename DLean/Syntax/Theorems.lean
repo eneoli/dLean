@@ -169,7 +169,7 @@ def Assignable.diff_emb : Assignable ↪ Assignable := {
 }
 
 -- Utility Functions to replace "induction" tactic on mutually inductive types
-def TermVector.induct (prop : (n : ℕ) → TermVector n → Prop) := @TermVector.rec prop (fun _ => true)
+def TermVector.induct (prop : (n : ℕ) → TermVector n → Prop) := @TermVector.rec prop (fun t => prop 1 (TermVector.singleton t))
 def Term.induct (prop : Term → Prop) := @Term.rec (fun _ ts => ∀t ∈ ts, prop t) prop
 
 end Misc

@@ -54,6 +54,8 @@ inductive Term : Type where
 deriving Repr, DecidableEq
 end
 
+def TermVector.singleton (t : Term) : TermVector 1 := TermVector.cons t TermVector.nil
+
 def Term.minus (t₁ : Term) (t₂ : Term) :=
   Term.plus t₁ (Term.neg t₂)
 

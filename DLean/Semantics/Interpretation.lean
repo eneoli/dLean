@@ -1,5 +1,6 @@
 import Mathlib.Data.Finset.Basic
 
+import DLean.Util.Finset
 import DLean.Syntax.Syntax
 import DLean.Semantics.State
 
@@ -17,7 +18,7 @@ def Term.signature (t : Term) : Finset Symbol := match t with
   | Term.plus  t1 t2
   | Term.times t1 t2     => t1.signature ∪ t2.signature
   | Term.differential t' => t'.signature
-  | Term.applyFn f args  => {Symbol.Function f} ∪ List.foldl (fun acc ⟨t, _⟩ => acc ∪ t.signature) ∅ args.toList.attach
+  | Term.applyFn f args  => {Symbol.Function f} ∪ unionListOfFinsets (args.toList.attach.map (fun ⟨t, _⟩ => Term.signature t))
 decreasing_by
 all_goals try decreasing_trivial
 have h := TermVector.toList_eq_size args
