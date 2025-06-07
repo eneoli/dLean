@@ -19,7 +19,7 @@ noncomputable def Term.denote (i: Interpretation) (s : State) (t : Term) : ℝ :
                                                       (
                                                         deriv (
                                                           fun y => denote i (
-                                                            fun x' => if x = x' then y else s x'
+                                                            s.update x y
                                                           ) t
                                                         ) (s x)
                                                       )
