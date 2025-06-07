@@ -20,9 +20,19 @@ decreasing_by
 
 section Theorems
 
-open Semantics
+@[simp]
+theorem Term.freeVars_subset_diff_freeVars (t : Term) : t.freeVars ⊆ t.differential.freeVars := by
+  simp[Term.freeVars]
 
-set_option pp.rawOnError true
+theorem Term.freeVar_lifts_to_diff (t : Term)
+                                   (a : Assignable)
+                                   : a ∈ t.freeVars → a.diff ∈ t.differential.freeVars := by
+  simp only [Term.freeVars]
+  intro h
+  simp[Assignable.diff_emb]
+  exact Or.inr h
+
+open Semantics
 
 theorem State.isEqOn_fnApp_iff {v  : State}
                                {w  : State}
