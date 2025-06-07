@@ -35,12 +35,12 @@ lemma State.is_eq_on_subset {s₁ : State}
     exact fun x a ↦ h x (hs a)
 
 lemma State.eq_union_iff_both {v  : State}
-                                       {w  : State}
-                                       {S₁ : Set Assignable}
-                                       {S₂ : Set Assignable}
-                                       : State.isEqOn v w (S₁ ∪ S₂) ↔
-                                         State.isEqOn v w S₁ ∧
-                                         State.isEqOn v w S₂ := by
+                              {w  : State}
+                              {S₁ : Set Assignable}
+                              {S₂ : Set Assignable}
+                              : State.isEqOn v w (S₁ ∪ S₂) ↔
+                                State.isEqOn v w S₁ ∧
+                                State.isEqOn v w S₂ := by
   apply Iff.intro
   .
     intro h
@@ -65,3 +65,16 @@ lemma State.eq_union_iff_both {v  : State}
     .
       intro q
       exact h2 x q
+
+lemma State.eq_on_if_update {v : State}
+                            {w : State}
+                            {S : Set Assignable}
+                            (a : Assignable)
+                            (y : ℝ)
+                            : State.isEqOn v w S →
+                              State.isEqOn (v.update a y) (w.update a y) S := by
+
+  simp[State.isEqOn]
+  simp[State.update]
+  intro h
+  exact fun x a_1 ↦ congrArg (ite (x = a) y) (h x a_1)
