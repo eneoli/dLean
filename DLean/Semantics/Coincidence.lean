@@ -13,9 +13,8 @@ theorem TermVector.coincidence {n : ℕ} (ts : TermVector n)
                          (j : Interpretation)
                          (v : State)
                          (w : State)
-                         : (∀ t ∈ ts, State.isEqOn v w t.freeVars) ∧
-                           (∀ t ∈ ts, Interpretation.isEqOn i j t.signature) → ∀ t ∈ ts, t.denote i v = t.denote j w := by
-  rintro ⟨Hstate, Hinterp⟩
+                         : ∀ t ∈ ts, State.isEqOn v w t.freeVars ∧
+                           Interpretation.isEqOn i j t.signature → t.denote i v = t.denote j w := by
   match ts with
   | .nil =>
       simp
@@ -23,20 +22,9 @@ theorem TermVector.coincidence {n : ℕ} (ts : TermVector n)
       intros t' ht'
       apply Or.elim (TermVector.mem_cons ht')
       . intro h
-        rw[h] at ht'
         rw[h]
         apply Term.coincidence
-        apply And.intro
-        . exact (Hstate _ ht')
-        . exact (Hinterp _ ht')
       . apply TermVector.coincidence
-        apply And.intro
-        . intro t' Hin
-          apply Hstate
-          exact (TermVector.mem_of_mem_tail Hin)
-        . intro t' Hin
-          apply Hinterp
-          exact (TermVector.mem_of_mem_tail Hin)
 
 theorem Term.coincidence (t : Term)
                          (i : Interpretation)
@@ -124,15 +112,15 @@ theorem Term.coincidence (t : Term)
       have : ∀t ∈ ts.toVector, Term.denote i v t = Term.denote j w t := by
         intro t ht
         apply TermVector.coincidence ts
+        . exact (TermVector.mem_toVector_iff _ _).mpr ht
         . apply And.intro
           .
             apply State.isEqOn_fnApp_iff.mp
             exact h1
+            exact (TermVector.mem_toVector_iff _ _).mpr ht
           .
             have := Interpretation.isEqOn_fnApp_iff.mp h2
-            exact And.left this
-
-        . exact (TermVector.mem_toVector_iff _ _).mpr ht
+            exact And.left this t ((TermVector.mem_toVector_iff _ _).mpr ht)
 
       rw[Vector.map_congr_left this]
       apply Interpretation.isEqOn_fnApp_iff.mp at h2
