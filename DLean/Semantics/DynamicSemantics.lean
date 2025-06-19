@@ -29,7 +29,6 @@ decreasing_by
   have x : sizeOf e < sizeOf args := TermVector.sizeOf_lt_of_mem t
   simp[*]
   omega
--- notation i s"〚"t"〛" => Term.denote i s t
 
 inductive LoopClosure (sem : Set (State × State)) : State → State → Prop where
   | rfl   : (v : State) → LoopClosure sem v v
@@ -66,7 +65,7 @@ end
 
 mutual
 def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ with
-  | Formula.applyPred p ts => fun s => let args := Vector.map (Term.denote i s) ts.toVector
+  | Formula.applyPred p ts => fun s => let args := .map (Term.denote i s) ts.toVector
                                        i (Symbol.Predicate p) args
   | Formula.True           => fun _ => true
   | Formula.False          => ∅
@@ -82,8 +81,6 @@ def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ w
   decreasing_by
   all_goals simp[Formula.size]
   all_goals omega
-
--- notation i"〚"Φ"〛" => Formula.denote i Φ
 
 def Program.denote (i : Interpretation) (α : Program) : Set (State × State) := match α with
   | Program.const a       => i (Symbol.Program a)
@@ -138,6 +135,8 @@ def Program.bound_vars_dynamic (α : Program) : Set Assignable := {x | ∃i:Inte
 
 -- TODO supersets
 
+section Theorems
+
 lemma Program.bound_effect (α : Program)
                            (v : State)
                            (w : State)
@@ -173,3 +172,5 @@ lemma Program.bound_effect.smallest (α : Program)
   unfold State.isEqExcept at boom
   have boom2 := boom x hx2
   contradiction
+
+end Theorems
