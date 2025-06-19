@@ -444,7 +444,8 @@ def delabConst : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.const 1
   let programSymbol := expr.appArg!
-  let symbolName := Lean.mkIdent $ Lean.Name.mkSimple (← extractString programSymbol.appArg!)
+  guard $ programSymbol.isAppOfArity' ``ProgramSymbol.mk 1
+  let symbolName := Lean.mkIdent $ Lean.Name.mkSimple (← extractString programSymbol)
   `($symbolName)
 
 @[delab app.Program.test]
