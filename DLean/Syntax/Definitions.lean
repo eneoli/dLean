@@ -9,6 +9,8 @@ inductive Assignable : Type where
   | diff : Assignable → Assignable
 deriving Repr, DecidableEq, BEq
 
+abbrev Assignable.Set : Set Assignable := Set.univ
+
 def Assignable.orderOfDerivate : Assignable → ℕ
   | .var _ => 0
   | .diff a => 1 + a.orderOfDerivate
@@ -16,6 +18,9 @@ def Assignable.orderOfDerivate : Assignable → ℕ
 def Assignable.baseVariable : Assignable → Variable
   | .var v => v
   | .diff a => a.baseVariable
+
+instance : Coe Variable Assignable where
+  coe := Assignable.var
 
 inductive FunctionSymbol : Type where
   -- if sign then n * 10 ^ (0 - e) else n * 10 ^ e
