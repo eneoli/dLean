@@ -28,7 +28,7 @@ mutual
 def Formula.signature (Φ : Formula) : Finset Symbol := match Φ with
   | Formula.True             => ∅
   | Formula.False            => ∅
-  | Formula.applyPred p args => {Symbol.Predicate p} ∪ List.foldl (fun acc ⟨t, _⟩ => acc ∪ t.signature) ∅ args.toList.attach
+  | Formula.applyPred p args => {Symbol.Predicate p} ∪ unionListOfFinsets (args.toList.attach.map (fun ⟨t, _⟩ => Term.signature t))
   | Formula.not Φ'           => Φ'.signature
   | Formula.and Φ₁ Φ₂        => Φ₁.signature ∪ Φ₂.signature
   | Formula.forall _ Φ'      => Φ'.signature
