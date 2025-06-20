@@ -32,12 +32,12 @@ decreasing_by
 
 inductive LoopClosure (sem : Set (State × State)) : State → State → Prop where
   | rfl   : (v : State) → LoopClosure sem v v
-  | trans : (v : State)
-            → (s : State)
+  | trans : (u : State)
+            → (v : State)
             → (w : State)
-            → sem ⟨v, s⟩
-            → LoopClosure sem s w
-            → LoopClosure sem v w
+            → LoopClosure sem u v
+            → sem ⟨v, w⟩
+            → LoopClosure sem u w
 
 mutual
 noncomputable def Formula.size (Φ : Formula) := match Φ with
@@ -88,7 +88,7 @@ def Program.denote (i : Interpretation) (α : Program) : Set (State × State) :=
   | Program.assign x t    => {(s₁, s₂) | s₂ = s₁.update x (t.denote i s₁)}
   | Program.choice α₁ α₂  => (α₁.denote i) ∪ (α₂.denote i)
   | Program.seq α₁ α₂     => {(s₁, s₂) | ∃v:State, (s₁, v) ∈ α₁.denote i ∧ (v, s₂) ∈ α₂.denote i}
-  | Program.loop α        => fun ⟨s₁, s₂⟩ => LoopClosure (α.denote i) s₁ s₂
+  | Program.loop α        => {⟨s₁, s₂⟩ | LoopClosure (α.denote i) s₁ s₂}
   | Program.ode system Q  => {
       (s₁, s₂) | ∃r:ℝ,
                  ∃φ:ℝ → State,
