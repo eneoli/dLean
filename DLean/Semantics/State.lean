@@ -34,6 +34,7 @@ lemma State.is_eq_on_subset {s₁ : State}
                             (hs : on₂ ⊆ on₁) : State.isEqOn s₁ s₂ on₂ := by
     exact fun x a ↦ h x (hs a)
 
+@[simp]
 lemma State.eq_union_iff_both {v  : State}
                               {w  : State}
                               {S₁ : Set Assignable}
@@ -113,7 +114,8 @@ lemma State.eq_on_univ {v : State}
   exact h x
 
 @[simp]
-lemma State.eq_rfl {v : State}
-                   {S : Set Assignable}
-                   : State.isEqOn v v S := by
+lemma State.eq_rfl {v : State} {S : Set Assignable} : State.isEqOn v v S := by
   exact fun x ↦ congrFun rfl
+
+@[simp]
+lemma State.eq_empty {v w : State} : State.isEqOn v w ∅ := by simp[State.isEqOn]
