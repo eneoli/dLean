@@ -58,7 +58,6 @@ theorem Term.coincidence (t : Term)
         apply And.intro
         .
           simp[Term.freeVars] at h31
-          apply State.eq_union_iff_both.mp at h31
           apply And.left at h31
           assumption
         .
@@ -72,7 +71,6 @@ theorem Term.coincidence (t : Term)
         apply And.intro
         .
           simp[Term.freeVars] at h31
-          apply State.eq_union_iff_both.mp at h31
           apply And.right at h31
           assumption
         .
@@ -85,7 +83,6 @@ theorem Term.coincidence (t : Term)
       simp[Term.denote]
       cases' h3 with h31 h32
       simp[Term.freeVars] at h31
-      apply State.eq_union_iff_both.mp at h31
       simp[Term.signature] at h32
       apply Interpretation.eq_union_iff_both.mp at h32
       have h  : Term.denote i v a = Term.denote j w a := by
@@ -153,7 +150,7 @@ theorem Term.coincidence (t : Term)
             exact State.eq_on_eq_on_if_update a y (by
               simp[Term.freeVars] at h2a
               apply State.is_eq_on_subset
-              exact h2a
+              exact h2a.1
               simp
             )
 
@@ -196,7 +193,6 @@ theorem Formula.coincidence (Φ : Formula)
       simp[Formula.freeVars] at h1
       simp[Formula.signature] at h2
       simp[Formula.denote]
-      apply State.eq_union_iff_both.mp at h1
       apply Interpretation.eq_union_iff_both.mp at h2
       have := Term.coincidence t₁ i j v w ⟨And.left h1, And.left h2⟩
       rw[←this]
@@ -212,7 +208,6 @@ theorem Formula.coincidence (Φ : Formula)
       simp[Formula.freeVars] at h1
       simp[Formula.signature] at h2
       simp[Formula.denote]
-      apply State.eq_union_iff_both.mp at h1
       apply Interpretation.eq_union_iff_both.mp at h2
       have := Formula.coincidence Φ₁ i j v w ⟨And.left h1, And.left h2⟩
       rw[this]
@@ -275,7 +270,6 @@ theorem Formula.coincidence (Φ : Formula)
       simp[Formula.freeVars] at h1
       simp[Formula.signature] at h2
       simp[Formula.denote]
-      apply State.eq_union_iff_both.mp at h1
       apply Interpretation.eq_union_iff_both.mp at h2
       apply Iff.intro
       .
@@ -330,10 +324,15 @@ theorem Program.coincidence (α  : Program)
       simp[Program.mustBoundVars]
       simp[Program.boundVars]
       simp[Program.signature] at h2
-      apply State.eq_on_except_eq_on_if_update a (Term.denote j v' t)
-      apply @State.is_eq_on_subset v v' S
-      . assumption
-      . simp
+      .
+        apply And.intro
+        .
+          apply State.eq_on_eq_on_if_update
+          exact h1
+        .
+          have := @State.eq_on_extends_if_update v v' ∅ a
+          simp at this
+          apply this
     | .test Ψ =>
       simp[Program.denote]
       simp[Program.freeVars] at hs
@@ -346,8 +345,7 @@ theorem Program.coincidence (α  : Program)
       .
         have := (Formula.coincidence Ψ i j v v' ⟨State.is_eq_on_subset h1 hs, h2⟩).mp hw
         assumption
-      .
-        assumption
+      . simp[h1]
     | .choice α β =>
       simp[Program.denote]
       simp[Program.freeVars] at hs
@@ -362,12 +360,73 @@ theorem Program.coincidence (α  : Program)
         cases' this with w' hw'
         apply Exists.intro w'
         apply And.intro
-        . exact Or.inl (And.left hw')
+        . exact Or.inl hw'.1
         .
-          apply State.eq_union_iff_both.mpr
-          have := State.eq_union_iff_both.mp (And.right hw')
-          exact ⟨And.left this, by apply State.is_eq_on_subset (And.right this); simp⟩
+          have := State.eq_union_iff_both.mp hw'.2
+          exact ⟨And.left this, by apply State.is_eq_on_subset this.2; simp⟩
       .
-        sorry
-    | _ => sorry
+        intro h3
+        apply Interpretation.eq_union_iff_both.mp at h2
+        have := Program.coincidence β i j v v' S hs.2 h1 (by simp[h2]) w h3
+        cases' this with w' hw'
+        apply Exists.intro w'
+        apply And.intro
+        . exact Or.inr hw'.1
+        .
+          -- apply State.eq_union_iff_both.mpr
+          have := State.eq_union_iff_both.mp hw'.2
+          exact ⟨this.1, by apply State.is_eq_on_subset this.2; simp⟩
+    | .seq α β =>
+      intro h1 h2 w h3
+      simp[Program.signature] at h2
+      apply Interpretation.eq_union_iff_both.mp at h2
+      simp[Program.denote] at h3
+      simp[Program.mustBoundVars]
+      simp[Program.freeVars] at hs
+
+      cases' h3 with u hu
+      simp[Program.denote]
+      have := Program.coincidence α i j v v' S hs.1 h1 h2.1 u hu.1
+      cases' this with u' hu'
+      have := Program.coincidence β i j u u' (S ∪ α.mustBoundVars) (Set.subset_union_of_subset_left hs.2 α.mustBoundVars) (by
+        have := hu'.2
+        apply State.eq_union_iff_both.mp at this
+        simp[this]
+      ) h2.2 w hu.2
+      cases' this with w' hw'
+      apply Exists.intro w'
+      apply And.intro
+      .
+        apply Exists.intro u'
+        exact ⟨hu'.1, hw'.1⟩
+      .
+        cases' hw' with _ hw'
+        apply State.eq_union_iff_both.mp at hw'
+        cases' hw' with hw'1 hw'2
+        apply State.eq_union_iff_both.mp at hw'1
+        exact ⟨hw'1.1, hw'1.2, hw'2⟩
+    | .loop α =>
+      intro h1 h2 w hw
+      simp[Program.freeVars] at hs
+      simp[Program.signature] at h2
+      simp[Program.denote] at hw
+      simp[Program.mustBoundVars]
+      simp[Program.denote]
+      induction hw
+      next =>
+        apply Exists.intro v'
+        exact ⟨.rfl _, h1⟩
+      next a b c hvb hbc ih =>
+        cases' ih with b' hb'
+
+        have := Program.coincidence α i j b b' S hs hb'.2 h2 c hbc
+        cases' this with c' hc'
+        apply Exists.intro c'
+        exact ⟨
+          LoopClosure.trans v' b' c' hb'.1 hc'.1, by
+          apply And.right at hc'
+          apply State.eq_union_iff_both.mp  at hc'
+          simp[hc']
+        ⟩
+    | .ode system ψ  => sorry
 end
