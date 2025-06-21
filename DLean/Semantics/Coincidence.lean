@@ -179,13 +179,13 @@ theorem Formula.coincidence (Φ : Formula)
                             (w : State)
                             : State.isEqOn v w Φ.freeVars ∧
                               Interpretation.isEqOn i j Φ.signature
-                              → (v ∈ Φ.denote i ↔ w ∈ Φ.denote j) := by
+                              → v ∈ Φ.denote i → w ∈ Φ.denote j := by
   intro h
   cases' h with h1 h2
   match Φ with
     | .True  =>
       simp[Formula.denote]
-      exact Set.mem_def
+      exact fun a ↦ a
     | .False =>
       simp[Formula.denote]
     | .gte t₁ t₂
@@ -197,22 +197,22 @@ theorem Formula.coincidence (Φ : Formula)
       have := Term.coincidence t₁ i j v w ⟨And.left h1, And.left h2⟩
       rw[←this]
       have := Term.coincidence t₂ i j v w ⟨And.right h1, And.right h2⟩
-      rw[←this]
+      simp[this]
     | .not Φ' =>
       simp[Formula.freeVars] at h1
       simp[Formula.signature] at h2
       simp[Formula.denote]
-      have := Formula.coincidence Φ' i j v w ⟨h1, h2⟩
-      exact not_congr this
+      apply not_imp_not.mpr
+      exact Formula.coincidence Φ' j i w v ⟨State.eq_on_swap h1, Interpretation.eq_on_swap h2⟩
     | .and Φ₁ Φ₂ =>
       simp[Formula.freeVars] at h1
       simp[Formula.signature] at h2
       simp[Formula.denote]
+      intro h3 h4
       apply Interpretation.eq_union_iff_both.mp at h2
-      have := Formula.coincidence Φ₁ i j v w ⟨And.left h1, And.left h2⟩
-      rw[this]
-      have := Formula.coincidence Φ₂ i j v w ⟨And.right h1, And.right h2⟩
-      rw[this]
+      have h5:= Formula.coincidence Φ₁ i j v w ⟨And.left h1, And.left h2⟩
+      have h6:= Formula.coincidence Φ₂ i j v w ⟨And.right h1, And.right h2⟩
+      exact ⟨h5 h3, h6 h4⟩
     | .applyPred p ts =>
       unfold Formula.denote
       have : ∀t ∈ ts.toVector, Term.denote i v t = Term.denote j w t := by
@@ -228,7 +228,6 @@ theorem Formula.coincidence (Φ : Formula)
             have := Interpretation.isEqOn_predApp_iff.mp h2
             exact And.left this t ((TermVector.mem_toVector_iff _ _).mpr ht)
 
-
       simp[Membership.mem]
       simp[Set.Mem]
       rw[Vector.map_congr_left this]
@@ -237,12 +236,12 @@ theorem Formula.coincidence (Φ : Formula)
       simp[Formula.signature] at h2
       have := And.left h2
       rw[this]
+      exact fun a ↦ a
     | .forall x Φ' =>
       simp[Formula.freeVars] at h1
       simp[Formula.signature] at h2
       simp[Formula.denote]
-      apply forall_congr'
-      intro y
+      intro h3 y
       have := Formula.coincidence Φ' i j (v.update x y) (w.update x y)
       apply this
       apply And.intro
@@ -251,13 +250,16 @@ theorem Formula.coincidence (Φ : Formula)
         exact State.eq_on_except_eq_on_if_update x y h1
       .
         exact h2
+      .
+        exact h3 y
     | .exists x Φ' =>
       simp[Formula.freeVars] at h1
       simp[Formula.signature] at h2
       simp[Formula.denote]
-      apply exists_congr
       intro y
       have := Formula.coincidence Φ' i j (v.update x y) (w.update x y)
+      intro h3
+      apply Exists.intro y
       apply this
       apply And.intro
       .
@@ -265,29 +267,60 @@ theorem Formula.coincidence (Φ : Formula)
         exact State.eq_on_except_eq_on_if_update x y h1
       .
         exact h2
+      .
+        exact h3
 
     | .diamond α φ =>
-      simp[Formula.freeVars] at h1
+      .
+        intro h3
+        simp[Formula.freeVars] at h1
+        simp[Formula.denote]
+        simp[Formula.denote] at h3
+        simp[Formula.signature] at h2
+        apply Interpretation.eq_union_iff_both.mp at h2
+        cases' h3 with v' h3
+        have α_co := Program.coincidence α i j v w (α.freeVars ∪ φ.freeVars \ α.mustBoundVars) (by simp) (by simp[h1]) h2.1 v' h3.1
+        cases' α_co with w' hα_co
+        simp at hα_co
+        have φ_co := Formula.coincidence φ i j v' w'
+        apply Exists.intro w'
+        . exact ⟨hα_co.1, by
+          have : v'.isEqOn w' φ.freeVars ∧ i.isEqOn j ↑φ.signature := by
+            have h1 := hα_co.2.1.2
+            have h2 := hα_co.2.2
+            have := State.eq_union_iff_both.mpr ⟨h1, h2⟩
+            have r : φ.freeVars ⊆ φ.freeVars \ α.mustBoundVars ∪ α.mustBoundVars := by
+              exact Set.subset_diff_union φ.freeVars α.mustBoundVars
+            simp[this, *]
+            apply State.is_eq_on_subset
+            exact this
+            exact r
+
+          exact φ_co this h3.2
+        ⟩
+    | .box α φ =>
+      simp only [Formula.freeVars] at h1
       simp[Formula.signature] at h2
+      simp[Interpretation.eq_union_iff_both] at h2
       simp[Formula.denote]
-      apply Interpretation.eq_union_iff_both.mp at h2
-      apply Iff.intro
-      .
-        -- intro h3
-        -- cases' h3 with v' h3
-        -- have α_co  := Program.coincidence α i j v w (And.left h1) (And.left h2) v' (And.left h3)
-        -- cases' α_co with w' hα_co
-        -- have φ_co := Formula.coincidence φ i j v' w'
-        -- apply Exists.intro w'
-
-        -- have : v'.isEqOn w' φ.freeVars := by
-
-        sorry
-
-        -- exact ⟨And.left hα_co, (φ_co ⟨this, And.right h2⟩).mp (And.right h3)⟩
-      .
-        sorry
-    | _ => sorry
+      intro h3
+      intro w' hww'
+      have := Program.coincidence α j i w v (α.freeVars ∪ φ.freeVars \ α.mustBoundVars) (by simp) (State.eq_on_swap h1) (Interpretation.eq_on_swap h2.1) w' hww'
+      cases' this with v' hvv'
+      have := h3 v' hvv'.1
+      exact Formula.coincidence φ i j v' w' ⟨by
+        have := State.eq_on_swap hvv'.2
+        have r : φ.freeVars ⊆ α.freeVars ∪ (φ.freeVars \ α.mustBoundVars) ∪ α.mustBoundVars := by
+          have := Set.union_assoc α.freeVars (φ.freeVars \ α.mustBoundVars) α.mustBoundVars
+          rw[this]
+          apply Set.subset_union_of_subset_right
+          exact Set.subset_diff_union φ.freeVars α.mustBoundVars
+        apply State.is_eq_on_subset
+        exact this
+        exact r
+        ,
+        h2.2
+      ⟩ this
 
 theorem Program.coincidence (α  : Program)
                             (i  : Interpretation)
@@ -343,7 +376,7 @@ theorem Program.coincidence (α  : Program)
       rw[hwv]
       apply And.intro
       .
-        have := (Formula.coincidence Ψ i j v v' ⟨State.is_eq_on_subset h1 hs, h2⟩).mp hw
+        have := (Formula.coincidence Ψ i j v v' ⟨State.is_eq_on_subset h1 hs, h2⟩) hw
         assumption
       . simp[h1]
     | .choice α β =>
@@ -373,7 +406,6 @@ theorem Program.coincidence (α  : Program)
         apply And.intro
         . exact Or.inr hw'.1
         .
-          -- apply State.eq_union_iff_both.mpr
           have := State.eq_union_iff_both.mp hw'.2
           exact ⟨this.1, by apply State.is_eq_on_subset this.2; simp⟩
     | .seq α β =>
@@ -428,5 +460,7 @@ theorem Program.coincidence (α  : Program)
           apply State.eq_union_iff_both.mp  at hc'
           simp[hc']
         ⟩
-    | .ode system ψ  => sorry
+    | .ode system ψ  =>
+      intro h1 h2 w h3
+      sorry
 end
