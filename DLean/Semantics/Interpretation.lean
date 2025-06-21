@@ -126,3 +126,13 @@ lemma Interpretation.eq_union_iff_both {i  : Interpretation}
   .
     intro h
     exact Interpretation.equal_union_iff_both.mpr h
+
+lemma Interpretation.eq_on_swap {i j : Interpretation}
+                                {S : Set Symbol} : Interpretation.isEqOn i j S →
+                                                   Interpretation.isEqOn j i S := by
+  simp[Interpretation.isEqOn]
+  intro h
+  intro s
+  intro hs
+  exact Eq.symm $ h s hs
+  

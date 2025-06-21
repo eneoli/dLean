@@ -119,3 +119,8 @@ lemma State.eq_rfl {v : State} {S : Set Assignable} : State.isEqOn v v S := by
 
 @[simp]
 lemma State.eq_empty {v w : State} : State.isEqOn v w ∅ := by simp[State.isEqOn]
+
+lemma State.eq_on_swap {v w : State} {S : Set Assignable} : State.isEqOn v w S → State.isEqOn w v S := by
+  simp[State.isEqOn]
+  intro a
+  exact fun x a_1 ↦ Eq.symm (Real.ext_cauchy (congrArg Real.cauchy (a x a_1)))
