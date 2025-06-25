@@ -461,6 +461,64 @@ theorem Program.coincidence (α  : Program)
           simp[hc']
         ⟩
     | .ode system ψ  =>
-      intro h1 h2 w h3
-      sorry
+      intros h1 h2 w h3
+      simp[Program.denote] at h3
+
+      obtain ⟨r, φ, h31, h32⟩ := h3
+
+      let evolving_vars := (system.assignables ++ List.map Assignable.diff system.assignables).toFinset
+      let φ' : ℝ → State := λt x => if x ∈ evolving_vars then φ t x else v' x
+      let w' := φ' r
+
+      apply Exists.intro w'
+      apply And.intro
+      .
+        simp[Program.denote]
+        apply Exists.intro r
+        apply Exists.intro φ'
+        apply And.intro
+        .
+          simp_all[State.isEqExcept, φ', evolving_vars, OdeSystem.assignables]
+          intro x hx
+          split
+          .
+            next hif =>
+              apply Or.elim hif
+              .
+                intro he
+                obtain ⟨a, ha⟩ := he
+                have := h31 x hx
+                rw[←this]
+                simp[State.isEqOn] at h1
+                apply Eq.symm
+                apply h1
+                simp[Program.freeVars] at hs
+                apply And.left at hs
+                apply And.left at hs
+                apply hs
+                simp[*]
+                exact Exists.intro a ha
+              .
+                intro he
+                obtain ⟨a, ha⟩ := he
+                have := hx a ha.1
+                exfalso
+                exact this ha.2
+          . rfl
+        . apply And.intro
+          . simp[w', State.isEq]
+          .
+            intro ζ hil hir
+            apply And.intro
+            .
+              have := h32.2 ζ hil hir
+              exact Formula.coincidence (odeEvolutionFormula system ψ) i j (φ ζ) (φ' ζ) ⟨
+                sorry,
+                by simp[ode_evolution_formula_signature_eq_ode_signature, *]
+              ⟩ this.1
+            . apply And.intro
+              . sorry
+              . sorry
+      .
+        sorry
 end
