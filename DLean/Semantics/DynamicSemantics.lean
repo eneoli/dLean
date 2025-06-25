@@ -96,8 +96,7 @@ def Program.denote (i : Interpretation) (α : Program) : Set (State × State) :=
   | Program.seq α₁ α₂     => {(s₁, s₂) | ∃v:State, (s₁, v) ∈ α₁.denote i ∧ (v, s₂) ∈ α₂.denote i}
   | Program.loop α        => {⟨s₁, s₂⟩ | LoopClosure (α.denote i) s₁ s₂}
   | Program.ode system Q  => {
-      (s₁, s₂) | ∃r:ℝ,
-                 r ≥ 0 ∧
+      (s₁, s₂) | ∃r ≥ 0,
                  ∃φ:ℝ → State,
                   State.isEqExcept s₁ (φ 0) (List.map Assignable.diff $ system.assignables).toFinset ∧
                   State.isEq s₂ (φ r) ∧
@@ -105,10 +104,8 @@ def Program.denote (i : Interpretation) (α : Program) : Set (State × State) :=
                     ∀ζ ∈ Set.Icc 0 r, φ ζ ∈ (odeEvolutionFormula system Q).denote i ∧
                     State.isEqExcept (φ 0) (φ ζ)
                     (system.assignables ++ List.map Assignable.diff system.assignables).toFinset ∧
-                    ∀ x ∈ system.assignables,
-                      HasDerivAt (fun t => φ t x) (
-                        φ ζ (Assignable.diff x)
-                      ) ζ
+                    ∀x∈system.assignables,
+                      HasDerivAt (fun t => φ t x) (φ ζ (Assignable.diff x)) ζ
                   )
     }
   termination_by α.size

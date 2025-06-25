@@ -41,7 +41,7 @@ def dW : sound [Formula| [x'=f(x)&q(x)]q(x)] := by
   simp[Program.denote.buildOdeFormula, Formula.denote]
   simp[Membership.mem, Set.Mem]
   simp[setOf]
-  intros w r φ Hstart Hend Hinv
+  intros w r Hr φ Hstart Hend Hinv
   have ⟨⟨left,H⟩, right⟩ := Hinv r ?goal (by simp)
   . clear left right
     revert H
@@ -49,4 +49,4 @@ def dW : sound [Formula| [x'=f(x)&q(x)]q(x)] := by
     simp[Term.denote]
     specialize Hend (Assignable.var (Variable.variable "x"))
     simp[Hend]
-  . sorry
+  . trivial
