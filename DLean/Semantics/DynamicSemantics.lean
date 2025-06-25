@@ -82,6 +82,12 @@ def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ w
   all_goals simp[Formula.size]
   all_goals omega
 
+def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) := match system with
+  | [] => Ψ
+  | {var, term} :: xs => Formula.and (
+      Formula.eq (Term.var $ Assignable.diff var) term
+    ) $ odeEvolutionFormula xs Ψ
+
 def Program.denote (i : Interpretation) (α : Program) : Set (State × State) := match α with
   | Program.const a       => i (Symbol.Program a)
   | Program.test Φ        => {(s, s) | s ∈ Φ.denote i}
@@ -92,13 +98,13 @@ def Program.denote (i : Interpretation) (α : Program) : Set (State × State) :=
   | Program.ode system Q  => {
       (s₁, s₂) | ∃r:ℝ,
                  ∃φ:ℝ → State,
-                  State.isEqExcept s₁ (φ 0) (List.map Assignable.diff $ odeAssignables system).toFinset ∧
+                  State.isEqExcept s₁ (φ 0) (List.map Assignable.diff $ system.assignables).toFinset ∧
                   State.isEq s₂ (φ r) ∧
                   (
-                    ∀ζ ∈ Set.Icc 0 r, φ ζ ∈ (buildOdeFormula system Q).denote i ∧
+                    ∀ζ ∈ Set.Icc 0 r, φ ζ ∈ (odeEvolutionFormula system Q).denote i ∧
                     State.isEqExcept (φ 0) (φ ζ)
-                    (odeAssignables system ++ List.map Assignable.diff (odeAssignables system)).toFinset ∧
-                    ∃φ',∀x∈odeAssignables system,
+                    (system.assignables ++ List.map Assignable.diff system.assignables).toFinset ∧
+                    ∃φ',∀ x ∈ system.assignables,
                       HasDerivAt (fun t => φ t x) φ' ζ ∧
                       φ ζ (Assignable.diff x) = deriv (fun t => φ t x) ζ
                   )
@@ -108,22 +114,14 @@ def Program.denote (i : Interpretation) (α : Program) : Set (State × State) :=
   all_goals simp[Program.size]
   all_goals try omega
   induction system
-  simp[Program.denote.buildOdeFormula]
+  simp[odeEvolutionFormula]
   next head tail h =>
-    unfold Program.denote.buildOdeFormula
+    unfold odeEvolutionFormula
     simp +arith[Formula.size]
     have hx : sizeOf head = 1 + sizeOf head.var + sizeOf head.term := by constructor
     rw[hx]
     omega
-  where
-    odeAssignables (system : List ODE) := List.map ODE.var system
-    buildOdeFormula (system : List ODE) (Ψ : Formula) := match system with
-      | [] => Ψ
-      | {var, term} :: xs => Formula.and (
-          Formula.eq (Term.var $ Assignable.diff var) term
-        ) $ buildOdeFormula xs Ψ
 end
-
 
 def Term.free_vars_dynamic (t : Term) : Set Assignable := {x | ∃i:Interpretation, ∃v:State, ∃v':State, State.isEqExcept v v' {x} ∧ t.denote i v ≠ t.denote i v'}
 
@@ -172,5 +170,11 @@ lemma Program.bound_effect.smallest (α : Program)
   unfold State.isEqExcept at boom
   have boom2 := boom x hx2
   contradiction
+
+lemma ode_evolution_formula_signature_eq_ode_signature (system : OdeSystem)
+                                                       (Ψ : Formula)
+                                                       : (odeEvolutionFormula system Ψ).signature = (Program.ode system Ψ).signature := by
+  induction system
+  all_goals simp_all[odeEvolutionFormula, Formula.signature, Program.signature, Term.signature]
 
 end Theorems
