@@ -69,12 +69,16 @@ structure ODE : Type where
   term: Term
 deriving DecidableEq
 
+abbrev OdeSystem := List ODE
+
+def OdeSystem.assignables (system : OdeSystem) := List.map ODE.var system
+
 mutual
 inductive Program : Type where
   | const   : ProgramSymbol → Program
   | assign  : Assignable → Term → Program
   | test    : Formula    → Program
-  | ode     : List ODE   → Formula → Program
+  | ode     : OdeSystem  → Formula → Program
   | choice  : Program    → Program → Program
   | seq     : Program    → Program → Program
   | loop    : Program    → Program
