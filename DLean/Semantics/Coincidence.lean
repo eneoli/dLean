@@ -16,8 +16,7 @@ theorem TermVector.coincidence {n : ℕ} (ts : TermVector n)
                          : ∀ t ∈ ts, State.isEqOn v w t.freeVars ∧
                            Interpretation.isEqOn i j t.signature → t.denote i v = t.denote j w := by
   match ts with
-  | .nil =>
-      simp
+  | .nil       => simp
   | .cons t ts =>
       intros t' ht'
       apply Or.elim (TermVector.mem_cons ht')
@@ -34,20 +33,13 @@ theorem Term.coincidence (t : Term)
                          : State.isEqOn v w t.freeVars ∧
                            Interpretation.isEqOn i j t.signature → t.denote i v = t.denote j w := by
   match t with
-  | .var a =>
-      intro h
-      cases' h with h1 h2
-      simp[Term.denote]
-      simp[Term.freeVars] at h1
-      simp[State.isEqOn] at h1
-      assumption
+  | .var a => simp_all[Term.freeVars, Term.denote, State.isEqOn]
   | .neg a =>
-      intro h2
+      intro h
+      simp[Term.freeVars, Term.signature] at h
       simp[Term.denote]
       apply Term.coincidence
-      simp[Term.freeVars] at h2
-      simp[Term.signature] at h2
-      exact h2
+      assumption
   | .plus a b =>
       intros h3
       simp[Term.denote]
@@ -463,7 +455,6 @@ theorem Program.coincidence (α  : Program)
     | .ode system ψ  =>
       intros h1 h2 w h3
       simp[Program.denote] at h3
-
       obtain ⟨r, φ, h31, h32⟩ := h3
 
       let evolving_vars := (system.assignables ++ List.map Assignable.diff system.assignables).toFinset
@@ -478,7 +469,11 @@ theorem Program.coincidence (α  : Program)
         apply Exists.intro φ'
         apply And.intro
         .
-          simp_all[State.isEqExcept, φ', evolving_vars, OdeSystem.assignables]
+          simp_all only [State.isEqExcept, OdeSystem.assignables, List.mem_map,
+            exists_exists_and_eq_and, Set.mem_setOf_eq, not_exists, not_and, Set.mem_union, not_or,
+            and_imp, forall_exists_index, forall_apply_eq_imp_iff₂, List.toFinset_append,
+            List.map_map, Finset.mem_union, List.mem_toFinset, Function.comp_apply, φ',
+            evolving_vars]
           intro x hx
           split
           .
@@ -512,13 +507,42 @@ theorem Program.coincidence (α  : Program)
             apply And.intro
             .
               have := h32.2 ζ hil hir
-              exact Formula.coincidence (odeEvolutionFormula system ψ) i j (φ ζ) (φ' ζ) ⟨
-                sorry,
+              exact Formula.coincidence (odeEvolutionFormula system ψ) i j (φ ζ) (φ' ζ) ⟨by
+                simp_all[φ', State.isEqOn, odeEvolutionFormula, Formula.freeVars]
+                intro x hx
+                split
+                . rfl
+                .
+                  have hx_not_mem_assignables : x ∉ system.assignables := by simp_all[evolving_vars]
+                  have hx_not_mem_assignables_diff : ∀ x_1 ∈ system.assignables, ¬x_1.diff = x := by simp_all[evolving_vars]
+
+                  have := h1 x hx
+                  rw[←this]
+
+                  obtain ⟨ha, hb, hc⟩ := h32.2 ζ hil hir
+                  simp[State.isEqExcept] at hb
+                  have := hb x hx_not_mem_assignables hx_not_mem_assignables_diff
+                  rw[←this]
+                  simp[State.isEqExcept] at h31
+                  have := h31 x hx_not_mem_assignables_diff
+                  rw[←this],
                 by simp[ode_evolution_formula_signature_eq_ode_signature, *]
               ⟩ this.1
             . apply And.intro
-              . sorry
+              .
+                simp_all[State.isEqExcept, evolving_vars, φ']
+                intro x hx1 hx2
+                split
+                .
+                  obtain ⟨_, this, _⟩ := h32.2 ζ hil hir
+                  exact this x hx1 hx2
+                . rfl
               . sorry
       .
-        sorry
+        have := h32.1
+        simp[w', φ', State.isEqOn]
+        intro x hx
+        split
+        . simp_all only [State.isEq]
+        . sorry
 end
