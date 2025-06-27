@@ -98,12 +98,12 @@ def Program.denote (i : Interpretation) (α : Program) : Set (State × State) :=
   | Program.ode system Q  => {
       (s₁, s₂) | ∃r ≥ 0,
                  ∃φ:ℝ → State,
-                  State.isEqExcept s₁ (φ 0) (List.map Assignable.diff $ system.assignables).toFinset ∧
+                  State.isEqExcept s₁ (φ 0) (system.assignables.map Assignable.diff_emb) ∧
                   State.isEq s₂ (φ r) ∧
                   (
                     ∀ζ ∈ Set.Icc 0 r, φ ζ ∈ (odeEvolutionFormula system Q).denote i ∧
                     State.isEqExcept (φ 0) (φ ζ)
-                    (system.assignables ++ List.map Assignable.diff system.assignables).toFinset ∧
+                    (system.assignables ∪ (system.assignables.map Assignable.diff_emb)) ∧
                     ∀x∈system.assignables,
                       HasDerivAt (fun t => φ t x) (φ ζ (Assignable.diff x)) ζ
                   )

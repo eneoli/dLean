@@ -23,8 +23,8 @@ def Program.boundVars (α : Program) : Set Assignable := match α with
   | .seq α β
   | .choice α β   => Program.boundVars α ∪ Program.boundVars β
   | .loop α       => Program.boundVars α
-  | .ode system _ => let fvars  := List.map ODE.var system
-                     let fvars' := List.map (Assignable.diff ∘ ODE.var) system
-                     fvars.toFinset ∪ fvars'.toFinset
+  | .ode system _ => let fvars  := system.assignables
+                     let fvars' := system.assignables.map Assignable.diff_emb
+                     fvars ∪ fvars'
 
 end

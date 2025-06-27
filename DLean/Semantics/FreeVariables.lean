@@ -129,8 +129,8 @@ def Program.freeVars (α : Program) : Set Assignable := match α with
   | .seq α β
   | .choice α β   => Program.freeVars α ∪ Program.freeVars β
   | .loop α       => Program.freeVars α
-  | .ode system Ψ => let ode_vars := List.toFinset $ List.map (ODE.var) system
-                     let fvars_ode := unionListOfFinsets $ List.map (Term.freeVars ∘ ODE.term) system
+  | .ode system Ψ => let ode_vars := system.assignables
+                     let fvars_ode := unionListOfFinsets <| List.map (Term.freeVars ∘ ODE.term) system
                      let fvars_constraints := Formula.freeVars Ψ
                      ode_vars ∪ fvars_ode ∪ fvars_constraints
 

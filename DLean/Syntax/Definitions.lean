@@ -1,4 +1,5 @@
 import Mathlib.Data.Real.Basic
+import Mathlib.Data.Finset.Basic
 
 inductive Variable : Type where
   | variable (name : String) : Variable
@@ -71,7 +72,7 @@ deriving DecidableEq
 
 abbrev OdeSystem := List ODE
 
-def OdeSystem.assignables (system : OdeSystem) := List.map ODE.var system
+def OdeSystem.assignables (system : OdeSystem) := (List.map ODE.var system).toFinset
 
 mutual
 inductive Program : Type where
