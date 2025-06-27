@@ -455,9 +455,9 @@ theorem Program.coincidence (α  : Program)
     | .ode system ψ  =>
       intros h1 h2 w h3
       simp[Program.denote] at h3
-      obtain ⟨r, φ, h31, h32⟩ := h3
+      obtain ⟨r, Hr, φ, h31, h32⟩ := h3
 
-      let evolving_vars := (system.assignables ++ List.map Assignable.diff system.assignables).toFinset
+      let evolving_vars := system.assignables ∪ (system.assignables.map Assignable.diff_emb)
       let φ' : ℝ → State := λt x => if x ∈ evolving_vars then φ t x else v' x
       let w' := φ' r
 
@@ -466,83 +466,83 @@ theorem Program.coincidence (α  : Program)
       .
         simp[Program.denote]
         apply Exists.intro r
+        apply And.intro (by trivial)
         apply Exists.intro φ'
-        apply And.intro
+        and_intros
         .
-          simp_all only [State.isEqExcept, OdeSystem.assignables, List.mem_map,
-            exists_exists_and_eq_and, Set.mem_setOf_eq, not_exists, not_and, Set.mem_union, not_or,
-            and_imp, forall_exists_index, forall_apply_eq_imp_iff₂, List.toFinset_append,
-            List.map_map, Finset.mem_union, List.mem_toFinset, Function.comp_apply, φ',
-            evolving_vars]
-          intro x hx
+          simp only [State.isEqExcept]
+          intros x hx
+          unfold φ' evolving_vars
+          simp
           split
-          .
-            next hif =>
-              apply Or.elim hif
-              .
-                intro he
-                obtain ⟨a, ha⟩ := he
-                have := h31 x hx
-                rw[←this]
-                simp[State.isEqOn] at h1
-                apply Eq.symm
-                apply h1
-                simp[Program.freeVars] at hs
-                apply And.left at hs
-                apply And.left at hs
-                apply hs
-                simp[*]
-                exact Exists.intro a ha
-              .
-                intro he
-                obtain ⟨a, ha⟩ := he
-                have := hx a ha.1
-                exfalso
-                exact this ha.2
+          next hif =>
+            cases hif
+            next he =>
+              have := h31 x hx
+              rw[←this]
+              apply Eq.symm
+              apply h1
+              apply hs
+              simp[Program.freeVars,he]
+            . contradiction
           . rfl
-        . apply And.intro
-          . simp[w', State.isEq]
+        . simp[w', State.isEq]
+        .
+          intro ζ hil hir
+          rcases h32 with ⟨h32, h33⟩
+          specialize h33 ζ hil hir
+          rcases h33 with ⟨ha, hb, hc⟩
+          and_intros
           .
-            intro ζ hil hir
+            apply Formula.coincidence (odeEvolutionFormula system ψ) i j (φ ζ) (φ' ζ) (_) ha
             apply And.intro
-            .
-              have := h32.2 ζ hil hir
-              exact Formula.coincidence (odeEvolutionFormula system ψ) i j (φ ζ) (φ' ζ) ⟨by
-                simp_all[φ', State.isEqOn, odeEvolutionFormula, Formula.freeVars]
-                intro x hx
-                split
-                . rfl
-                .
-                  have hx_not_mem_assignables : x ∉ system.assignables := by simp_all[evolving_vars]
-                  have hx_not_mem_assignables_diff : ∀ x_1 ∈ system.assignables, ¬x_1.diff = x := by simp_all[evolving_vars]
-
-                  have := h1 x hx
-                  rw[←this]
-
-                  obtain ⟨ha, hb, hc⟩ := h32.2 ζ hil hir
-                  simp[State.isEqExcept] at hb
-                  have := hb x hx_not_mem_assignables hx_not_mem_assignables_diff
-                  rw[←this]
-                  simp[State.isEqExcept] at h31
-                  have := h31 x hx_not_mem_assignables_diff
-                  rw[←this],
-                by simp[ode_evolution_formula_signature_eq_ode_signature, *]
-              ⟩ this.1
-            . apply And.intro
-              .
-                simp_all[State.isEqExcept, evolving_vars, φ']
-                intro x hx1 hx2
-                split
-                .
-                  obtain ⟨_, this, _⟩ := h32.2 ζ hil hir
-                  exact this x hx1 hx2
-                . rfl
-              . sorry
+            . simp only [State.isEqOn]
+              intros x hx
+              unfold φ' evolving_vars
+              split
+              . rfl
+              next he =>
+                have := hb x (by simp_all)
+                rw[←this]
+                have := h31 x (by simp_all)
+                rw[←this]
+                apply h1
+                apply hs
+                sorry
+            . rw[ode_evolution_formula_signature_eq_ode_signature]
+              trivial
+          .
+            simp_all[State.isEqExcept, evolving_vars, φ']
+          . intros x hx
+            unfold φ' evolving_vars
+            simp[hx]
+            split
+            next he =>
+              exact hc x hx
+            next he =>
+              exfalso
+              exact he (Or.inr ⟨x, by trivial⟩)
       .
-        have := h32.1
-        simp[w', φ', State.isEqOn]
-        intro x hx
-        split
-        . simp_all only [State.isEq]
-        . sorry
+        rcases h32 with ⟨h32, h33⟩
+        simp only [State.isEqOn]
+        intros x hx
+        rw[h32]
+        unfold w' φ' evolving_vars
+        simp[Program.mustBoundVars, Program.boundVars] at hx
+        cases hx
+        next hx =>
+          split
+          . rfl
+          next he =>
+            specialize h33 r (by trivial) (by simp)
+            rcases h33 with ⟨_, h33, _⟩
+            have := h33 x (by simp_all)
+            rw[←this]
+            have := h1 x hx
+            rw[←this]
+            apply Eq.symm
+            apply h31
+            simp_all
+        next hx =>
+          simp[hx]
 end
