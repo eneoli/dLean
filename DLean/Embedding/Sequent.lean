@@ -16,14 +16,15 @@ infixr: 66 " ⊢ " => Sequent.mk
 def semantics (Γ : Multiset Formula) (Δ : Multiset Formula) : Prop := match Γ.toList , Δ.toList with
   | [], [] => true → false
   | [], q::qs => ∀ (i : Interpretation) (s : State),
-                   true → Δ.toList.foldr (fun p a => a ∨ Formula.eval i s p) (q.eval i s)
+                   true → qs.foldr (fun p a => a ∨ Formula.eval i s p) (q.eval i s)
   | p::ps, [] => ∀ (i : Interpretation) (s : State),
-                   Γ.toList.foldr (fun p a => a ∧ Formula.eval i s p) (p.eval i s) → false
+                   ps.foldr (fun p a => a ∧ Formula.eval i s p) (p.eval i s) → false
   | p::ps, q::qs => ∀ (i : Interpretation) (s : State),
-                   Γ.toList.foldr (fun p a => a ∧ Formula.eval i s p) (p.eval i s)
-                   → Δ.toList.foldr (fun p a => a ∨ Formula.eval i s p) (q.eval i s)
+                   ps.foldr (fun p a => a ∧ Formula.eval i s p) (p.eval i s)
+                   → qs.foldr (fun p a => a ∨ Formula.eval i s p) (q.eval i s)
 
-
+-- TODO Joscha does not like the name
+-- TODO: Eval + Theorems for axioms instead?
 inductive Provable : Sequent → Prop where
   | semantical : {Γ Δ : Multiset Formula}
                → semantics Γ Δ
