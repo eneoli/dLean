@@ -82,10 +82,10 @@ def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ w
   all_goals simp[Formula.size]
   all_goals omega
 
-def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) := match system with
+def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) : Formula := match system with
   | [] => Ψ
   | {var, term} :: xs => Formula.and (
-      Formula.eq (Term.var $ Assignable.diff var) term
+      Formula.eq (Term.var var.diff) term
     ) $ odeEvolutionFormula xs Ψ
 
 def Program.denote (i : Interpretation) (α : Program) : Set (State × State) := match α with
@@ -97,6 +97,7 @@ def Program.denote (i : Interpretation) (α : Program) : Set (State × State) :=
   | Program.loop α        => {⟨s₁, s₂⟩ | LoopClosure (α.denote i) s₁ s₂}
   | Program.ode system Q  => {
       (s₁, s₂) | ∃r:ℝ,
+                 r ≥ 0 ∧
                  ∃φ:ℝ → State,
                   State.isEqExcept s₁ (φ 0) (List.map Assignable.diff $ system.assignables).toFinset ∧
                   State.isEq s₂ (φ r) ∧
@@ -104,9 +105,10 @@ def Program.denote (i : Interpretation) (α : Program) : Set (State × State) :=
                     ∀ζ ∈ Set.Icc 0 r, φ ζ ∈ (odeEvolutionFormula system Q).denote i ∧
                     State.isEqExcept (φ 0) (φ ζ)
                     (system.assignables ++ List.map Assignable.diff system.assignables).toFinset ∧
-                    ∃φ',∀ x ∈ system.assignables,
-                      HasDerivAt (fun t => φ t x) φ' ζ ∧
-                      φ ζ (Assignable.diff x) = deriv (fun t => φ t x) ζ
+                    ∀ x ∈ system.assignables,
+                      HasDerivAt (fun t => φ t x) (
+                        φ ζ (Assignable.diff x)
+                      ) ζ
                   )
     }
   termination_by α.size
@@ -171,10 +173,45 @@ lemma Program.bound_effect.smallest (α : Program)
   have boom2 := boom x hx2
   contradiction
 
+lemma odeEvolutionFormula_freeVars_cons {head : ODE}
+                                        {tail : OdeSystem}
+                                        {Ψ    : Formula}
+                                        : (odeEvolutionFormula (head :: tail) Ψ).freeVars = {head.var.diff} ∪
+                                                                                            head.term.freeVars.toSet ∪
+                                                                                            (odeEvolutionFormula tail Ψ).freeVars := by
+  induction tail
+  all_goals simp_all[odeEvolutionFormula, Term.freeVars, Formula.freeVars, Program.freeVars]
+
+lemma ode_system_freeVars_cons {head : ODE}
+                               {tail : OdeSystem}
+                               {Ψ    : Formula}
+                               : (Program.ode (head :: tail) Ψ).freeVars = {head.var} ∪
+                                                                           head.term.freeVars.toSet ∪
+                                                                           (Program.ode tail Ψ).freeVars := by
+  sorry
+
+
+
+
+
 lemma ode_evolution_formula_signature_eq_ode_signature (system : OdeSystem)
                                                        (Ψ : Formula)
                                                        : (odeEvolutionFormula system Ψ).signature = (Program.ode system Ψ).signature := by
   induction system
   all_goals simp_all[odeEvolutionFormula, Formula.signature, Program.signature, Term.signature]
+
+lemma ode_evolution_formula_free_vars_eq_ode_signature (system : OdeSystem)
+                                                       (Ψ : Formula)
+                                                       : ∀ x : Assignable, ¬x ∈ system.assignables ++ List.map Assignable.diff system.assignables
+                                                       → (x ∈ (odeEvolutionFormula system Ψ).freeVars ↔ x ∈ (Program.ode system Ψ).freeVars) := by
+  induction system
+  simp_all[odeEvolutionFormula, Formula.freeVars, Program.freeVars, Term.freeVars, OdeSystem.assignables]
+  next head tail ih =>
+    intro x hx
+    apply Iff.intro
+    .
+      intro h
+      sorry
+    . sorry
 
 end Theorems
