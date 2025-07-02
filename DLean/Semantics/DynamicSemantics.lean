@@ -199,7 +199,7 @@ lemma ode_evolution_formula_signature_eq_ode_signature (system : OdeSystem)
 
 lemma ode_evolution_formula_free_vars_eq_ode_signature (system : OdeSystem)
                                                        (Ψ : Formula)
-                                                       : ∀ x : Assignable, ¬x ∈ system.assignables ++ List.map Assignable.diff system.assignables
+                                                       : ∀ x : Assignable, ¬x ∈ system.assignables ∪ (Finset.map Assignable.diff_emb system.assignables)
                                                        → (x ∈ (odeEvolutionFormula system Ψ).freeVars ↔ x ∈ (Program.ode system Ψ).freeVars) := by
   induction system
   simp_all[odeEvolutionFormula, Formula.freeVars, Program.freeVars, Term.freeVars, OdeSystem.assignables]
