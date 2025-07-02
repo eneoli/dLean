@@ -516,9 +516,9 @@ def delabODE : Delab := do
   withAppArg do
   let system ← delabOdeSystem
 
-  if system.size == 0 then
-    throwError "Cannot have empty ODE system."
-  else
+  -- if system.size == 0 then
+    -- throwError "Cannot have empty ODE system."
+  -- else
     return ⟨← `(dL_program| $[$system:dL_ode],* & $Ψ:dL_formula)⟩
 
 end Delaborators.Program

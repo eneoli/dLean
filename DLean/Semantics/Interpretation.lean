@@ -52,7 +52,7 @@ end
 
 def Interpretation.ReturnType : (symbol : Symbol) → Type
   | Symbol.Predicate p => Vector ℝ p.arity → Prop
-  | Symbol.Function f  => Vector ℝ f.arity → ℝ
+  | Symbol.Function f  => Vector ℝ f.arity → ℝ -- todo c infty
   | Symbol.Program _   => State × State → Prop
 
 def Interpretation : Type := (s : Symbol) → Interpretation.ReturnType s
@@ -135,4 +135,3 @@ lemma Interpretation.eq_on_swap {i j : Interpretation}
   intro s
   intro hs
   exact Eq.symm $ h s hs
-  
