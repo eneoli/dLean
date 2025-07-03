@@ -105,4 +105,16 @@ theorem unionListOfFinsets.iff_exists_mem {α  : Type}
         have := (unionListOfFinsets.iff_exists_mem x tail).mpr ⟨a, ⟨h1, h2⟩⟩
         exact unionListOfFinsets.mem_tail_cons head this
 
+theorem unionListOfFinsets.union_iff {α : Type}
+                                     [DecidableEq α]
+                                     {head : Finset α}
+                                     {tail : List (Finset α)}
+                                     : unionListOfFinsets (head :: tail) = head ∪ unionListOfFinsets tail := by
+  induction tail
+  . simp[unionListOfFinsets]
+  .
+    unfold unionListOfFinsets
+    simp[List.foldl_cons]
+    exact List.foldl_assoc
+
 end Theorems
