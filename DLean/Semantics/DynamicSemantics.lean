@@ -170,26 +170,92 @@ lemma Program.bound_effect.smallest (α : Program)
   have boom2 := boom x hx2
   contradiction
 
-lemma odeEvolutionFormula_freeVars_cons {head : ODE}
-                                        {tail : OdeSystem}
-                                        {Ψ    : Formula}
-                                        : (odeEvolutionFormula (head :: tail) Ψ).freeVars = {head.var.diff} ∪
+lemma odeEvolutionFormula_freeVars_union_iff {head : ODE}
+                                             {tail : OdeSystem}
+                                             {Ψ    : Formula}
+                                             : (odeEvolutionFormula (head :: tail) Ψ).freeVars = {head.var.diff} ∪
                                                                                             head.term.freeVars.toSet ∪
                                                                                             (odeEvolutionFormula tail Ψ).freeVars := by
   induction tail
   all_goals simp_all[odeEvolutionFormula, Term.freeVars, Formula.freeVars, Program.freeVars]
 
+lemma ode_system_freeVars_union_iff {head : ODE}
+                                    {tail : OdeSystem}
+                                    {Ψ    : Formula}
+                                    : (Program.ode (head :: tail) Ψ).freeVars = {head.var} ∪ head.term.freeVars.toSet ∪ (Program.ode tail Ψ).freeVars  := by
+  simp_all[Program.freeVars, Formula.freeVars, Term.freeVars]
+  rw[←Set.union_assoc]
+  rw[OdeSystem.assignables_union_iff]
+  simp
+  rw[←Set.union_assoc]
+  rw[unionListOfFinsets.union_iff]
+  simp_all only [Finset.coe_union]
+  ext x : 1
+  simp_all only [Set.mem_union, Set.mem_insert_iff, Finset.mem_coe]
+  apply Iff.intro
+  · intro a
+    cases a with
+    | inl h =>
+      cases h with
+      | inl h_1 =>
+        cases h_1 with
+        | inl h =>
+          subst h
+          simp_all only [true_or]
+        | inr h_2 => simp_all only [or_true, true_or]
+      | inr h_2 =>
+        cases h_2 with
+        | inl h => simp_all only [or_true, true_or]
+        | inr h_1 => simp_all only [or_true, true_or]
+    | inr h_1 => simp_all only [or_true]
+  · intro a
+    cases a with
+    | inl h =>
+      cases h with
+      | inl h_1 =>
+        cases h_1 with
+        | inl h =>
+          cases h with
+          | inl h_1 =>
+            subst h_1
+            simp_all only [true_or]
+          | inr h_2 => simp_all only [true_or, or_true]
+        | inr h_2 => simp_all only [or_true, true_or]
+      | inr h_2 => simp_all only [or_true, true_or]
+    | inr h_1 => simp_all only [or_true]
+
+lemma ode_system_freeVars_head {head : ODE}
+                               {tail : OdeSystem}
+                               {Ψ    : Formula}
+                               : {head.var} ∪ head.term.freeVars.toSet ⊆ (Program.ode (head :: tail) Ψ).freeVars := by
+  unfold Program.freeVars
+  apply Set.subset_union_of_subset_left
+  apply Set.union_subset_iff.mpr
+  apply And.intro
+  .
+    apply Set.subset_union_of_subset_left
+    simp[OdeSystem.assignables]
+  .
+    apply Set.subset_union_of_subset_right
+    simp
+
 lemma ode_system_freeVars_cons {head : ODE}
                                {tail : OdeSystem}
                                {Ψ    : Formula}
-                               : (Program.ode (head :: tail) Ψ).freeVars = {head.var} ∪
-                                                                           head.term.freeVars.toSet ∪
-                                                                           (Program.ode tail Ψ).freeVars := by
-  sorry
-
-
-
-
+                               : (Program.ode tail Ψ).freeVars ⊆ (Program.ode (head :: tail) Ψ).freeVars := by
+  induction tail generalizing head
+  simp_all[Formula.freeVars, Program.freeVars, OdeSystem.assignables, unionListOfFinsets]
+  next head tail ih =>
+    rw[ode_system_freeVars_union_iff]
+    rw[ode_system_freeVars_union_iff]
+    apply Set.union_subset_iff.mpr
+    apply And.intro
+    .
+      apply Set.subset_union_of_subset_right
+      apply ode_system_freeVars_head
+    .
+      apply Set.subset_union_of_subset_right
+      simp[*]
 
 lemma ode_evolution_formula_signature_eq_ode_signature (system : OdeSystem)
                                                        (Ψ : Formula)
@@ -197,18 +263,34 @@ lemma ode_evolution_formula_signature_eq_ode_signature (system : OdeSystem)
   induction system
   all_goals simp_all[odeEvolutionFormula, Formula.signature, Program.signature, Term.signature]
 
-lemma ode_evolution_formula_free_vars_eq_ode_signature (system : OdeSystem)
-                                                       (Ψ : Formula)
-                                                       : ∀ x : Assignable, ¬x ∈ system.assignables ∪ (Finset.map Assignable.diff_emb system.assignables)
-                                                       → (x ∈ (odeEvolutionFormula system Ψ).freeVars ↔ x ∈ (Program.ode system Ψ).freeVars) := by
+lemma ode_evolution_formula_freeVars_eq_ode_freeVars {system : OdeSystem}
+                                                     {Ψ : Formula}
+                                                     : ∀ x : Assignable, ¬x ∈ system.assignables ∪ (Finset.map Assignable.diff_emb system.assignables)
+                                                     → (x ∈ (odeEvolutionFormula system Ψ).freeVars → x ∈ (Program.ode system Ψ).freeVars) := by
   induction system
-  simp_all[odeEvolutionFormula, Formula.freeVars, Program.freeVars, Term.freeVars, OdeSystem.assignables]
+  . simp[OdeSystem.assignables, odeEvolutionFormula, Program.freeVars]
   next head tail ih =>
-    intro x hx
-    apply Iff.intro
+    intro x hx h
+    rw[odeEvolutionFormula_freeVars_union_iff] at h
+    by_cases hc : x ∈ head.term.freeVars
     .
-      intro h
-      sorry
-    . sorry
+      apply ode_system_freeVars_head
+      exact Set.mem_union_right {head.var} hc
+    .
+      simp[hc] at h
+      apply Or.elim h
+      .
+        intro hl
+        simp[OdeSystem.assignables, Assignable.diff_emb] at hx
+        by_contra
+        exact hx.1 hl
+      .
+        intro hr
+        apply ode_system_freeVars_cons
+        simp[OdeSystem.assignables_union_iff, Assignable.diff_emb] at hx
+        exact ih x (by
+          simp
+          exact ⟨hx.2.1, hx.2.2.2⟩
+        ) hr
 
 end Theorems

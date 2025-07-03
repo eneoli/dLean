@@ -161,6 +161,16 @@ theorem TermVector.mem_toVector_iff {n : ℕ} (t: Term) (ts: TermVector n) : t �
 
 end Theorems.TermVector
 
+section Theorems.OdeSystem
+
+lemma OdeSystem.assignables_union_iff {head : ODE}
+                                      {tail : OdeSystem}
+                                      : OdeSystem.assignables (head :: tail) = {head.var} ∪ OdeSystem.assignables tail := by
+  simp[OdeSystem.assignables]
+  rfl
+
+end Theorems.OdeSystem
+
 section Misc
 
 def Assignable.diff_emb : Assignable ↪ Assignable := {
