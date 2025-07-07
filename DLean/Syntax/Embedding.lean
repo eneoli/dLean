@@ -57,6 +57,7 @@ scoped syntax:30 dL_program:30 "* " : dL_program
 scoped syntax:20 dL_program:21 " ; " dL_program:20 : dL_program
 scoped syntax:10 dL_program:11 " ∪ " dL_program:10 : dL_program
 
+syntax:29 dL_program " ≼ " dL_program : dL_formula
 end SyntaxCategories
 
 section Elaborators
@@ -241,6 +242,11 @@ partial def elabFormula : Syntax → MetaM Q(Formula)
     pure q(Formula.lte $t₁Expr $t₂Expr)
 
   | `(dL_formula| ( $Φ:dL_formula )) => elabFormula Φ
+
+  | `(dL_formula| $α₁:dL_program ≼ $α₂:dL_program) => do
+    let α₁Expr ← elabProgram α₁
+    let α₂Expr ← elabProgram α₂
+    Lean.Meta.mkAppM `Formula.ref #[α₁Expr, α₂Expr]
 
   | _ => Lean.Elab.throwUnsupportedSyntax
 
@@ -664,6 +670,15 @@ def delabLt : Delab := delabInEquality ``Formula.lt (λt₁ t₂ => `($t₁ < $t
 
 @[scoped delab app.Formula.lte]
 def delabLte : Delab := delabInEquality ``Formula.lte (λt₁ t₂ => `($t₁ ≤ $t₂))
+
+@[delab app.Formula.ref]
+def delabRef : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Formula.ref 2
+  let α₁:TSyntax `dL_program := ⟨← delab expr.appFn!.appArg!⟩
+  let α₂:TSyntax `dL_program  := ⟨← delab expr.appArg!⟩
+
+  return ⟨← `(dL_formula| ($α₁) ≼ $α₂)⟩
 
 end Delaborators.Formula
 

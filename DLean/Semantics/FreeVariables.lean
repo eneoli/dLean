@@ -82,6 +82,7 @@ def Formula.freeVars (Φ : Formula) : Set Assignable := match Φ with
   | .exists x Φ'    => Formula.freeVars Φ' \ {Assignable.var x}
   | .box α Φ'
   | .diamond α Φ'   => Program.freeVars α ∪ (Formula.freeVars Φ' \ Program.mustBoundVars α)
+  | .ref α β => α.freeVars ∪ β.freeVars ∪ ((α.boundVars ∪ β.boundVars) \ (α.mustBoundVars ∩ β.mustBoundVars))
 
 def Program.freeVars (α : Program) : Set Assignable := match α with
   | .const _      => Assignable.Set

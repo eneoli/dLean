@@ -54,6 +54,7 @@ def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ w
   | Formula.gte t₁ t₂      => {s | t₁.denote i s ≥ t₂.denote i s}
   | Formula.diamond α Φ    => (α.denote i).preimage (Φ.denote i)
   | Formula.box α Φ        => (α.denote i).core (Φ.denote i)
+  | Formula.ref α₁ α₂      => {s | ∀w:State, (s, w) ∈ α₁.denote i → (s, w) ∈ α₂.denote i}
 termination_by Φ.size
 decreasing_by
   all_goals simp +arith[Formula.size]
