@@ -111,6 +111,16 @@ theorem State.eq_on_symm {v w : State} {S : Set Assignable} : State.isEqOn v w S
   simp[State.isEqOn]
   exact fun h x hx ↦ Eq.symm (Real.ext_cauchy (congrArg Real.cauchy (h x hx)))
 
+theorem State.eq_on_trans {v  : State}
+                          {w  : State}
+                          {x  : State}
+                          {S₁ : Set Assignable}
+                          {S₂ : Set Assignable}
+                          : State.isEqOn v x S₁
+                          → State.isEqOn x w S₂
+                          → State.isEqOn v w (S₁ ∩ S₂) := by
+  simp_all[State.isEqOn]
+
 theorem State.eq_except_iff_eq_on {v : State}
                                   {w : State}
                                   {S : Set Assignable}
