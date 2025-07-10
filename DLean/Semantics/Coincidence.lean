@@ -6,6 +6,17 @@ import DLean.Semantics.DynamicSemantics
 
 open Semantics
 
+theorem ode_evolution_formula_size_bound {system : OdeSystem}
+                                         {ψ : Formula}
+                                         : (odeEvolutionFormula system ψ).size < 1 + sizeOf system + ψ.size + 2*system.length := by
+  induction system
+  . simp[odeEvolutionFormula, Program.size, Formula.size]
+  . next head tail ih =>
+      simp +arith[odeEvolutionFormula, Program.size, Formula.size, *]
+      have hx : sizeOf head = 1 + sizeOf head.var + sizeOf head.term := by constructor
+      rw[hx]
+      omega
+
 mutual
 
 theorem TermVector.coincidence {n : ℕ} (ts : TermVector n)
@@ -174,7 +185,7 @@ theorem Formula.coincidence (Φ : Formula)
                               → v ∈ Φ.denote i → w ∈ Φ.denote j := by
   intro h
   cases' h with h1 h2
-  match Φ with
+  match hdef : Φ with
     | .True  =>
       simp[Formula.denote]
       exact fun a ↦ a
@@ -263,33 +274,32 @@ theorem Formula.coincidence (Φ : Formula)
         exact h3
 
     | .diamond α φ =>
-      .
-        intro h3
-        simp[Formula.freeVars] at h1
-        simp[Formula.denote]
-        simp[Formula.denote] at h3
-        simp[Formula.signature] at h2
-        apply Interpretation.eq_union_iff_both.mp at h2
-        cases' h3 with v' h3
-        have α_co := Program.coincidence α i j v w (α.freeVars ∪ φ.freeVars \ α.mustBoundVars) (by simp) (by simp[h1]) h2.1 v' h3.1
-        cases' α_co with w' hα_co
-        simp at hα_co
-        have φ_co := Formula.coincidence φ i j v' w'
-        apply Exists.intro w'
-        . exact ⟨hα_co.1, by
-          have : v'.isEqOn w' φ.freeVars ∧ i.isEqOn j ↑φ.signature := by
-            have h1 := hα_co.2.1.2
-            have h2 := hα_co.2.2
-            have := State.eq_union_iff_both.mpr ⟨h1, h2⟩
-            have r : φ.freeVars ⊆ φ.freeVars \ α.mustBoundVars ∪ α.mustBoundVars := by
-              exact Set.subset_diff_union φ.freeVars α.mustBoundVars
-            simp[this, *]
-            apply State.is_eq_on_subset
-            exact this
-            exact r
+      intro h3
+      simp[Formula.freeVars] at h1
+      simp[Formula.denote]
+      simp[Formula.denote] at h3
+      simp[Formula.signature] at h2
+      apply Interpretation.eq_union_iff_both.mp at h2
+      cases' h3 with v' h3
+      have α_co := Program.coincidence α i j v w (α.freeVars ∪ φ.freeVars \ α.mustBoundVars) (by simp) (by simp[h1]) h2.1 v' h3.1
+      cases' α_co with w' hα_co
+      simp at hα_co
+      have φ_co := Formula.coincidence φ i j v' w'
+      apply Exists.intro w'
+      . exact ⟨hα_co.1, by
+        have : v'.isEqOn w' φ.freeVars ∧ i.isEqOn j ↑φ.signature := by
+          have h1 := hα_co.2.1.2
+          have h2 := hα_co.2.2
+          have := State.eq_union_iff_both.mpr ⟨h1, h2⟩
+          have r : φ.freeVars ⊆ φ.freeVars \ α.mustBoundVars ∪ α.mustBoundVars := by
+            exact Set.subset_diff_union φ.freeVars α.mustBoundVars
+          simp[*]
+          apply State.is_eq_on_subset
+          exact this
+          exact r
 
-          exact φ_co this h3.2
-        ⟩
+        exact φ_co this h3.2
+      ⟩
     | .box α φ =>
       simp only [Formula.freeVars] at h1
       simp[Formula.signature] at h2
@@ -313,6 +323,10 @@ theorem Formula.coincidence (Φ : Formula)
         ,
         h2.2
       ⟩ this
+termination_by Φ.size
+decreasing_by
+all_goals simp[Formula.size, Program.size, *]
+all_goals omega
 
 theorem Program.coincidence (α  : Program)
                             (i  : Interpretation)
@@ -508,7 +522,7 @@ theorem Program.coincidence (α  : Program)
                 rw[←this]
                 apply h1
                 apply hs
-                sorry
+                exact ode_evolution_formula_freeVars_eq_ode_freeVars x he hx
             . rw[ode_evolution_formula_signature_eq_ode_signature]
               trivial
           .
@@ -545,4 +559,10 @@ theorem Program.coincidence (α  : Program)
             simp_all
         next hx =>
           simp[hx]
+termination_by α.size
+decreasing_by
+all_goals simp[Program.size]
+all_goals try omega
+simp[ode_evolution_formula_size_bound, *]
+
 end
