@@ -11,5 +11,9 @@ autoImplicit = false
 name = "mathlib"
 scope = "leanprover-community"
 
+[[require]]
+name = "Qq"
+scope = "leanprover-community"
+
 [[lean_lib]]
 name = "DLean"
