@@ -157,3 +157,27 @@ def Formula.lt (t₁ : Term) (t₂ : Term) :=
 
 def Formula.lte (t₁ : Term) (t₂ : Term) :=
   Formula.gte t₂ t₁
+
+mutual
+noncomputable def Formula.size (Φ : Formula) := match Φ with
+  | Formula.applyPred p ts => 1 + sizeOf p + sizeOf ts
+  | Formula.True           => 1
+  | Formula.False          => 1
+  | Formula.not Φ₁         => 1 + Φ₁.size
+  | Formula.and Φ₁ Φ₂      => 1 + Φ₁.size + Φ₂.size
+  | Formula.forall x Φ₁    => 1 + sizeOf x + Φ₁.size
+  | Formula.exists x Φ₁    => 1 + sizeOf x + Φ₁.size
+  | Formula.eq t₁ t₂       => 1 + sizeOf t₁ + sizeOf t₂
+  | Formula.gte t₁ t₂      => 1 + sizeOf t₁ + sizeOf t₂
+  | Formula.diamond α Φ    => 1 + α.size + Φ.size
+  | Formula.box α Φ        => 1 + α.size + Φ.size
+
+noncomputable def Program.size (α : Program) := match α with
+  | Program.test Φ        => 1 + Φ.size
+  | Program.assign x t    => 1 + sizeOf x + sizeOf t
+  | Program.choice α₁ α₂  => 1 + α₁.size + α₂.size
+  | Program.seq α₁ α₂     => 1 + α₁.size + α₂.size
+  | Program.loop α        => 1 + α.size
+  | Program.const c       => 1 + sizeOf c
+  | Program.ode system Q  => 1 + sizeOf system + Q.size + 2*system.length
+end

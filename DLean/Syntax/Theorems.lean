@@ -69,13 +69,13 @@ theorem TermVector.mem_in_tail {n : ℕ}
   . exact fun a ↦ a
 
 @[simp]
-theorem TermVector.toList_eq_size {n : ℕ}
+theorem TermVector.toList_leq_size {n : ℕ}
                                   (ts : TermVector n)
                                   : sizeOf ts.toList <= sizeOf ts := by
   match ts with
     | .nil       => simp[TermVector.toList]
     | .cons _ ts => simp[TermVector.toList]
-                    have := TermVector.toList_eq_size ts
+                    have := TermVector.toList_leq_size ts
                     omega
 
 theorem TermVector.sizeOf_lt_of_mem {n : ℕ}
@@ -84,7 +84,7 @@ theorem TermVector.sizeOf_lt_of_mem {n : ℕ}
                                     (h : t ∈ ts)
                                     : sizeOf t < sizeOf ts := by
   apply Nat.le_trans (List.sizeOf_lt_of_mem h)
-  apply TermVector.toList_eq_size
+  apply TermVector.toList_leq_size
 
 theorem TermVector.mem_toVector_iff {n : ℕ}
                                     (t: Term)
