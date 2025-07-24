@@ -27,6 +27,20 @@ end
 section Theorems
 
 @[simp]
+theorem TermVector.freeVars_nil :TermVector.nil.freeVars = ∅ := by
+  simp[TermVector.freeVars]
+  rfl
+
+@[simp]
+theorem TermVector.freeVars_cons  {n : ℕ}
+                                  {t : Term}
+                                  {ts : TermVector n}
+                                  : (TermVector.cons t ts).freeVars = t.freeVars ∪ ts.freeVars := by
+  simp[TermVector.freeVars]
+  rw[TermVector.mem_toList_cons]
+  simp
+
+@[simp]
 theorem Term.freeVars_subset_diff_freeVars (t : Term) : t.freeVars ⊆ t.differential.freeVars := by
   simp[Term.freeVars]
 

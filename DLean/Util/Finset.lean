@@ -94,6 +94,7 @@ theorem unionListOfFinsets.iff_exists_mem {α  : Type}
         have := (unionListOfFinsets.iff_exists_mem x tail).mpr ⟨a, ⟨h1, h2⟩⟩
         exact unionListOfFinsets.mem_tail_cons head this
 
+@[simp]
 theorem unionListOfFinsets.union_iff {α : Type}
                                      [DecidableEq α]
                                      {head : Finset α}

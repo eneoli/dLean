@@ -70,6 +70,20 @@ def Interpretation.isEqOn (i : Interpretation) (j : Interpretation) (on : Set Sy
 
 section Theorems
 
+@[simp]
+theorem TermVector.signature_nil :TermVector.nil.signature = ∅ := by
+  simp[TermVector.signature]
+  rfl
+
+@[simp]
+theorem TermVector.signature_cons {n : ℕ}
+                                  {t : Term}
+                                  {ts : TermVector n}
+                                  : (TermVector.cons t ts).signature = t.signature ∪ ts.signature := by
+  simp[TermVector.signature]
+  rw[TermVector.mem_toList_cons]
+  simp
+
 theorem Interpretation.eq_union_iff_both {i  : Interpretation}
                                          {j  : Interpretation}
                                          {S₁ : Set Symbol}

@@ -56,6 +56,13 @@ theorem TermVector.mem_toList_iff {n : ℕ}
                                   {ts : TermVector n}
                                   : t ∈ ts.toList ↔ t ∈ ts := Iff.rfl
 
+@[simp]
+theorem TermVector.mem_toList_cons {n : ℕ}
+                                   {t: Term}
+                                   {ts : TermVector n}
+                                   : (TermVector.cons t ts).toList = t :: ts.toList := by
+  rfl
+
 theorem TermVector.mem_in_tail {n : ℕ}
                                {m : ℕ}
                                {t : Term}
