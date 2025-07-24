@@ -90,7 +90,7 @@ decreasing_by
   . simp[odeEvolutionFormula]
   . next head tail h =>
     have : sizeOf head = 1 + sizeOf head.var + sizeOf head.term := by constructor
-    simp[odeEvolutionFormula, Formula.size]
+    simp +arith[odeEvolutionFormula, Formula.size]
     omega
 end
 
@@ -136,7 +136,6 @@ lemma ode_system_freeVars_union_iff {head : ODE}
   rw[←Set.union_assoc]
   rw[OdeSystem.assignables_union_iff]
   rw[←Set.union_assoc]
-  rw[unionListOfFinsets.union_iff]
   simp only [Finset.coe_union]
   rw[←Set.union_assoc]
   conv =>
