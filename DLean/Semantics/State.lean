@@ -107,7 +107,7 @@ theorem State.eq_rfl {v : State} {S : Set Assignable} : State.isEqOn v v S := by
 @[simp]
 theorem State.eq_empty {v w : State} : State.isEqOn v w ∅ := by simp[State.isEqOn]
 
-theorem State.eq_on_rfl {v w : State} {S : Set Assignable} : State.isEqOn v w S → State.isEqOn w v S := by
+theorem State.eq_on_symm {v w : State} {S : Set Assignable} : State.isEqOn v w S → State.isEqOn w v S := by
   simp[State.isEqOn]
   exact fun h x hx ↦ Eq.symm (Real.ext_cauchy (congrArg Real.cauchy (h x hx)))
 
