@@ -294,7 +294,7 @@ section Delaborators
 
 open PrettyPrinter Delaborator SubExpr
 
-def extractString (expr : Expr) : MetaM String := do
+def extractString (expr : Q(String)) : MetaM String := do
   let e ← reduce expr
   match e with
     | .lit lit => match lit with
@@ -302,7 +302,7 @@ def extractString (expr : Expr) : MetaM String := do
       | _ => throwError "Exptected String Literal"
     | _ => throwError "Expected Literal Expression"
 
-def extractNat (expr : Expr) : MetaM ℕ := do
+def extractNat (expr : Q(ℕ)) : MetaM ℕ := do
   let e ← reduce expr
   match e with
     | .lit lit => match lit with
@@ -310,15 +310,15 @@ def extractNat (expr : Expr) : MetaM ℕ := do
       | _ => throwError "Exptected Nat Literal"
     | _ => throwError "Expected Literal Expression"
 
-def extractBool (expr : Expr) : DelabM Bool := do
-  let e ← reduce expr
+def extractBool (expr : Q(Bool)) : DelabM Bool := do
+  let e : Q(Bool) ← reduce expr
   match e with
-    | .const ``Bool.true _ => pure true
-    | .const ``Bool.false _ => pure false
+    | ~q(true) => pure true
+    | ~q(true) => pure false
     | _ => throwError "Expected Boolean Expression Constant"
 
-@[delab app.Variable.variable]
-def delabVariable.variable : Delab := do
+@[delab app.Variable.mk]
+def delabVariable.mk : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Variable.mk 1
   let ident := mkIdent $ Name.mkSimple $ (← extractString expr.appArg!)
@@ -335,7 +335,7 @@ def delabVariableH (expr : Expr) : DelabM String := do
   let ident := expr.appArg!
   match ident with
     | Expr.lit lit => match lit with
-      | Lean.Literal.strVal s => pure s
+      | .strVal s => pure s
       | _ => unreachable!
     | _ => unreachable!
 
@@ -354,7 +354,7 @@ def delabAssignable.diff : Delab := do
 
 section Delaborators.Term
 
-def delabSymbol (ctor: Lean.Name) (arity: ℕ) (expr : Expr) : DelabM String := do
+def delabSymbol (ctor: Name) (arity: ℕ) (expr : Expr) : DelabM String := do
   guard $ expr.isAppOfArity' ctor arity
   let name := expr.appFn!'.appArg!'
   extractString name
@@ -374,8 +374,7 @@ def delabFunctionSymbol.num : Delab := do
       if s.contains '.' then
         let s := s.dropRightWhile (·= '0')
         if s.endsWith "." then
-          let s := s.dropRight 1
-          s
+           s.dropRight 1
         else
           s
       else
@@ -396,6 +395,8 @@ partial def delabTermVector (expr : Expr) : DelabM (List (Lean.TSyntax `term)) :
     let tail := expr.appArg!
     let head := expr.appFn!.appArg!
     pure $ (← delab head) :: (← delabTermVector tail)
+
+-- TODO unbox
 
 @[delab app.Term.var]
 def delabTerm.var : Delab := do
@@ -427,6 +428,7 @@ def delabTerm.times : Delab := do
   let t₂ ← withNaryArg 1 delab
   `($t₁ * $t₂)
 
+-- TODO use dL_term category, adjust delabTermVector
 @[delab app.Term.applyFn]
 def delabTerm.applyFn : Delab := do
   let expr ← getExpr
@@ -462,7 +464,7 @@ def delabConst : Delab := do
   let programSymbol := expr.appArg!
   guard $ programSymbol.isAppOfArity' ``ProgramSymbol.mk 1
   let symbolName := Lean.mkIdent $ Lean.Name.mkSimple (← extractString programSymbol)
-  `($symbolName)
+  return ⟨← `(dL_program| $symbolName:ident)⟩
 
 @[delab app.Program.test]
 def delabTest : Delab := do
@@ -531,11 +533,7 @@ def delabODE : Delab := do
   withAppFn do
   withAppArg do
   let system ← delabOdeSystem
-
-  -- if system.size == 0 then
-    -- throwError "Cannot have empty ODE system."
-  -- else
-    return ⟨← `(dL_program| $[$system:dL_ode],* & $Ψ:dL_formula)⟩
+  return ⟨← `(dL_program| $[$system:dL_ode],* & $Ψ:dL_formula)⟩
 
 end Delaborators.Program
 
@@ -557,9 +555,9 @@ def delabFalse : Delab := do
 def delabAnd : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.and 2
-  let Φ₁ ← delab expr.appFn!.appArg!
-  let Φ₂ ← delab expr.appArg!
-  `($Φ₁ ∧ $Φ₂)
+  let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ₂ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| $Φ₁ ∧ $Φ₂)⟩
 
 @[delab app.Formula.applyPred]
 def delabApplyPred : Delab := do
@@ -594,16 +592,16 @@ def delabGte : Delab := delabInEquality ``Formula.gte (λt₁ t₂ => `($t₁ �
 def delabNot : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.not 1
-  let Φ ← delab expr.appArg!
-  `(¬$Φ)
+  let Φ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| ¬$Φ)⟩
 
 @[delab app.Formula.or]
 def delabOr : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.or 2
-  let Φ₁ ← delab expr.appFn!.appArg!
-  let Φ₂ ← delab expr.appArg!
-  `($Φ₁ ∨ $Φ₂)
+  let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ₂ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| $Φ₁ ∨ $Φ₂)⟩
 
 @[delab app.Formula.forall]
 def delabForall : Delab := do
