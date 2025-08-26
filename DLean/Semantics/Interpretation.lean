@@ -32,7 +32,7 @@ mutual
 def Formula.signature (Φ : Formula) : Finset Symbol := match Φ with
   | Formula.True             => ∅
   | Formula.False            => ∅
-  | Formula.applyPred p args => {Symbol.Predicate p} ∪ unionListOfFinsets (args.toList.attach.map (fun ⟨t, _⟩ => Term.signature t))
+  | Formula.applyPred p args => {Symbol.Predicate p} ∪ args.signature
   | Formula.not Φ'           => Φ'.signature
   | Formula.and Φ₁ Φ₂        => Φ₁.signature ∪ Φ₂.signature
   | Formula.forall _ Φ'      => Φ'.signature
@@ -84,6 +84,7 @@ theorem TermVector.signature_cons {n : ℕ}
   rw[TermVector.mem_toList_cons]
   simp
 
+@[simp]
 theorem Interpretation.eq_union_iff_both {i  : Interpretation}
                                          {j  : Interpretation}
                                          {S₁ : Set Symbol}
@@ -103,6 +104,7 @@ theorem Interpretation.eq_union_iff_both {i  : Interpretation}
     . exact h1.1 s
     . exact h1.2 s
 
+@[simp]
 theorem Interpretation.is_eq_on_subset {i   : Interpretation}
                                        {j   : Interpretation}
                                        {on₁ : Set Symbol}
@@ -112,9 +114,9 @@ theorem Interpretation.is_eq_on_subset {i   : Interpretation}
                                        : Interpretation.isEqOn i j on₂ := by
   exact fun s a ↦ h s (hs a)
 
-theorem Interpretation.eq_on_rfl {i j : Interpretation}
-                                 {S : Set Symbol} : Interpretation.isEqOn i j S →
-                                                    Interpretation.isEqOn j i S := by
+theorem Interpretation.eq_on_symm {i j : Interpretation}
+                                  {S : Set Symbol} : Interpretation.isEqOn i j S →
+                                                     Interpretation.isEqOn j i S := by
   exact fun h s hs ↦ Eq.symm (h s hs)
 
 end Theorems
