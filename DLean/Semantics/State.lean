@@ -150,9 +150,7 @@ theorem State.eq_except_trans {v  : State}
                               : State.isEqExcept v x S₁
                               → State.isEqExcept x w S₂
                               → State.isEqExcept v w (S₁ ∪ S₂) := by
-  simp[State.isEqExcept]
-  apply State.eq_except_iff_eq_on.mpr
-  exact State.eq_on_trans
+  simp_all[State.isEqExcept]
 
  @[simp]
 theorem State.eq_except_univ {v : State}
