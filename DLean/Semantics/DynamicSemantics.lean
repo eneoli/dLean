@@ -94,30 +94,7 @@ decreasing_by
     omega
 end
 
-def Program.bound_vars_dynamic (α : Program) : Set Assignable := {x | ∃i:Interpretation, ∃v:State, ∃w:State, (v, w) ∈ α.denote i ∧ v x ≠ w x}
-
--- TODO supersets
-
 section Theorems
-
-lemma Program.bound_effect (α : Program)
-                           (v : State)
-                           (w : State)
-                           (i : Interpretation)
-                           : (v, w) ∈ α.denote i → State.isEqExcept v w α.bound_vars_dynamic := by
-  simp[State.isEqExcept, Program.bound_vars_dynamic]
-  exact fun h x ha ↦ ha i v w h
-
-lemma Program.bound_effect.smallest (α : Program)
-                                    (V : Set Assignable)
-                                    : (∀ (v w : State) (i: Interpretation), (v, w) ∈ α.denote i → State.isEqExcept v w V)
-                                      → α.bound_vars_dynamic ⊆ V := by
-  intro h
-  by_contra hc
-  have ⟨x, ⟨i, v, w, h'⟩, hx⟩ : ∃x, x ∈ α.bound_vars_dynamic ∧ ¬x ∈ V := Set.not_subset.mp hc
-  have := h v w i h'.1 x hx
-  have := h'.2
-  contradiction
 
 lemma odeEvolutionFormula_freeVars_union_iff {head : ODE}
                                              {tail : OdeSystem}

@@ -314,7 +314,7 @@ def extractBool (expr : Q(Bool)) : DelabM Bool := do
   let e : Q(Bool) ← reduce expr
   match e with
     | ~q(true) => pure true
-    | ~q(true) => pure false
+    | ~q(false) => pure false
     | _ => throwError "Expected Boolean Expression Constant"
 
 @[delab app.Variable.mk]
