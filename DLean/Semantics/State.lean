@@ -17,7 +17,7 @@ def State.isEqOn (s₁ : State) (s₂ : State) (on : Set Assignable) : Prop :=
     ∀ x ∈ on, s₁ x = s₂ x
 
 def State.isEqExcept (s₁ : State) (s₂ : State) (except : Set Assignable) :=
-    ∀x:Assignable, ¬x ∈ except → s₁ x = s₂ x
+  ∀ (x : Assignable), ¬x ∈ except → s₁ x = s₂ x
 
 def State.zero : State := fun _ => 0
 
@@ -110,5 +110,52 @@ theorem State.eq_empty {v w : State} : State.isEqOn v w ∅ := by simp[State.isE
 theorem State.eq_on_symm {v w : State} {S : Set Assignable} : State.isEqOn v w S → State.isEqOn w v S := by
   simp[State.isEqOn]
   exact fun h x hx ↦ Eq.symm (Real.ext_cauchy (congrArg Real.cauchy (h x hx)))
+
+theorem State.eq_except_iff_eq_on {v : State}
+                                  {w : State}
+                                  {S : Set Assignable}
+                                  : State.isEqExcept v w S ↔ State.isEqOn v w Sᶜ := by
+  simp[State.isEqOn, State.isEqExcept]
+
+theorem State.eq_except_superset {v : State}
+                                 {w : State}
+                                 {S : Set Assignable}
+                                 {V : Set Assignable}
+                                 : State.isEqExcept v w S → V ⊇ S → State.isEqExcept v w V := by
+  exact fun h hs x a ↦ h x fun b ↦ a (hs b)
+
+theorem State.eq_except_union {v  : State}
+                              {w  : State}
+                              {S₁ : Set Assignable}
+                              {S₂ : Set Assignable}
+                              : State.isEqExcept v w S₁ → State.isEqExcept v w (S₁ ∪ S₂) := by
+  exact fun h ↦ State.eq_except_superset h (by simp)
+
+theorem State.eq_except_intersect {v  : State}
+                                  {w  : State}
+                                  {S₁ : Set Assignable}
+                                  {S₂ : Set Assignable}
+                                 : State.isEqExcept v w (S₁ ∩ S₂)
+                                 → State.isEqExcept v w S₁ ∧ State.isEqExcept v w S₂ := by
+  intro h
+  apply And.intro
+  all_goals
+  exact State.eq_except_superset h (by simp)
+
+theorem State.eq_except_trans {v  : State}
+                              {w  : State}
+                              {x  : State}
+                              {S₁ : Set Assignable}
+                              {S₂ : Set Assignable}
+                              : State.isEqExcept v x S₁
+                              → State.isEqExcept x w S₂
+                              → State.isEqExcept v w (S₁ ∪ S₂) := by
+  simp_all[State.isEqExcept]
+
+ @[simp]
+theorem State.eq_except_univ {v : State}
+                             {w : State}
+                             : State.isEqExcept v w Assignable.Set := by
+  simp[State.isEqExcept]
 
 end Theorems
