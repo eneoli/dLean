@@ -162,6 +162,6 @@ lemma ode_evolution_formula_freeVars_eq_ode_freeVars {system : OdeSystem}
         intro hr
         simp[OdeSystem.assignables_union_iff] at hx
         apply ode_system_freeVars_cons
-        exact ih x (by simp ; exact ⟨hx.2.1, hx.2.2.2⟩) hr
+        exact ih x (by simp ; exact ⟨hx.2.2.1, hx.2.2.2⟩) hr
 
 end Theorems
