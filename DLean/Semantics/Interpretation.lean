@@ -1,4 +1,7 @@
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Fin.Basic
+import Mathlib.Analysis.Calculus.ContDiff.Defs
+import Mathlib.Analysis.Calculus.ContDiff.Operations
 
 import DLean.Util.Finset
 import DLean.Syntax.Syntax
@@ -53,16 +56,18 @@ def Program.signature (α : Program) : Finset Symbol := match α with
                             systemSignatures ∪ Ψ.signature
 end
 
+open scoped ContDiff
+
 def Interpretation.ReturnType : (symbol : Symbol) → Type
   | Symbol.Predicate p => Vector ℝ p.arity → Prop
-  | Symbol.Function f  => Vector ℝ f.arity → ℝ -- todo c infty
-  | Symbol.Program _   => State × State → Prop
+  | Symbol.Function  f => {g : (Fin f.arity → ℝ) → ℝ // ContDiff ℝ ∞ g}
+  | Symbol.Program   _ => State × State → Prop
 
 def Interpretation : Type := (s : Symbol) → Interpretation.ReturnType s
 
 def Interpretation.empty : Interpretation
   | Symbol.Predicate _ => fun _ => False
-  | Symbol.Function  _ => fun _ => 0
+  | Symbol.Function  _ => ⟨fun _  => (0 : ℝ), contDiff_const⟩
   | Symbol.Program   _ => fun _ => False
 
 def Interpretation.isEqOn (i : Interpretation) (j : Interpretation) (on : Set Symbol) :=

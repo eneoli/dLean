@@ -13,8 +13,8 @@ noncomputable def Term.denote (i: Interpretation) (s : State) (t : Term) : ℝ :
     | Term.neg  t         => - denote i s t
     | Term.plus x y       => denote i s x + denote i s y
     | Term.times x y      => denote i s x * denote i s y
-    | Term.applyFn f args => let argValues := .map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
-                             i (Symbol.Function f) argValues
+    | Term.applyFn f args => let argValues := Vector.map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
+                             (i (Symbol.Function f)).1 (fun x => argValues[x])
     | Term.differential t => ∑ x ∈ t.freeVars, s (Assignable.diff x) *
                                                       (
                                                         deriv (
