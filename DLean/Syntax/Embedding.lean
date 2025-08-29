@@ -1,11 +1,14 @@
 import DLean.Syntax.Definitions
+import Qq
+
+open Lean Meta Qq
 
 section SyntaxCategories
 
-declare_syntax_cat dL_term (behavior := symbol)
-declare_syntax_cat dL_formula (behavior := symbol)
-declare_syntax_cat dL_program (behavior := symbol)
-declare_syntax_cat dL_ode (behavior := symbol)
+declare_syntax_cat dL_term       (behavior := symbol)
+declare_syntax_cat dL_formula    (behavior := symbol)
+declare_syntax_cat dL_program    (behavior := symbol)
+declare_syntax_cat dL_ode        (behavior := symbol)
 declare_syntax_cat dL_ode_system (behavior := symbol)
 
 syntax:max ident : dL_term
@@ -14,10 +17,10 @@ syntax:max scientific : dL_term
 syntax:max "(" dL_term ")" : dL_term
 syntax:max "(" dL_term ")'" : dL_term
 syntax:max ident "(" dL_term,* ")" : dL_term
-syntax:30 " - " dL_term:30 : dL_term
-syntax:20 dL_term:20 " * " dL_term:21 : dL_term
-syntax:10 dL_term:10 " + " dL_term:11 : dL_term
-syntax:10 dL_term:10 " - " dL_term:11 : dL_term
+syntax:30  " - " dL_term:30 : dL_term
+syntax:20  dL_term:20 " * " dL_term:21 : dL_term
+syntax:10  dL_term:10 " + " dL_term:11 : dL_term
+syntax:10  dL_term:10 " - " dL_term:11 : dL_term
 
 syntax:max "true" : dL_formula
 syntax:max "false" : dL_formula
@@ -30,15 +33,15 @@ syntax:max dL_term " ≠ " dL_term : dL_formula
 syntax:max dL_term " > " dL_term : dL_formula
 syntax:max dL_term " < " dL_term : dL_formula
 syntax:max dL_term " ≤ " dL_term : dL_formula
-syntax:60 "¬" dL_formula : dL_formula
-syntax:50 "∀" ident ", " dL_formula:50 : dL_formula
-syntax:50 "∃" ident ", " dL_formula:50 : dL_formula
-syntax:50 "[" dL_program "]" dL_formula : 50 : dL_formula
-syntax:50 "⟨" dL_program "⟩" dL_formula : 50 : dL_formula
-syntax:40 dL_formula:41 " ∧ " dL_formula:40 : dL_formula
-syntax:30 dL_formula:31 " ∨ " dL_formula:30 : dL_formula
-syntax:20 dL_formula:21 " → " dL_formula:20 : dL_formula
-syntax:10 dL_formula:11 " ↔ " dL_formula:10 : dL_formula
+syntax:60  "¬" dL_formula : dL_formula
+syntax:50  "∀" ident ", " dL_formula:50 : dL_formula
+syntax:50  "∃" ident ", " dL_formula:50 : dL_formula
+syntax:50  "[" dL_program "]" dL_formula : 50 : dL_formula
+syntax:50  "⟨" dL_program "⟩" dL_formula : 50 : dL_formula
+syntax:40  dL_formula:41 " ∧ " dL_formula:40 : dL_formula
+syntax:30  dL_formula:31 " ∨ " dL_formula:30 : dL_formula
+syntax:20  dL_formula:21 " → " dL_formula:20 : dL_formula
+syntax:10  dL_formula:11 " ↔ " dL_formula:10 : dL_formula
 
 syntax:40 (ident " = " dL_term) : dL_ode
 syntax:40 dL_ode,+ : dL_ode_system
@@ -56,255 +59,268 @@ end SyntaxCategories
 
 section Elaborators
 
+def parseVariable (str : String) : MetaM Q(Variable) := do
+  let ⟨pre, post⟩ := str.toList.span Char.isAlphanum
+  if post.length > 0 then
+    throwError "Variables can only contain alphanumeric chars."
+  else
+    let variableName : Q(String) := mkStrLit pre.asString
+    pure q(Variable.mk $variableName)
+
 inductive parseAssignable.Constraint : Type where
   | END_ARBITRARY
   | END_WITH_PRIME
+  | END_WITH_PRIME_EX
   | END_WITH_NO_PRIME_ASSIGNABLE
-  | END_WITH_NO_PRIME_VARIABLE
-deriving BEq
+deriving DecidableEq
 
-def parseAssignable (c : parseAssignable.Constraint) (str : String) : Lean.Meta.MetaM Lean.Expr := do
+def parseAssignable (c : parseAssignable.Constraint) (str : String) : MetaM Q(Assignable) := do
   let ⟨pre, post⟩ := str.toList.span Char.isAlphanum
   if pre.length == 0 then
     throwError "Assignables need to start with an alphanumeric part."
   else if not $ post.all (BEq.beq '\'') then
     throwError "Assignables can only end with alphanumeric chars or primes."
-  else if c == .END_WITH_PRIME && post.isEmpty then
-    throwError "Expected primed variable."
-  else if (c == .END_WITH_NO_PRIME_ASSIGNABLE || c == .END_WITH_NO_PRIME_VARIABLE) && not post.isEmpty then
-    throwError "Expected not primed variable."
+  else if (c = .END_WITH_PRIME || c = .END_WITH_PRIME_EX) && post.isEmpty then
+    throwError "Expected primed identifier."
+  else if (c = .END_WITH_NO_PRIME_ASSIGNABLE) && not post.isEmpty then
+    throwError "Expected not primed identifier."
   else
-    let baseVariableExpr ← Lean.Meta.mkAppM `Variable.variable #[Lean.mkStrLit pre.asString]
-    if c == .END_WITH_NO_PRIME_VARIABLE then
-      pure baseVariableExpr
-    else
-      let baseAssignableExpr ← Lean.Meta.mkAppM `Assignable.var #[baseVariableExpr]
-      List.foldlM (fun e _ => Lean.Meta.mkAppM `Assignable.diff #[e]) baseAssignableExpr post
+    let variableName : Q(String) := mkStrLit pre.asString
+    let baseAssignableExpr := q(Assignable.var (Variable.mk $variableName))
+    let numPrimes := if c == .END_WITH_PRIME_EX then post.tail else post
+    pure $ List.foldl (fun e _ => q(Assignable.diff $e)) baseAssignableExpr numPrimes
 
-partial def elabTerm : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
+partial def elabTerm : Syntax → MetaM Q(_root_.Term)
   | `(dL_term| $var:ident) => do
     let assignableExpr ← parseAssignable .END_ARBITRARY var.getId.toString
-    Lean.Meta.mkAppM `Term.var #[assignableExpr]
+    mkAppM ``Term.var #[assignableExpr]
 
   | `(dL_term| $n:num) => do
-    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.num #[
-      Lean.mkNatLit n.getNat,
-      Lean.Expr.const ``Bool.false [],
-      Lean.mkNatLit 0
+    let fnSym ← mkAppM ``FunctionSymbol.num #[
+      mkNatLit n.getNat,
+      Expr.const ``Bool.false [],
+      mkNatLit 0
     ]
-    Lean.Meta.mkAppM `Term.applyFn #[fnSym, .const `TermVector.nil []]
+    mkAppM ``Term.applyFn #[fnSym, .const ``TermVector.nil []]
 
   | `(dL_term| $r:scientific) => do
     let (n, sign, e) := r.getScientific
-    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.num #[
-      Lean.mkNatLit n,
-      if sign then Lean.Expr.const ``Bool.false [] else Lean.Expr.const ``Bool.true [],
-      Lean.mkNatLit e,
+    let fnSym ← mkAppM ``FunctionSymbol.num #[
+      mkNatLit n,
+      if sign then .const ``Bool.false [] else .const ``Bool.true [],
+      mkNatLit e,
     ]
-    Lean.Meta.mkAppM `Term.applyFn #[fnSym, .const `TermVector.nil []]
+    mkAppM ``Term.applyFn #[fnSym, .const ``TermVector.nil []]
 
-  | `(dL_term| - $t:dL_term) => do Lean.Meta.mkAppM `Term.neg #[← elabTerm t]
+  | `(dL_term| - $t:dL_term) => do mkAppM ``Term.neg #[← elabTerm t]
 
   | `(dL_term| $t₁:dL_term + $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
-    Lean.Meta.mkAppM `Term.plus #[t₁Expr, t₂Expr]
+    mkAppM ``Term.plus #[t₁Expr, t₂Expr]
 
   | `(dL_term| $t₁:dL_term - $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
-    Lean.Meta.mkAppM `Term.minus #[t₁Expr, t₂Expr]
+    mkAppM ``Term.minus #[t₁Expr, t₂Expr]
 
   | `(dL_term| $t₁:dL_term * $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
-    Lean.Meta.mkAppM `Term.times #[t₁Expr, t₂Expr]
+    mkAppM ``Term.times #[t₁Expr, t₂Expr]
 
   | `(dL_term|$f:ident ($args:dL_term,*)) => do
-    let args : Array Lean.Syntax := args
-    let fnSym ← Lean.Meta.mkAppM `FunctionSymbol.const #[
+    let args : Array Syntax := args
+    let fnSym ← mkAppM ``FunctionSymbol.const #[
       Lean.mkStrLit f.getId.toString,
       Lean.mkNatLit args.size,
     ]
     let argsExpr ← Array.mapM id <| (args.map elabTerm)
     let argsTermVectorExpr ← argsExpr.foldrM
-      (λe acc => Lean.Meta.mkAppM `TermVector.cons #[e, acc])
-      (.const `TermVector.nil [])
-    Lean.Meta.mkAppM `Term.applyFn <| #[fnSym, argsTermVectorExpr]
+      (λe acc => mkAppM ``TermVector.cons #[e, acc])
+      (.const ``TermVector.nil [])
+    mkAppM ``Term.applyFn <| #[fnSym, argsTermVectorExpr]
 
-  | `(dL_term|( $t:dL_term )') => do Lean.Meta.mkAppM `Term.differential #[← elabTerm t]
+  | `(dL_term|( $t:dL_term )') => do mkAppM ``Term.differential #[← elabTerm t]
 
   | `(dL_term|( $t:dL_term )) => elabTerm t
 
   | _ => Lean.Elab.throwUnsupportedSyntax
 
 mutual
-partial def elabFormula : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
-  | `(dL_formula| true) => Lean.Meta.mkAppM `Formula.True #[]
+partial def elabFormula : Syntax → MetaM Q(Formula)
+  | `(dL_formula| true) => pure q(Formula.True)
 
-  | `(dL_formula| false) => Lean.Meta.mkAppM `Formula.False #[]
+  | `(dL_formula| false) => pure q(Formula.False)
 
-  | `(dL_formula| $P:ident) => pure $ Lean.Expr.const P.getId []
+  | `(dL_formula| $P:ident) => pure $ Expr.const P.getId []
 
-  | `(dL_formula| ¬$Φ:dL_formula) => do Lean.Meta.mkAppM `Formula.not #[← elabFormula Φ]
+  | `(dL_formula| ¬$Φ:dL_formula) => do
+    let e ← elabFormula Φ
+    pure q(Formula.not $e)
 
   | `(dL_formula| $Φ₁:dL_formula ∧ $Φ₂:dL_formula) => do
     let Φ₁Expr ← elabFormula Φ₁
     let Φ₂Expr ← elabFormula Φ₂
-    Lean.Meta.mkAppM `Formula.and #[Φ₁Expr, Φ₂Expr]
+    pure q(Formula.and $Φ₁Expr $Φ₂Expr)
 
   | `(dL_formula| ∀ $x:ident, $Φ:dL_formula) => do
-    let assignableExpr ← parseAssignable .END_WITH_NO_PRIME_VARIABLE x.getId.toString
+    let assignableExpr ← parseVariable x.getId.toString
     let ΦExpr ← elabFormula Φ
-    Lean.Meta.mkAppM `Formula.forall #[assignableExpr, ΦExpr]
+    pure q(Formula.forall $assignableExpr $ΦExpr)
 
   | `(dL_formula| ∃ $x:ident, $Φ:dL_formula) => do
-    let assignableExpr ← parseAssignable .END_WITH_NO_PRIME_VARIABLE x.getId.toString
+    let assignableExpr ← parseVariable x.getId.toString
     let ΦExpr ← elabFormula Φ
-    Lean.Meta.mkAppM `Formula.exists #[assignableExpr, ΦExpr]
+    pure q(Formula.exists $assignableExpr $ΦExpr)
 
   | `(dL_formula| [$α:dL_program]$Φ:dL_formula) => do
     let programExpr ← elabProgram α
     let formulaExpr ← elabFormula Φ
-    Lean.Meta.mkAppM `Formula.box #[programExpr, formulaExpr]
+    pure q(Formula.box $programExpr $formulaExpr)
 
   | `(dL_formula| ⟨$α:dL_program⟩$Φ:dL_formula) => do
     let programExpr ← elabProgram α
     let formulaExpr ← elabFormula Φ
-    Lean.Meta.mkAppM `Formula.diamond #[programExpr, formulaExpr]
+    pure q(Formula.diamond $programExpr $formulaExpr)
 
   | `(dL_formula| $p:ident ($args:dL_term,*)) => do
     let args : Array Lean.Syntax := args
-    let predSym ← Lean.Meta.mkAppM `PredicateSymbol.mk #[Lean.mkStrLit p.getId.toString, Lean.mkNatLit args.size]
-    let argsExpr ← Array.mapM id <| (args : Array Lean.Syntax).map elabTerm
-    let argsTermVector ← argsExpr.foldrM
-      (λe acc => Lean.Meta.mkAppM `TermVector.cons #[e, acc])
-      (.const `TermVector.nil [])
-    Lean.Meta.mkAppM `Formula.applyPred <| #[predSym, argsTermVector]
+    let predSymName : Q(String) := mkStrLit p.getId.toString
+    let predSymArity : Q(Nat) := mkNatLit args.size
+    let predSym := q(PredicateSymbol.mk $predSymName $predSymArity)
+    let argsExpr ← args.mapM elabTerm
+    let argsTermVector ← argsExpr.foldrM (λe acc => mkAppM `TermVector.cons #[e, acc]) q(TermVector.nil)
+    pure $ mkApp q(Formula.applyPred $predSym) argsTermVector
 
   | `(dL_formula| $t₁:dL_term = $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
-    Lean.Meta.mkAppM `Formula.eq #[t₁Expr, t₂Expr]
+    pure q(Formula.eq $t₁Expr $t₂Expr)
 
   | `(dL_formula| $t₁:dL_term ≥ $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
-    Lean.Meta.mkAppM `Formula.gte #[t₁Expr, t₂Expr]
+    pure q(Formula.gte $t₁Expr $t₂Expr)
 
   | `(dL_formula| $Φ₁:dL_formula ∨ $Φ₂:dL_formula) => do
     let Φ₁Expr ← elabFormula Φ₁
     let Φ₂Expr ← elabFormula Φ₂
-    Lean.Meta.mkAppM `Formula.or #[Φ₁Expr, Φ₂Expr]
+    pure q(Formula.or $Φ₁Expr $Φ₂Expr)
 
   | `(dL_formula| $Φ₁:dL_formula → $Φ₂:dL_formula) => do
     let Φ₁Expr ← elabFormula Φ₁
     let Φ₂Expr ← elabFormula Φ₂
-    Lean.Meta.mkAppM `Formula.implies #[Φ₁Expr, Φ₂Expr]
+    pure q(Formula.implies $Φ₁Expr $Φ₂Expr)
 
   | `(dL_formula| $Φ₁:dL_formula ↔ $Φ₂:dL_formula) => do
     let Φ₁Expr ← elabFormula Φ₁
     let Φ₂Expr ← elabFormula Φ₂
-    Lean.Meta.mkAppM `Formula.equiv #[Φ₁Expr, Φ₂Expr]
+    pure q(Formula.equiv $Φ₁Expr $Φ₂Expr)
 
   | `(dL_formula| $t₁:dL_term ≠ $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
-    Lean.Meta.mkAppM `Formula.neq #[t₁Expr, t₂Expr]
+    pure q(Formula.neq $t₁Expr $t₂Expr)
 
   | `(dL_formula| $t₁:dL_term > $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
-    Lean.Meta.mkAppM `Formula.gt #[t₁Expr, t₂Expr]
+    pure q(Formula.gt $t₁Expr $t₂Expr)
 
   | `(dL_formula| $t₁:dL_term < $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
-    Lean.Meta.mkAppM `Formula.lt #[t₁Expr, t₂Expr]
+    pure q(Formula.lt $t₁Expr $t₂Expr)
 
   | `(dL_formula| $t₁:dL_term ≤ $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
-    Lean.Meta.mkAppM `Formula.lte #[t₁Expr, t₂Expr]
+    pure q(Formula.lte $t₁Expr $t₂Expr)
 
   | `(dL_formula| ( $Φ:dL_formula )) => elabFormula Φ
 
   | _ => Lean.Elab.throwUnsupportedSyntax
 
-partial def elabProgram : Lean.Syntax → Lean.Meta.MetaM Lean.Expr
+partial def elabProgram : Syntax → MetaM Q(Program)
   | `(dL_program|$sym:ident) => do
-    let programSymbolExpr ← Lean.Meta.mkAppM `ProgramSymbol.mk #[Lean.mkStrLit sym.getId.toString]
-    Lean.Meta.mkAppM `Program.const #[programSymbolExpr]
+    let programSymbol : Q(String) := mkStrLit sym.getId.toString
+    let programSymbolExpr := q(ProgramSymbol.mk $programSymbol)
+    pure q(Program.const $programSymbolExpr)
 
   | `(dL_program| $name:ident := $t:dL_term) => do
     let var ← parseAssignable .END_ARBITRARY name.getId.toString
     let term ← elabTerm t
-    Lean.Meta.mkAppM `Program.assign #[var, term]
+    pure q(Program.assign $var $term)
 
-  | `(dL_program| ?$Φ:dL_formula) => do Lean.Meta.mkAppM `Program.test #[← elabFormula Φ]
+  | `(dL_program| ?$Φ:dL_formula) => do
+    let Φ ← elabFormula Φ
+    pure q(Program.test $Φ)
 
   | `(dL_program| $[$v:ident = $t:dL_term],* $[& $ψ:dL_formula]?) => do
-    let assignables ← Array.mapM id $ Array.map ((parseAssignable .END_WITH_PRIME) ∘ Lean.Name.toString ∘ Lean.TSyntax.getId) v
-    let terms ← Array.mapM id $ Array.map elabTerm t
-    let system := (← Array.mapM id $ Array.zipWith (λa t => Lean.Meta.mkAppM `ODE.mk #[a, t]) assignables terms).toList
-    let systemExpr ← List.foldrM (λ ode expr => Lean.Meta.mkAppM `List.cons #[ode, expr])
-      (Lean.mkAppN (.const `List.nil [0]) #[.const `ODE []]) system
-    let constraint := (← ψ.mapM elabFormula).getD (.const `Formula.True [])
-    Lean.Meta.mkAppM `Program.ode #[systemExpr, constraint]
+    let assignables ← v.mapM (parseAssignable .END_WITH_PRIME_EX ∘ Lean.Name.toString ∘ Lean.TSyntax.getId)
+    let terms ← t.mapM elabTerm
+    let system := (Array.zipWith (λa t => q(ODE.mk $a $t)) assignables terms).toList
+    let systemExpr : Q(OdeSystem) := system.foldr (λ ode expr => q(List.cons $ode $expr)) q([])
+    let constraint := (← ψ.mapM elabFormula).getD q(Formula.True)
+    pure q(Program.ode $systemExpr $constraint)
 
   | `(dL_program| $α:dL_program ∪ $β:dL_program) => do
     let αExpr ← elabProgram α
     let βExpr ← elabProgram β
-    Lean.Meta.mkAppM `Program.choice #[αExpr, βExpr]
+    pure q(Program.choice $αExpr $βExpr)
 
   | `(dL_program| $α:dL_program ; $β:dL_program) => do
     let αExpr ← elabProgram α
     let βExpr ← elabProgram β
-    Lean.Meta.mkAppM `Program.seq #[αExpr, βExpr]
+    pure q(Program.seq $αExpr $βExpr)
 
-  | `(dL_program| $α:dL_program *) => do Lean.Meta.mkAppM `Program.loop #[← elabProgram α]
+  | `(dL_program| $α:dL_program *) => do
+    let α ← elabProgram α
+    pure q(Program.loop $α)
 
   | `(dL_program| ( $α:dL_program )) => elabProgram α
 
   | _ => Lean.Elab.throwUnsupportedSyntax
 end
 
-elab "[Term|" t:dL_term "]" : term => elabTerm t
+elab "[Term|" t:dL_term "]"       : term => elabTerm t
 elab "[Formula|" Φ:dL_formula "]" : term => elabFormula Φ
 elab "[Program|" α:dL_program "]" : term => elabProgram α
 
 end Elaborators
 
 section Delaborators
-open Lean PrettyPrinter Delaborator SubExpr
 
-def extractString (expr : Expr) : DelabM String := do
-  let e ← Lean.Meta.reduce expr
+open PrettyPrinter Delaborator SubExpr
+
+def extractString (expr : Q(String)) : MetaM String := do
+  let e ← reduce expr
   match e with
     | .lit lit => match lit with
       | .strVal s => pure s
       | _ => throwError "Exptected String Literal"
     | _ => throwError "Expected Literal Expression"
 
-def extractNat (expr : Expr) : DelabM ℕ := do
-  let e ← Lean.Meta.reduce expr
+def extractNat (expr : Q(ℕ)) : MetaM ℕ := do
+  let e ← reduce expr
   match e with
     | .lit lit => match lit with
       | .natVal n => pure n
       | _ => throwError "Exptected Nat Literal"
     | _ => throwError "Expected Literal Expression"
 
-def extractBool (expr : Expr) : DelabM Bool := do
-  let e ← Lean.Meta.reduce expr
+def extractBool (expr : Q(Bool)) : DelabM Bool := do
+  let e : Q(Bool) ← reduce expr
   match e with
-    | .const ``Bool.true _ => pure true
-    | .const ``Bool.false _ => pure false
+    | ~q(true) => pure true
+    | ~q(false) => pure false
     | _ => throwError "Expected Boolean Expression Constant"
 
-@[delab app.Variable.variable]
-def delabVariable.variable : Delab := do
+@[delab app.Variable.mk]
+def delabVariable.mk : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Variable.variable 1
+  guard $ expr.isAppOfArity' ``Variable.mk 1
   let ident := mkIdent $ Name.mkSimple $ (← extractString expr.appArg!)
   return ident
 
@@ -314,18 +330,18 @@ def delabAssignable.var : Delab := do
   guard $ expr.isAppOfArity' ``Assignable.var 1
   delab expr.appArg!
 
-def delabVariableH (expr : Lean.Expr) : DelabM String := do
-  guard $ expr.isAppOfArity' ``Variable.variable 1
+def delabVariableH (expr : Expr) : DelabM String := do
+  guard $ expr.isAppOfArity' ``Variable.mk 1
   let ident := expr.appArg!
   match ident with
-    | Lean.Expr.lit lit => match lit with
-      | Lean.Literal.strVal s => pure s
+    | Expr.lit lit => match lit with
+      | .strVal s => pure s
       | _ => unreachable!
     | _ => unreachable!
 
-partial def delabAssignableH (expr : Lean.Expr) : DelabM String := do
+partial def delabAssignableH (expr : Expr) : DelabM String := do
   guard $ (expr.isAppOfArity' ``Assignable.var 1 || expr.isAppOfArity' ``Assignable.diff 1)
-  if expr.isAppOfArity' `Assignable.var 1 then
+  if expr.isAppOfArity' ``Assignable.var 1 then
     delabVariableH expr.appArg!
   else
     pure $ (← delabAssignableH expr.appArg!) ++ "'"
@@ -338,7 +354,7 @@ def delabAssignable.diff : Delab := do
 
 section Delaborators.Term
 
-def delabSymbol (ctor: Lean.Name) (arity: ℕ) (expr : Lean.Expr) : DelabM String := do
+def delabSymbol (ctor: Name) (arity: ℕ) (expr : Expr) : DelabM String := do
   guard $ expr.isAppOfArity' ctor arity
   let name := expr.appFn!'.appArg!'
   extractString name
@@ -358,8 +374,7 @@ def delabFunctionSymbol.num : Delab := do
       if s.contains '.' then
         let s := s.dropRightWhile (·= '0')
         if s.endsWith "." then
-          let s := s.dropRight 1
-          s
+           s.dropRight 1
         else
           s
       else
@@ -372,7 +387,7 @@ def delabFunctionSymbol.const : Delab := do
   let name := expr.appFn!.appArg!
   pure <| Lean.mkIdent $ Lean.Name.mkSimple (← extractString name)
 
-partial def delabTermVector (expr : Lean.Expr) : DelabM (List (Lean.TSyntax `term)) := do
+partial def delabTermVector (expr : Expr) : DelabM (List (Lean.TSyntax `term)) := do
   guard $ expr.isAppOfArity' ``TermVector.nil 0 || expr.isAppOfArity' ``TermVector.cons 2
   if expr.isAppOfArity' ``TermVector.nil 0 then
     pure []
@@ -380,6 +395,8 @@ partial def delabTermVector (expr : Lean.Expr) : DelabM (List (Lean.TSyntax `ter
     let tail := expr.appArg!
     let head := expr.appFn!.appArg!
     pure $ (← delab head) :: (← delabTermVector tail)
+
+-- TODO unbox
 
 @[delab app.Term.var]
 def delabTerm.var : Delab := do
@@ -411,6 +428,7 @@ def delabTerm.times : Delab := do
   let t₂ ← withNaryArg 1 delab
   `($t₁ * $t₂)
 
+-- TODO use dL_term category, adjust delabTermVector
 @[delab app.Term.applyFn]
 def delabTerm.applyFn : Delab := do
   let expr ← getExpr
@@ -446,7 +464,7 @@ def delabConst : Delab := do
   let programSymbol := expr.appArg!
   guard $ programSymbol.isAppOfArity' ``ProgramSymbol.mk 1
   let symbolName := Lean.mkIdent $ Lean.Name.mkSimple (← extractString programSymbol)
-  `($symbolName)
+  return ⟨← `(dL_program| $symbolName:ident)⟩
 
 @[delab app.Program.test]
 def delabTest : Delab := do
@@ -515,11 +533,7 @@ def delabODE : Delab := do
   withAppFn do
   withAppArg do
   let system ← delabOdeSystem
-
-  -- if system.size == 0 then
-    -- throwError "Cannot have empty ODE system."
-  -- else
-    return ⟨← `(dL_program| $[$system:dL_ode],* & $Ψ:dL_formula)⟩
+  return ⟨← `(dL_program| $[$system:dL_ode],* & $Ψ:dL_formula)⟩
 
 end Delaborators.Program
 
@@ -541,16 +555,16 @@ def delabFalse : Delab := do
 def delabAnd : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.and 2
-  let Φ₁ ← delab expr.appFn!.appArg!
-  let Φ₂ ← delab expr.appArg!
-  `($Φ₁ ∧ $Φ₂)
+  let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ₂ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| $Φ₁ ∧ $Φ₂)⟩
 
 @[delab app.Formula.applyPred]
 def delabApplyPred : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.applyPred 2
   let args := (← delabTermVector expr.appArg!).toArray
-  let p := Lean.mkIdent $ Lean.Name.mkSimple (← delabSymbol `PredicateSymbol.mk 2 (expr.appFn!.appArg!))
+  let p := Lean.mkIdent $ Lean.Name.mkSimple (← delabSymbol ``PredicateSymbol.mk 2 (expr.appFn!.appArg!))
   if args.size == 0 then
     `($p)
   else if args.size == 1 then
@@ -578,16 +592,16 @@ def delabGte : Delab := delabInEquality ``Formula.gte (λt₁ t₂ => `($t₁ �
 def delabNot : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.not 1
-  let Φ ← delab expr.appArg!
-  `(¬$Φ)
+  let Φ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| ¬$Φ)⟩
 
 @[delab app.Formula.or]
 def delabOr : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.or 2
-  let Φ₁ ← delab expr.appFn!.appArg!
-  let Φ₂ ← delab expr.appArg!
-  `($Φ₁ ∨ $Φ₂)
+  let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
+  let Φ₂ := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_formula| $Φ₁ ∨ $Φ₂)⟩
 
 @[delab app.Formula.forall]
 def delabForall : Delab := do

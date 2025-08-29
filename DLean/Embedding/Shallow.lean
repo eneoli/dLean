@@ -6,8 +6,8 @@ import DLean.Semantics.DynamicSemantics
 open Semantics
 
 def Formula.eval (i : Interpretation) (s : State) (Φ : Formula) : Prop := match Φ with
-  | .True => true
-  | .False => false
+  | .True => _root_.True
+  | .False => _root_.False
   | .and Φ₁ Φ₂ => Formula.eval i s Φ₁ ∧ Formula.eval i s Φ₂
   | .not Φ' => ¬Formula.eval i s Φ'
   | .forall x Φ' => ∀ (r : ℝ), Formula.eval i (s.update (Assignable.var x) r) Φ'

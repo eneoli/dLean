@@ -9,6 +9,12 @@ end Definitions
 
 section Theorems
 
+theorem finset_monotone_union {α : Type}
+                              [DecidableEq α]
+                              : ∀ (b : Finset α), Monotone (fun a => a ∪ b) := by
+    intro _ _ _ h
+    exact Finset.union_subset_union h fun ⦃a⦄ a ↦ a
+
 @[simp]
 theorem unionListOfFinsets.subset_cons {α : Type}
                                        [DecidableEq α]
@@ -17,10 +23,8 @@ theorem unionListOfFinsets.subset_cons {α : Type}
                                        : f ⊆ unionListOfFinsets (f :: fs) := by
   simp[unionListOfFinsets]
   induction fs generalizing f
-  .
-    simp
-  .
-    next head tail ih =>
+  . simp
+  . next head tail ih =>
     exact Finset.union_subset_left (ih (f ∪ head))
 
 theorem unionListOfFinsets.mem_head_cons {α : Type}
@@ -30,8 +34,7 @@ theorem unionListOfFinsets.mem_head_cons {α : Type}
                                          {fs : List (Finset α)}
                                          : x ∈ f → x ∈ unionListOfFinsets (f :: fs) := by
   intro h
-  have := unionListOfFinsets.subset_cons f fs
-  exact this h
+  exact unionListOfFinsets.subset_cons f fs h
 
 theorem unionListOfFinsets.mem_tail_cons {α  : Type}
                                          [DecidableEq α]
@@ -40,15 +43,8 @@ theorem unionListOfFinsets.mem_tail_cons {α  : Type}
                                          (f  : Finset α)
                                          : x ∈ unionListOfFinsets fs → x ∈ unionListOfFinsets (f::fs) := by
   simp[unionListOfFinsets]
-  intro h
-  have monotone_union : ∀ (b : Finset α), Monotone (fun a => a ∪ b) := by
-    intro _ _ _ h
-    exact Finset.union_subset_union h fun ⦃a⦄ a ↦ a
-  have moop : ∅ ⊆ f := by simp
-  apply List.foldl_monotone monotone_union
-  exact moop
-  exact h
-
+  apply List.foldl_monotone finset_monotone_union
+  exact (by simp : ∅ ⊆ f)
 
 @[simp]
 theorem unionListOfFinsets.union_not_mem_head {α  : Type}
@@ -58,23 +54,15 @@ theorem unionListOfFinsets.union_not_mem_head {α  : Type}
                                               {fs : List (Finset α)}
                                               : x ∈ unionListOfFinsets (f::fs) ∧ ¬x ∈ f → x ∈ unionListOfFinsets fs := by
   intro h
-  cases' h with h1 h2
+  obtain ⟨h1, h2⟩ := h
   induction fs generalizing f
-  .
-    simp[unionListOfFinsets] at h1
-    simp[unionListOfFinsets]
-    contradiction
+  . simp_all[unionListOfFinsets]
   .
     next head tail ih =>
-    if hh : x ∈ head then
-      exact unionListOfFinsets.mem_head_cons hh
-    else
-      have := @ih (f ∪ head) (by
-        simp[unionListOfFinsets] at h1
-        simp[unionListOfFinsets]
-        assumption
-      ) (by simp[*])
-
+    by_cases hh : x ∈ head
+    . exact unionListOfFinsets.mem_head_cons hh
+    .
+      have := @ih (f ∪ head) (by simp_all[unionListOfFinsets]) (by simp[*])
       exact unionListOfFinsets.mem_tail_cons head this
 
 @[simp]
@@ -82,13 +70,13 @@ theorem unionListOfFinsets.iff_exists_mem {α  : Type}
                                           [DecidableEq α]
                                           : ∀ (x : α) (fs : List (Finset α)), x ∈ unionListOfFinsets fs ↔ ∃ f ∈ fs, x ∈ f
   | x, List.nil => by simp[unionListOfFinsets]
-  | x, (head::tail) => by
+  | x, head::tail => by
     apply Iff.intro
     .
       intro h
-      if hx : x ∈ head then
-        exact ⟨head, ⟨by simp, hx⟩⟩
-      else
+      by_cases hx : x ∈ head
+      . exact ⟨head, ⟨by simp, hx⟩⟩
+      .
         have := unionListOfFinsets.union_not_mem_head ⟨h, hx⟩
         have := (unionListOfFinsets.iff_exists_mem x tail).mp this
         exact List.exists_mem_cons_of_exists this
@@ -97,14 +85,16 @@ theorem unionListOfFinsets.iff_exists_mem {α  : Type}
       apply Exists.elim h
       intro a h
       cases' h with h1 h2
-      if ha : a = head then
+      by_cases ha : a = head
+      .
         rw[←ha]
         exact unionListOfFinsets.mem_head_cons h2
-      else
+      .
         simp[ha] at h1
         have := (unionListOfFinsets.iff_exists_mem x tail).mpr ⟨a, ⟨h1, h2⟩⟩
         exact unionListOfFinsets.mem_tail_cons head this
 
+@[simp]
 theorem unionListOfFinsets.union_iff {α : Type}
                                      [DecidableEq α]
                                      {head : Finset α}
@@ -113,8 +103,7 @@ theorem unionListOfFinsets.union_iff {α : Type}
   induction tail
   . simp[unionListOfFinsets]
   .
-    unfold unionListOfFinsets
-    simp[List.foldl_cons]
+    simp[unionListOfFinsets]
     exact List.foldl_assoc
 
 end Theorems
