@@ -136,6 +136,5 @@ lemma OdeSystem.assignables_union_iff {head : ODE}
                                       {tail : OdeSystem}
                                       : OdeSystem.assignables (head :: tail) = {head.var} ∪ OdeSystem.assignables tail := by
   simp[OdeSystem.assignables]
-  rfl
 
 end OdeSystem
