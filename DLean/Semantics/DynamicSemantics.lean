@@ -1,4 +1,5 @@
 import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Data.Rel
 
 import DLean.Syntax.Syntax
 import DLean.Semantics.State
@@ -51,8 +52,8 @@ def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ w
   | Formula.exists x Φ₁    => {s | ∃r:ℝ, (s.update (Assignable.var x) r) ∈ Φ₁.denote i}
   | Formula.eq t₁ t₂       => {s | t₁.denote i s = t₂.denote i s}
   | Formula.gte t₁ t₂      => {s | t₁.denote i s ≥ t₂.denote i s}
-  | Formula.diamond α Φ    => {s | ∃w:State, (s, w) ∈ α.denote i ∧ w ∈ Φ.denote i}
-  | Formula.box α Φ        => {s | ∀w:State, (s, w) ∈ α.denote i → w ∈ Φ.denote i}
+  | Formula.diamond α Φ    => (α.denote i).preimage (Φ.denote i)
+  | Formula.box α Φ        => (α.denote i).core (Φ.denote i)
 termination_by Φ.size
 decreasing_by
   all_goals simp +arith[Formula.size]
@@ -63,12 +64,12 @@ def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) : Formula := match s
       Formula.eq (Term.var var.diff) term
     ) $ odeEvolutionFormula xs Ψ
 
-def Program.denote (i : Interpretation) (α : Program) : Set (State × State) := match α with
+def Program.denote (i : Interpretation) (α : Program) : SetRel State State := match α with
   | Program.const a       => i (Symbol.Program a)
   | Program.test Φ        => {(s, s) | s ∈ Φ.denote i}
   | Program.assign x t    => {(s₁, s₂) | s₂ = s₁.update x (t.denote i s₁)}
   | Program.choice α₁ α₂  => (α₁.denote i) ∪ (α₂.denote i)
-  | Program.seq α₁ α₂     => {(s₁, s₂) | ∃v:State, (s₁, v) ∈ α₁.denote i ∧ (v, s₂) ∈ α₂.denote i}
+  | Program.seq α₁ α₂     => (α₁.denote i).comp (α₂.denote i)
   | Program.loop α        => {⟨s₁, s₂⟩ | LoopClosure (α.denote i) s₁ s₂}
   | Program.ode system Q  => {
       (s₁, s₂) | ∃r ≥ 0,

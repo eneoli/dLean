@@ -166,11 +166,10 @@ theorem Formula.coincidence (Φ : Formula)
       . assumption
     | .diamond α φ =>
       simp_all[Formula.denote, Formula.freeVars, Formula.signature]
-      intro v' hvv' hv'
+      intro v' hv' hvv'
       have ⟨w', hww'⟩ := Program.coincidence α i j v w (α.freeVars ∪ φ.freeVars \ α.mustBoundVars) (by simp) (by simp[h]) h.2.1 v' hvv'
       apply Exists.intro w'
       apply And.intro
-      . exact hww'.1
       .
         have : v'.isEqOn w' φ.freeVars ∧ i.isEqOn j ↑φ.signature := by
           simp[h]
@@ -183,8 +182,9 @@ theorem Formula.coincidence (Φ : Formula)
             simp_all
 
         exact Formula.coincidence φ i j v' w' this hv'
+      . exact hww'.1
     | .box α φ =>
-      simp_all only [Formula.denote, Formula.freeVars, Formula.signature]
+      simp_all only [Formula.denote, Formula.freeVars, Formula.signature, SetRel.mem_core]
       intro h3 w' hww'
       obtain ⟨v', hvv'⟩ := by
         apply Program.coincidence α j i w v (α.freeVars ∪ φ.freeVars \ α.mustBoundVars)
@@ -203,7 +203,7 @@ theorem Formula.coincidence (Φ : Formula)
             apply Set.subset_union_of_subset_right
             exact Set.subset_diff_union φ.freeVars α.mustBoundVars
         . simp_all only [Finset.coe_union, Interpretation.eq_union_iff_both]
-      . exact h3 v' hvv'.1
+      . exact h3 hvv'.1
 termination_by Φ.size
 decreasing_by
 all_goals simp[Formula.size]
