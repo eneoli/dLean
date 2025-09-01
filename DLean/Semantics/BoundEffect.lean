@@ -25,7 +25,7 @@ theorem Program.bound_effect {α : Program}
         apply Program.bound_effect at h
         exact State.eq_except_superset h (by simp)
   | .seq α β =>
-      simp only [Program.boundVars, Program.denote, Set.mem_setOf_eq, forall_exists_index]
+      simp only [Program.boundVars, Program.denote, SetRel.mem_comp, forall_exists_index]
       rintro _ ⟨hα,hβ⟩
       apply Program.bound_effect at hα
       apply Program.bound_effect at hβ
