@@ -643,7 +643,7 @@ def delabImplies : Delab := do
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ → $Φ₂)⟩
 
-@[delab app.Formula.implies]
+@[delab app.Formula.equiv]
 def delabEquiv : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.equiv 2
