@@ -15,7 +15,11 @@ noncomputable def Term.denote (i: Interpretation) (s : State) (t : Term) : ℝ :
     | Term.plus x y       => denote i s x + denote i s y
     | Term.times x y      => denote i s x * denote i s y
     | Term.applyFn f args => let argValues := Vector.map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
-                             (i (Symbol.Function f)).1 (fun x => argValues[x])
+                             match _ : f with
+                               | .num num   => num.value
+                               | .sym fnSym =>
+                                 have : f.arity = fnSym.arity := by simp_all[Fn.arity]
+                                 (i (Symbol.Function fnSym)).1 (argValues[·])
     | Term.differential t => ∑ x ∈ t.freeVars, s (Assignable.diff x) *
                                                       (
                                                         deriv (

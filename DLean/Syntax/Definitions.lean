@@ -28,15 +28,29 @@ def Assignable.diff_emb : Assignable ↪ Assignable := {
 instance : Coe Variable Assignable where
   coe := Assignable.var
 
-inductive FunctionSymbol : Type where
-  -- if sign then n * 10 ^ (0 - e) else n * 10 ^ e
-  | num   : (n : ℕ) → (sign : Bool) → (e : ℕ) → FunctionSymbol
-  | const : (name : String) → (arity : ℕ) → FunctionSymbol
+structure FunctionSymbol : Type where
+  name  : String
+  arity : ℕ
 deriving Repr, DecidableEq, BEq
 
-def FunctionSymbol.arity {f : FunctionSymbol} : ℕ := match f with
-  | .num _ _ _     => 0
-  | .const _ arity => arity
+structure Number : Type where
+  n : ℕ
+  e : ℕ
+  sign : Bool
+deriving Repr, DecidableEq, BEq
+
+def Number.value (num : Number) : ℝ :=
+  let {n, e, sign} := num
+  if sign then n * 10 ^ (0 - e) else n * 10 ^ e
+
+inductive Fn : Type where
+  | num :  Number → Fn
+  | sym : FunctionSymbol → Fn
+deriving Repr, DecidableEq, BEq
+
+abbrev Fn.arity (f : Fn) : ℕ := match f with
+  | .num _           => 0
+  | .sym {arity, ..} => arity
 
 structure PredicateSymbol : Type where
   name  : String
@@ -56,12 +70,12 @@ inductive TermVector : ℕ → Type where
 deriving Repr, DecidableEq
 
 inductive Term : Type where
-  | var          : Assignable           → Term
-  | neg          : Term                 → Term
-  | plus         : Term                 → Term               → Term
-  | times        : Term                 → Term               → Term
-  | applyFn      : (f : FunctionSymbol) → TermVector f.arity → Term
-  | differential : Term                 → Term
+  | var          : Assignable → Term
+  | neg          : Term       → Term
+  | plus         : Term       → Term               → Term
+  | times        : Term       → Term               → Term
+  | applyFn      : (f : Fn)   → TermVector f.arity → Term
+  | differential : Term       → Term
 deriving Repr, DecidableEq
 end
 

@@ -17,13 +17,17 @@ deriving Repr, DecidableEq, BEq
 
 mutual
 
+def Function.signature : (f : Fn) → Finset Symbol
+  | .num _ => ∅
+  | .sym f => {Symbol.Function f}
+
 def Term.signature (t : Term) : Finset Symbol := match t with
   | Term.var _           => ∅
   | Term.neg t'          => t'.signature
   | Term.plus  t1 t2
   | Term.times t1 t2     => t1.signature ∪ t2.signature
   | Term.differential t' => t'.signature
-  | Term.applyFn f args  => {Symbol.Function f} ∪ args.signature
+  | Term.applyFn f args  => Function.signature f ∪ args.signature
 
 def TermVector.signature {n : ℕ}
                          (ts: TermVector n)

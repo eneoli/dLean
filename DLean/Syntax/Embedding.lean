@@ -98,21 +98,21 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
     mkAppM ``Term.var #[assignableExpr]
 
   | `(dL_term| $n:num) => do
-    let fnSym ← mkAppM ``FunctionSymbol.num #[
+    let fn ← mkAppM ``Fn.num #[← mkAppM ``Number.mk #[
       mkNatLit n.getNat,
+      mkNatLit 0,
       Expr.const ``Bool.false [],
-      mkNatLit 0
-    ]
-    mkAppM ``Term.applyFn #[fnSym, .const ``TermVector.nil []]
+    ]]
+    mkAppM ``Term.applyFn #[fn, .const ``TermVector.nil []]
 
   | `(dL_term| $r:scientific) => do
     let (n, sign, e) := r.getScientific
-    let fnSym ← mkAppM ``FunctionSymbol.num #[
+    let fn ← mkAppM ``Fn.num #[← mkAppM ``Number.mk #[
       mkNatLit n,
-      if sign then .const ``Bool.false [] else .const ``Bool.true [],
       mkNatLit e,
-    ]
-    mkAppM ``Term.applyFn #[fnSym, .const ``TermVector.nil []]
+      if sign then .const ``Bool.false [] else .const ``Bool.true [],
+    ]]
+    mkAppM ``Term.applyFn #[fn, .const ``TermVector.nil []]
 
   | `(dL_term| - $t:dL_term) => do mkAppM ``Term.neg #[← elabTerm t]
 
@@ -133,15 +133,15 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
 
   | `(dL_term|$f:ident ($args:dL_term,*)) => do
     let args : Array Syntax := args
-    let fnSym ← mkAppM ``FunctionSymbol.const #[
+    let fn ← mkAppM ``Fn.sym #[← mkAppM ``FunctionSymbol.mk #[
       Lean.mkStrLit f.getId.toString,
       Lean.mkNatLit args.size,
-    ]
+    ]]
     let argsExpr ← Array.mapM id <| (args.map elabTerm)
     let argsTermVectorExpr ← argsExpr.foldrM
       (λe acc => mkAppM ``TermVector.cons #[e, acc])
       (.const ``TermVector.nil [])
-    mkAppM ``Term.applyFn <| #[fnSym, argsTermVectorExpr]
+    mkAppM ``Term.applyFn <| #[fn, argsTermVectorExpr]
 
   | `(dL_term|( $t:dL_term )') => do mkAppM ``Term.differential #[← elabTerm t]
 
@@ -361,13 +361,13 @@ def delabSymbol (ctor: Name) (arity: ℕ) (expr : Expr) : DelabM String := do
   let name := expr.appFn!'.appArg!'
   extractString name
 
-@[scoped delab app.FunctionSymbol.num]
-def delabFunctionSymbol.num : Delab := do
+@[scoped delab app.Number.mk]
+def delabNumber.num : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``FunctionSymbol.num 3
+  guard $ expr.isAppOfArity' ``Number.mk 3
   let n ← extractNat expr.appFn!'.appFn!'.appArg!'
-  let sign ← extractBool expr.appFn!'.appArg!'
-  let e ← extractNat expr.appArg!'
+  let e ← extractNat expr.appFn!'.appArg!'
+  let sign ← extractBool expr.appArg!'
   let value := (if sign then (n) * 10 ^ (0 - e) else n * 10 ^ e).toFloat
   let t := Syntax.mkNumLit $ trimTrailingZeros value.toString
   `($t)
@@ -382,10 +382,22 @@ def delabFunctionSymbol.num : Delab := do
       else
         s
 
-@[scoped delab app.FunctionSymbol.const]
-def delabFunctionSymbol.const : Delab := do
+@[scoped delab app.Fn.num]
+def delabFn.num : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``FunctionSymbol.const 2
+  guard $ expr.isAppOfArity' ``Fn.num 1
+  delab expr.appArg!
+
+@[scoped delab app.Fn.sym]
+def delabFn.sym : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``Fn.sym 1
+  delab expr.appArg!
+
+@[scoped delab app.FunctionSymbol.mk]
+def delabFunctionSymbol.mk : Delab := do
+  let expr ← getExpr
+  guard $ expr.isAppOfArity' ``FunctionSymbol.mk 2
   let name := expr.appFn!.appArg!
   pure <| Lean.mkIdent $ Lean.Name.mkSimple (← extractString name)
 
