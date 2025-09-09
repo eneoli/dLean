@@ -6,6 +6,7 @@ import DLean.Semantics.Interpretation
 import DLean.Embedding.Shallow
 
 open Semantics
+open Embedding
 
 structure Sequent where
   left : Multiset Formula
