@@ -3,6 +3,8 @@ import Qq
 
 open Lean Meta Qq
 
+namespace Embedding
+
 section SyntaxCategories
 
 declare_syntax_cat dL_term       (behavior := symbol)
@@ -11,49 +13,49 @@ declare_syntax_cat dL_program    (behavior := symbol)
 declare_syntax_cat dL_ode        (behavior := symbol)
 declare_syntax_cat dL_ode_system (behavior := symbol)
 
-syntax:max ident : dL_term
-syntax:max num : dL_term
-syntax:max scientific : dL_term
-syntax:max "(" dL_term ")" : dL_term
-syntax:max "(" dL_term ")'" : dL_term
-syntax:max ident "(" dL_term,* ")" : dL_term
-syntax:30  " - " dL_term:30 : dL_term
-syntax:20  dL_term:20 " * " dL_term:21 : dL_term
-syntax:10  dL_term:10 " + " dL_term:11 : dL_term
-syntax:10  dL_term:10 " - " dL_term:11 : dL_term
+scoped syntax:max ident : dL_term
+scoped syntax:max num : dL_term
+scoped syntax:max scientific : dL_term
+scoped syntax:max "(" dL_term ")" : dL_term
+scoped syntax:max "(" dL_term ")'" : dL_term
+scoped syntax:max ident "(" dL_term,* ")" : dL_term
+scoped syntax:30  " - " dL_term:30 : dL_term
+scoped syntax:20  dL_term:20 " * " dL_term:21 : dL_term
+scoped syntax:10  dL_term:10 " + " dL_term:11 : dL_term
+scoped syntax:10  dL_term:10 " - " dL_term:11 : dL_term
 
-syntax:max "true" : dL_formula
-syntax:max "false" : dL_formula
-syntax:max ident : dL_formula
-syntax:max "(" dL_formula ")" : dL_formula
-syntax:max ident "(" dL_term,* ")" : dL_formula
-syntax:max dL_term " = " dL_term : dL_formula
-syntax:max dL_term " ≥ " dL_term : dL_formula
-syntax:max dL_term " ≠ " dL_term : dL_formula
-syntax:max dL_term " > " dL_term : dL_formula
-syntax:max dL_term " < " dL_term : dL_formula
-syntax:max dL_term " ≤ " dL_term : dL_formula
-syntax:60  "¬" dL_formula : dL_formula
-syntax:50  "∀" ident ", " dL_formula:50 : dL_formula
-syntax:50  "∃" ident ", " dL_formula:50 : dL_formula
-syntax:50  "[" dL_program "]" dL_formula : 50 : dL_formula
-syntax:50  "⟨" dL_program "⟩" dL_formula : 50 : dL_formula
-syntax:40  dL_formula:41 " ∧ " dL_formula:40 : dL_formula
-syntax:30  dL_formula:31 " ∨ " dL_formula:30 : dL_formula
-syntax:20  dL_formula:21 " → " dL_formula:20 : dL_formula
-syntax:10  dL_formula:11 " ↔ " dL_formula:10 : dL_formula
+scoped syntax:max "true" : dL_formula
+scoped syntax:max "false" : dL_formula
+scoped syntax:max ident : dL_formula
+scoped syntax:max "(" dL_formula ")" : dL_formula
+scoped syntax:max ident "(" dL_term,* ")" : dL_formula
+scoped syntax:max dL_term " = " dL_term : dL_formula
+scoped syntax:max dL_term " ≥ " dL_term : dL_formula
+scoped syntax:max dL_term " ≠ " dL_term : dL_formula
+scoped syntax:max dL_term " > " dL_term : dL_formula
+scoped syntax:max dL_term " < " dL_term : dL_formula
+scoped syntax:max dL_term " ≤ " dL_term : dL_formula
+scoped syntax:60  "¬" dL_formula : dL_formula
+scoped syntax:50  "∀" ident ", " dL_formula:50 : dL_formula
+scoped syntax:50  "∃" ident ", " dL_formula:50 : dL_formula
+scoped syntax:50  "[" dL_program "]" dL_formula : 50 : dL_formula
+scoped syntax:50  "⟨" dL_program "⟩" dL_formula : 50 : dL_formula
+scoped syntax:40  dL_formula:41 " ∧ " dL_formula:40 : dL_formula
+scoped syntax:30  dL_formula:31 " ∨ " dL_formula:30 : dL_formula
+scoped syntax:20  dL_formula:21 " → " dL_formula:20 : dL_formula
+scoped syntax:10  dL_formula:11 " ↔ " dL_formula:10 : dL_formula
 
-syntax:40 (ident " = " dL_term) : dL_ode
-syntax:40 dL_ode,+ : dL_ode_system
+scoped syntax:40 (ident " = " dL_term) : dL_ode
+scoped syntax:40 dL_ode,+ : dL_ode_system
 
-syntax:max ident : dL_program
-syntax:max " ( " dL_program " ) " : dL_program
-syntax:40 ident " := " dL_term : dL_program
-syntax:40 dL_ode_system (" & " dL_formula)? : dL_program
-syntax:30 "?" dL_formula:30 : dL_program
-syntax:30 dL_program:30 "* " : dL_program
-syntax:20 dL_program:21 " ; " dL_program:20 : dL_program
-syntax:10 dL_program:11 " ∪ " dL_program:10 : dL_program
+scoped syntax:max ident : dL_program
+scoped syntax:max " ( " dL_program " ) " : dL_program
+scoped syntax:40 ident " := " dL_term : dL_program
+scoped syntax:40 dL_ode_system (" & " dL_formula)? : dL_program
+scoped syntax:30 "?" dL_formula:30 : dL_program
+scoped syntax:30 dL_program:30 "* " : dL_program
+scoped syntax:20 dL_program:21 " ; " dL_program:20 : dL_program
+scoped syntax:10 dL_program:11 " ∪ " dL_program:10 : dL_program
 
 end SyntaxCategories
 
@@ -284,9 +286,9 @@ partial def elabProgram : Syntax → MetaM Q(Program)
   | _ => Lean.Elab.throwUnsupportedSyntax
 end
 
-elab "[Term|" t:dL_term "]"       : term => elabTerm t
-elab "[Formula|" Φ:dL_formula "]" : term => elabFormula Φ
-elab "[Program|" α:dL_program "]" : term => elabProgram α
+scoped elab "[Term|" t:dL_term "]"       : term => elabTerm t
+scoped elab "[Formula|" Φ:dL_formula "]" : term => elabFormula Φ
+scoped elab "[Program|" α:dL_program "]" : term => elabProgram α
 
 end Elaborators
 
@@ -317,14 +319,14 @@ def extractBool (expr : Q(Bool)) : DelabM Bool := do
     | ~q(false) => pure false
     | _ => throwError "Expected Boolean Expression Constant"
 
-@[delab app.Variable.mk]
+@[scoped delab app.Variable.mk]
 def delabVariable.mk : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Variable.mk 1
   let ident := mkIdent $ Name.mkSimple $ (← extractString expr.appArg!)
   return ident
 
-@[delab app.Assignable.var]
+@[scoped delab app.Assignable.var]
 def delabAssignable.var : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Assignable.var 1
@@ -346,7 +348,7 @@ partial def delabAssignableH (expr : Expr) : DelabM String := do
   else
     pure $ (← delabAssignableH expr.appArg!) ++ "'"
 
-@[delab app.Assignable.diff]
+@[scoped delab app.Assignable.diff]
 def delabAssignable.diff : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Assignable.diff 1
@@ -359,7 +361,7 @@ def delabSymbol (ctor: Name) (arity: ℕ) (expr : Expr) : DelabM String := do
   let name := expr.appFn!'.appArg!'
   extractString name
 
-@[delab app.FunctionSymbol.num]
+@[scoped delab app.FunctionSymbol.num]
 def delabFunctionSymbol.num : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``FunctionSymbol.num 3
@@ -380,7 +382,7 @@ def delabFunctionSymbol.num : Delab := do
       else
         s
 
-@[delab app.FunctionSymbol.const]
+@[scoped delab app.FunctionSymbol.const]
 def delabFunctionSymbol.const : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``FunctionSymbol.const 2
@@ -398,21 +400,21 @@ partial def delabTermVector (expr : Expr) : DelabM (List (Lean.TSyntax `term)) :
 
 -- TODO unbox
 
-@[delab app.Term.var]
+@[scoped delab app.Term.var]
 def delabTerm.var : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Term.var 1
   let name := ⟨← delab expr.appArg!⟩
   return ⟨← `(dL_term| $name)⟩
 
-@[delab app.Term.neg]
+@[scoped delab app.Term.neg]
 def delabTerm.neg : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Term.neg 1
   let t ← withAppArg delab
   `(-$t)
 
-@[delab app.Term.plus]
+@[scoped delab app.Term.plus]
 def delabTerm.plus : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Term.plus 2
@@ -420,7 +422,7 @@ def delabTerm.plus : Delab := do
   let t₂ ← withNaryArg 1 delab
   `($t₁ + $t₂)
 
-@[delab app.Term.times]
+@[scoped delab app.Term.times]
 def delabTerm.times : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Term.times 2
@@ -429,7 +431,7 @@ def delabTerm.times : Delab := do
   `($t₁ * $t₂)
 
 -- TODO use dL_term category, adjust delabTermVector
-@[delab app.Term.applyFn]
+@[scoped delab app.Term.applyFn]
 def delabTerm.applyFn : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Term.applyFn 2
@@ -446,7 +448,7 @@ def delabTerm.applyFn : Delab := do
     let as := args[1:].toArray
     `($f ($a, $[$as],*))
 
-@[delab app.Term.differential]
+@[scoped delab app.Term.differential]
 def delabTerm.differential : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Term.differential 1
@@ -457,7 +459,7 @@ end Delaborators.Term
 
 section Delaborators.Program
 
-@[delab app.Program.const]
+@[scoped delab app.Program.const]
 def delabConst : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.const 1
@@ -466,14 +468,14 @@ def delabConst : Delab := do
   let symbolName := Lean.mkIdent $ Lean.Name.mkSimple (← extractString programSymbol)
   return ⟨← `(dL_program| $symbolName:ident)⟩
 
-@[delab app.Program.test]
+@[scoped delab app.Program.test]
 def delabTest : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.test 1
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| ? $Φ)⟩
 
-@[delab app.Program.assign]
+@[scoped delab app.Program.assign]
 def delabAssign : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.assign 2
@@ -481,7 +483,7 @@ def delabAssign : Delab := do
   let t := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $assignable:ident := $t)⟩
 
-@[delab app.Program.seq]
+@[scoped delab app.Program.seq]
 def delabSequence : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.seq 2
@@ -489,7 +491,7 @@ def delabSequence : Delab := do
   let α₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $α₁ ; $α₂)⟩
 
-@[delab app.Program.choice]
+@[scoped delab app.Program.choice]
 def delabChoice : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.choice 2
@@ -497,14 +499,14 @@ def delabChoice : Delab := do
   let α₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $α₁ ∪ $α₂)⟩
 
-@[delab app.Program.loop]
+@[scoped delab app.Program.loop]
 def delabLoop : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.loop 1
   let α := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $α*)⟩
 
-@[delab app.ODE.mk]
+@[scoped delab app.ODE.mk]
 def delabOde : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``ODE.mk 2
@@ -524,7 +526,7 @@ partial def delabOdeSystem : DelabM (Array (TSyntax `dL_ode)) := do
     let tail ← delabOdeSystem
     pure (head :: tail.toList).toArray
 
-@[delab app.Program.ode]
+@[scoped delab app.Program.ode]
 def delabODE : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Program.ode 2
@@ -539,19 +541,19 @@ end Delaborators.Program
 
 section Delaborators.Formula
 
-@[delab app.Formula.True]
+@[scoped delab app.Formula.True]
 def delabTrue : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.True 0
   return ⟨← `(dL_formula| true)⟩
 
-@[delab app.Formula.False]
+@[scoped delab app.Formula.False]
 def delabFalse : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.False 0
   return ⟨← `(dL_formula| false)⟩
 
-@[delab app.Formula.and]
+@[scoped delab app.Formula.and]
 def delabAnd : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.and 2
@@ -559,7 +561,7 @@ def delabAnd : Delab := do
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ ∧ $Φ₂)⟩
 
-@[delab app.Formula.applyPred]
+@[scoped delab app.Formula.applyPred]
 def delabApplyPred : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.applyPred 2
@@ -582,20 +584,20 @@ def delabInEquality(ctor : Name) (fn: Lean.Term → Lean.Term → Delab) : Delab
   let t₂ := ⟨← delab expr.appArg!⟩
   return ⟨← fn t₁ t₂⟩
 
-@[delab app.Formula.eq]
+@[scoped delab app.Formula.eq]
 def delabEq : Delab := delabInEquality ``Formula.eq (λt₁ t₂ => `($t₁ = $t₂))
 
-@[delab app.Formula.gte]
+@[scoped delab app.Formula.gte]
 def delabGte : Delab := delabInEquality ``Formula.gte (λt₁ t₂ => `($t₁ ≥ $t₂))
 
-@[delab app.Formula.not]
+@[scoped delab app.Formula.not]
 def delabNot : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.not 1
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| ¬$Φ)⟩
 
-@[delab app.Formula.or]
+@[scoped delab app.Formula.or]
 def delabOr : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.or 2
@@ -603,7 +605,7 @@ def delabOr : Delab := do
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ ∨ $Φ₂)⟩
 
-@[delab app.Formula.forall]
+@[scoped delab app.Formula.forall]
 def delabForall : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.forall 2
@@ -611,7 +613,7 @@ def delabForall : Delab := do
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| ∀$x, $Φ)⟩
 
-@[delab app.Formula.exists]
+@[scoped delab app.Formula.exists]
 def delabExists : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.exists 2
@@ -619,7 +621,7 @@ def delabExists : Delab := do
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| ∃$x, $Φ)⟩
 
-@[delab app.Formula.box]
+@[scoped delab app.Formula.box]
 def delabBox : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.box 2
@@ -627,7 +629,7 @@ def delabBox : Delab := do
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| [$α]$Φ)⟩
 
-@[delab app.Formula.diamond]
+@[scoped delab app.Formula.diamond]
 def delabDiamond : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.diamond 2
@@ -635,7 +637,7 @@ def delabDiamond : Delab := do
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| ⟨$α⟩$Φ)⟩
 
-@[delab app.Formula.implies]
+@[scoped delab app.Formula.implies]
 def delabImplies : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.implies 2
@@ -643,7 +645,7 @@ def delabImplies : Delab := do
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ → $Φ₂)⟩
 
-@[delab app.Formula.equiv]
+@[scoped delab app.Formula.equiv]
 def delabEquiv : Delab := do
   let expr ← getExpr
   guard $ expr.isAppOfArity' ``Formula.equiv 2
@@ -651,16 +653,16 @@ def delabEquiv : Delab := do
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ ↔ $Φ₂)⟩
 
-@[delab app.Formula.neq]
+@[scoped delab app.Formula.neq]
 def delabNeq : Delab := delabInEquality ``Formula.neq (λt₁ t₂ => `($t₁ ≠ $t₂))
 
-@[delab app.Formula.gt]
+@[scoped delab app.Formula.gt]
 def delabGt : Delab := delabInEquality ``Formula.gt (λt₁ t₂ => `($t₁ > $t₂))
 
-@[delab app.Formula.lt]
+@[scoped delab app.Formula.lt]
 def delabLt : Delab := delabInEquality ``Formula.lt (λt₁ t₂ => `($t₁ < $t₂))
 
-@[delab app.Formula.lte]
+@[scoped delab app.Formula.lte]
 def delabLte : Delab := delabInEquality ``Formula.lte (λt₁ t₂ => `($t₁ ≤ $t₂))
 
 end Delaborators.Formula
