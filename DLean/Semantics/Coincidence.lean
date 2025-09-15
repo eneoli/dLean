@@ -208,7 +208,7 @@ theorem Formula.coincidence (Φ : Formula)
     | .ref α β =>
       simp_all only [Finset.coe_union, Formula.denote, Set.mem_setOf_eq, Formula.freeVars, Formula.signature]
       intros href w' hin
-      obtain ⟨v',hin', h'⟩ : ∃ v' : State, (v,v')∈ α.denote i ∧ State.isEqOn w' v' (α.freeVars ∪ ((α.boundVars ∪ β.boundVars) \ α.mustBoundVars) ∪ α.mustBoundVars) := by
+      obtain ⟨v', hin', h'⟩ : ∃ v' : State, (v,v') ∈ α.denote i ∧ State.isEqOn w' v' (α.freeVars ∪ ((α.boundVars ∪ β.boundVars) \ α.mustBoundVars) ∪ α.mustBoundVars) := by
         apply α.coincidence j _ w
         . exact Set.subset_union_left
         . refine State.eq_on_symm (State.is_eq_on_subset h.1 ?_)
@@ -218,7 +218,7 @@ theorem Formula.coincidence (Φ : Formula)
       rw[Set.union_assoc, Set.diff_union_self] at h'
 
       apply href at hin'
-      obtain ⟨w'',hin', h''⟩ : ∃ w'' : State, (w,w'')∈ β.denote j ∧ State.isEqOn v' w'' (β.freeVars ∪ ((α.boundVars ∪ β.boundVars) \ β.mustBoundVars) ∪ β.mustBoundVars) := by
+      obtain ⟨w'', hin', h''⟩ : ∃ w'' : State, (w,w'') ∈ β.denote j ∧ State.isEqOn v' w'' (β.freeVars ∪ ((α.boundVars ∪ β.boundVars) \ β.mustBoundVars) ∪ β.mustBoundVars) := by
         apply β.coincidence i _ v
         . exact Set.subset_union_left
         . apply State.is_eq_on_subset h.1
@@ -235,13 +235,12 @@ theorem Formula.coincidence (Φ : Formula)
         have h' : w'.isEqOn v' (α.boundVars ∪ β.boundVars) := by
           exact State.is_eq_on_subset h' (Set.subset_union_of_subset_right Set.subset_union_left _)
         have h'' : w'.isEqOn w'' (α.boundVars ∪ β.boundVars) := by
-          rw[<-Set.inter_self  (_ ∪ _)]
+          rw[<- Set.inter_self  (_ ∪ _)]
           apply State.eq_on_trans h'
           exact State.is_eq_on_subset h'' (Set.subset_union_of_subset_right Set.subset_union_left _)
         apply State.is_eq_on_subset
-        . apply State.eq_union_iff_both.mpr
-          exact ⟨h'', hb'⟩
-        . rw[<-Set.compl_union, Set.union_compl_self]
+        . exact State.eq_union_iff_both.mpr ⟨h'', hb'⟩
+        . rw[<- Set.compl_union, Set.union_compl_self]
       rw[hweq]
       assumption
 termination_by Φ.size

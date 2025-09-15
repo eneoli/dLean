@@ -159,7 +159,7 @@ def Formula.lt (t₁ : Term) (t₂ : Term) :=
 def Formula.lte (t₁ : Term) (t₂ : Term) :=
   Formula.gte t₂ t₁
 
-def Formula.progEquiv (α₁ α₂:Program) : Formula :=
+def Formula.progEquiv (α₁ α₂: Program) : Formula :=
   Formula.and (Formula.ref α₁ α₂) (Formula.ref α₂ α₁)
 mutual
 noncomputable def Formula.size (Φ : Formula) := match Φ with
