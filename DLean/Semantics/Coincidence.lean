@@ -1,5 +1,7 @@
 import DLean.Syntax.Syntax
 import DLean.Semantics.BoundEffect
+import DLean.Syntax.Definitions
+import DLean.Syntax.Theorems
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.FreeVariables
@@ -79,7 +81,10 @@ theorem Term.coincidence (t : Term)
           simp_all only [Term.freeVars, Term.signature, Interpretation.eq_union_iff_both, Finset.coe_union]
           trivial
         . exact (TermVector.mem_toVector_iff _ _).mpr ht
-      simp_all[Term.denote, Term.freeVars, Term.signature, TermVector.freeVars, Interpretation.isEqOn]
+
+      match f with
+        | .num _ => simp_all[Term.denote, Term.signature, Interpretation.isEqOn]
+        | .sym _ => simp_all[Term.denote, Term.signature, Interpretation.isEqOn, Function.signature]
   | .differential t =>
       intro h
       simp[Term.denote]
