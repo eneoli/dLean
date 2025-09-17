@@ -18,7 +18,7 @@ noncomputable def Term.denote (i: Interpretation) (s : State) (t : Term) : ℝ :
                              match _ : f with
                                | .num num   => num.value
                                | .sym fnSym =>
-                                 have : f.arity = fnSym.arity := by simp_all[Fn.arity]
+                                 have : f.arity = fnSym.arity := by simp_all only [Fn.arity]
                                  (i (Symbol.Function fnSym)).1 (argValues[·])
     | Term.differential t => ∑ x ∈ t.freeVars, s (Assignable.diff x) *
                                                       (
