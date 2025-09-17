@@ -31,7 +31,8 @@ def Term.signature (t : Term) : Finset Symbol := match t with
 
 def TermVector.signature {n : ℕ}
                          (ts: TermVector n)
-                         : Finset Symbol := unionListOfFinsets (ts.toList.attach.map (fun ⟨t, _⟩ => Term.signature t))
+                         : Finset Symbol :=
+  unionListOfFinsets (ts.toList.attach.map (fun ⟨t, _⟩ => Term.signature t))
 
 end
 
@@ -56,8 +57,9 @@ def Program.signature (α : Program) : Finset Symbol := match α with
   | Program.seq α₁ α₂    => α₁.signature ∪ α₂.signature
   | Program.choice α₁ α₂ => α₁.signature ∪ α₂.signature
   | Program.loop α'      => α'.signature
-  | Program.ode system Ψ => let systemSignatures := List.foldr (Union.union ∘ Term.signature ∘ ODE.term) ∅ system
-                            systemSignatures ∪ Ψ.signature
+  | Program.ode system Ψ =>
+    let systemSignatures := List.foldr (Union.union ∘ Term.signature ∘ ODE.term) ∅ system
+    systemSignatures ∪ Ψ.signature
 end
 
 open scoped ContDiff
@@ -88,14 +90,15 @@ theorem TermVector.signature_nil :TermVector.nil.signature = ∅ := by
 theorem TermVector.signature_cons {n : ℕ}
                                   {t : Term}
                                   {ts : TermVector n}
-                                  : (TermVector.cons t ts).signature = t.signature ∪ ts.signature := by
+                                  : (TermVector.cons t ts).signature
+                                  = t.signature ∪ ts.signature := by
   simp[TermVector.signature]
   rw[TermVector.mem_toList_cons]
   simp
 
 @[simp]
-theorem Interpretation.eq_union_iff_both {i  : Interpretation}
-                                         {j  : Interpretation}
+theorem Interpretation.eq_union_iff_both {i : Interpretation}
+                                         {j : Interpretation}
                                          {S₁ : Set Symbol}
                                          {S₂ : Set Symbol}
                                          : Interpretation.isEqOn i j (S₁ ∪  S₂) ↔
@@ -114,12 +117,12 @@ theorem Interpretation.eq_union_iff_both {i  : Interpretation}
     . exact h1.2 s
 
 @[simp]
-theorem Interpretation.is_eq_on_subset {i   : Interpretation}
-                                       {j   : Interpretation}
+theorem Interpretation.is_eq_on_subset {i : Interpretation}
+                                       {j : Interpretation}
                                        {on₁ : Set Symbol}
                                        {on₂ : Set Symbol}
-                                       (h   : Interpretation.isEqOn i j on₁)
-                                       (hs  : on₂ ⊆ on₁)
+                                       (h : Interpretation.isEqOn i j on₁)
+                                       (hs : on₂ ⊆ on₁)
                                        : Interpretation.isEqOn i j on₂ := by
   exact fun s a ↦ h s (hs a)
 

@@ -20,7 +20,8 @@ def Term.freeVars : (t : Term) → Finset Assignable
 
 def TermVector.freeVars {n : ℕ}
                         (ts : TermVector n)
-                        : Finset Assignable := unionListOfFinsets (List.map (λ ⟨t, _⟩ => Term.freeVars t) ts.toList.attach)
+                        : Finset Assignable :=
+  unionListOfFinsets (List.map (fun ⟨t, _⟩ => Term.freeVars t) ts.toList.attach)
 
 end
 
@@ -32,10 +33,10 @@ theorem TermVector.freeVars_nil :TermVector.nil.freeVars = ∅ := by
   rfl
 
 @[simp]
-theorem TermVector.freeVars_cons  {n : ℕ}
-                                  {t : Term}
-                                  {ts : TermVector n}
-                                  : (TermVector.cons t ts).freeVars = t.freeVars ∪ ts.freeVars := by
+theorem TermVector.freeVars_cons {n : ℕ}
+                                 {t : Term}
+                                 {ts : TermVector n}
+                                 : (TermVector.cons t ts).freeVars = t.freeVars ∪ ts.freeVars := by
   simp[TermVector.freeVars]
   rw[TermVector.mem_toList_cons]
   simp
@@ -91,7 +92,7 @@ def Program.freeVars (α : Program) : Set Assignable := match α with
   | .choice α β   => Program.freeVars α ∪ Program.freeVars β
   | .loop α       => Program.freeVars α
   | .ode system Ψ => let ode_vars := system.assignables
-                     let fvars_ode := unionListOfFinsets <| List.map (Term.freeVars ∘ ODE.term) system
+                     let fvars_ode := unionListOfFinsets <| system.map (Term.freeVars ∘ ODE.term)
                      let fvars_constraint := Formula.freeVars Ψ
                      ode_vars ∪ fvars_ode ∪ fvars_constraint
 

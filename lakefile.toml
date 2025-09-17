@@ -7,6 +7,20 @@ defaultTargets = ["DLean"]
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
 autoImplicit = false
 
+# Linter
+linter.mathlibStandardSet = true
+linter.docPrime = true
+linter.style.refine = true
+linter.tacticAnalysis = true
+linter.style.cdot = false
+linter.style.dollarSyntax = true
+linter.style.lambdaSyntax = true
+linter.style.openClassical = true
+linter.style.show = true
+linter.hashCommand = true
+linter.haveLet = 2
+# linter.ppRoundtrip = true
+
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"

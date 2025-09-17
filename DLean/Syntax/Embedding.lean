@@ -80,7 +80,7 @@ def parseAssignable (c : parseAssignable.Constraint) (str : String) : MetaM Q(As
   let ⟨pre, post⟩ := str.toList.span Char.isAlphanum
   if pre.length == 0 then
     throwError "Assignables need to start with an alphanumeric part."
-  else if not $ post.all (BEq.beq '\'') then
+  else if not <| post.all (BEq.beq '\'') then
     throwError "Assignables can only end with alphanumeric chars or primes."
   else if (c = .END_WITH_PRIME || c = .END_WITH_PRIME_EX) && post.isEmpty then
     throwError "Expected primed identifier."
@@ -90,7 +90,7 @@ def parseAssignable (c : parseAssignable.Constraint) (str : String) : MetaM Q(As
     let variableName : Q(String) := mkStrLit pre.asString
     let baseAssignableExpr := q(Assignable.var (Variable.mk $variableName))
     let numPrimes := if c == .END_WITH_PRIME_EX then post.tail else post
-    pure $ List.foldl (fun e _ => q(Assignable.diff $e)) baseAssignableExpr numPrimes
+    pure <| List.foldl (fun e _ => q(Assignable.diff $e)) baseAssignableExpr numPrimes
 
 partial def elabTerm : Syntax → MetaM Q(_root_.Term)
   | `(dL_term| $var:ident) => do
@@ -139,7 +139,7 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
     ]]
     let argsExpr ← Array.mapM id <| (args.map elabTerm)
     let argsTermVectorExpr ← argsExpr.foldrM
-      (λe acc => mkAppM ``TermVector.cons #[e, acc])
+      (fun e acc => mkAppM ``TermVector.cons #[e, acc])
       (.const ``TermVector.nil [])
     mkAppM ``Term.applyFn <| #[fn, argsTermVectorExpr]
 
@@ -155,7 +155,7 @@ partial def elabFormula : Syntax → MetaM Q(Formula)
 
   | `(dL_formula| false) => pure q(Formula.False)
 
-  | `(dL_formula| $P:ident) => pure $ Expr.const P.getId []
+  | `(dL_formula| $P:ident) => pure <| Expr.const P.getId []
 
   | `(dL_formula| ¬$Φ:dL_formula) => do
     let e ← elabFormula Φ
@@ -192,8 +192,9 @@ partial def elabFormula : Syntax → MetaM Q(Formula)
     let predSymArity : Q(Nat) := mkNatLit args.size
     let predSym := q(PredicateSymbol.mk $predSymName $predSymArity)
     let argsExpr ← args.mapM elabTerm
-    let argsTermVector ← argsExpr.foldrM (λe acc => mkAppM `TermVector.cons #[e, acc]) q(TermVector.nil)
-    pure $ mkApp q(Formula.applyPred $predSym) argsTermVector
+    let argsTermVector ← argsExpr.foldrM
+      (fun e acc => mkAppM `TermVector.cons #[e, acc]) q(TermVector.nil)
+    pure <| mkApp q(Formula.applyPred $predSym) argsTermVector
 
   | `(dL_formula| $t₁:dL_term = $t₂:dL_term) => do
     let t₁Expr ← elabTerm t₁
@@ -260,10 +261,11 @@ partial def elabProgram : Syntax → MetaM Q(Program)
     pure q(Program.test $Φ)
 
   | `(dL_program| $[$v:ident = $t:dL_term],* $[& $ψ:dL_formula]?) => do
-    let assignables ← v.mapM (parseAssignable .END_WITH_PRIME_EX ∘ Lean.Name.toString ∘ Lean.TSyntax.getId)
+    let assignables ←
+      v.mapM (parseAssignable .END_WITH_PRIME_EX ∘ Lean.Name.toString ∘ Lean.TSyntax.getId)
     let terms ← t.mapM elabTerm
-    let system := (Array.zipWith (λa t => q(ODE.mk $a $t)) assignables terms).toList
-    let systemExpr : Q(OdeSystem) := system.foldr (λ ode expr => q(List.cons $ode $expr)) q([])
+    let system := (Array.zipWith (fun a t => q(ODE.mk $a $t)) assignables terms).toList
+    let systemExpr : Q(OdeSystem) := system.foldr (fun ode expr => q(List.cons $ode $expr)) q([])
     let constraint := (← ψ.mapM elabFormula).getD q(Formula.True)
     pure q(Program.ode $systemExpr $constraint)
 
@@ -322,18 +324,18 @@ def extractBool (expr : Q(Bool)) : DelabM Bool := do
 @[scoped delab app.Variable.mk]
 def delabVariable.mk : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Variable.mk 1
-  let ident := mkIdent $ Name.mkSimple $ (← extractString expr.appArg!)
+  guard <| expr.isAppOfArity' ``Variable.mk 1
+  let ident := mkIdent <| Name.mkSimple <| (← extractString expr.appArg!)
   return ident
 
 @[scoped delab app.Assignable.var]
 def delabAssignable.var : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Assignable.var 1
+  guard <| expr.isAppOfArity' ``Assignable.var 1
   delab expr.appArg!
 
 def delabVariableH (expr : Expr) : DelabM String := do
-  guard $ expr.isAppOfArity' ``Variable.mk 1
+  guard <| expr.isAppOfArity' ``Variable.mk 1
   let ident := expr.appArg!
   match ident with
     | Expr.lit lit => match lit with
@@ -342,34 +344,34 @@ def delabVariableH (expr : Expr) : DelabM String := do
     | _ => unreachable!
 
 partial def delabAssignableH (expr : Expr) : DelabM String := do
-  guard $ (expr.isAppOfArity' ``Assignable.var 1 || expr.isAppOfArity' ``Assignable.diff 1)
+  guard <| (expr.isAppOfArity' ``Assignable.var 1 || expr.isAppOfArity' ``Assignable.diff 1)
   if expr.isAppOfArity' ``Assignable.var 1 then
     delabVariableH expr.appArg!
   else
-    pure $ (← delabAssignableH expr.appArg!) ++ "'"
+    pure <| (← delabAssignableH expr.appArg!) ++ "'"
 
 @[scoped delab app.Assignable.diff]
 def delabAssignable.diff : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Assignable.diff 1
-  return (mkIdent $ Name.mkSimple ((← delabAssignableH expr.appArg!) ++ "'"))
+  guard <| expr.isAppOfArity' ``Assignable.diff 1
+  return (mkIdent <| Name.mkSimple ((← delabAssignableH expr.appArg!) ++ "'"))
 
 section Delaborators.Term
 
-def delabSymbol (ctor: Name) (arity: ℕ) (expr : Expr) : DelabM String := do
-  guard $ expr.isAppOfArity' ctor arity
+def delabSymbol (ctor : Name) (arity : ℕ) (expr : Expr) : DelabM String := do
+  guard <| expr.isAppOfArity' ctor arity
   let name := expr.appFn!'.appArg!'
   extractString name
 
 @[scoped delab app.Number.mk]
 def delabNumber.num : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Number.mk 3
+  guard <| expr.isAppOfArity' ``Number.mk 3
   let n ← extractNat expr.appFn!'.appFn!'.appArg!'
   let e ← extractNat expr.appFn!'.appArg!'
   let sign ← extractBool expr.appArg!'
   let value := (if sign then (n) * 10 ^ (0 - e) else n * 10 ^ e).toFloat
-  let t := Syntax.mkNumLit $ trimTrailingZeros value.toString
+  let t := Syntax.mkNumLit <| trimTrailingZeros value.toString
   `($t)
   where
     trimTrailingZeros (s : String) : String :=
@@ -385,51 +387,51 @@ def delabNumber.num : Delab := do
 @[scoped delab app.Fn.num]
 def delabFn.num : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Fn.num 1
+  guard <| expr.isAppOfArity' ``Fn.num 1
   delab expr.appArg!
 
 @[scoped delab app.Fn.sym]
 def delabFn.sym : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Fn.sym 1
+  guard <| expr.isAppOfArity' ``Fn.sym 1
   delab expr.appArg!
 
 @[scoped delab app.FunctionSymbol.mk]
 def delabFunctionSymbol.mk : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``FunctionSymbol.mk 2
+  guard <| expr.isAppOfArity' ``FunctionSymbol.mk 2
   let name := expr.appFn!.appArg!
-  pure <| Lean.mkIdent $ Lean.Name.mkSimple (← extractString name)
+  pure <| Lean.mkIdent <| Lean.Name.mkSimple (← extractString name)
 
 partial def delabTermVector (expr : Expr) : DelabM (List (Lean.TSyntax `term)) := do
-  guard $ expr.isAppOfArity' ``TermVector.nil 0 || expr.isAppOfArity' ``TermVector.cons 2
+  guard <| expr.isAppOfArity' ``TermVector.nil 0 || expr.isAppOfArity' ``TermVector.cons 2
   if expr.isAppOfArity' ``TermVector.nil 0 then
     pure []
   else
     let tail := expr.appArg!
     let head := expr.appFn!.appArg!
-    pure $ (← delab head) :: (← delabTermVector tail)
+    pure <| (← delab head) :: (← delabTermVector tail)
 
 -- TODO unbox
 
 @[scoped delab app.Term.var]
 def delabTerm.var : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Term.var 1
+  guard <| expr.isAppOfArity' ``Term.var 1
   let name := ⟨← delab expr.appArg!⟩
   return ⟨← `(dL_term| $name)⟩
 
 @[scoped delab app.Term.neg]
 def delabTerm.neg : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Term.neg 1
+  guard <| expr.isAppOfArity' ``Term.neg 1
   let t ← withAppArg delab
   `(-$t)
 
 @[scoped delab app.Term.plus]
 def delabTerm.plus : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Term.plus 2
+  guard <| expr.isAppOfArity' ``Term.plus 2
   let t₁ ← withNaryArg 0 delab
   let t₂ ← withNaryArg 1 delab
   `($t₁ + $t₂)
@@ -437,7 +439,7 @@ def delabTerm.plus : Delab := do
 @[scoped delab app.Term.times]
 def delabTerm.times : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Term.times 2
+  guard <| expr.isAppOfArity' ``Term.times 2
   let t₁ ← withNaryArg 0 delab
   let t₂ ← withNaryArg 1 delab
   `($t₁ * $t₂)
@@ -446,7 +448,7 @@ def delabTerm.times : Delab := do
 @[scoped delab app.Term.applyFn]
 def delabTerm.applyFn : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Term.applyFn 2
+  guard <| expr.isAppOfArity' ``Term.applyFn 2
   let f ← delab expr.appFn!.appArg!
   let args := (← delabTermVector expr.appArg!).toArray
 
@@ -463,7 +465,7 @@ def delabTerm.applyFn : Delab := do
 @[scoped delab app.Term.differential]
 def delabTerm.differential : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Term.differential 1
+  guard <| expr.isAppOfArity' ``Term.differential 1
   let t := ⟨← delab expr.appArg!⟩
   return ⟨← `(dL_term| ($t)')⟩
 
@@ -474,23 +476,23 @@ section Delaborators.Program
 @[scoped delab app.Program.const]
 def delabConst : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Program.const 1
+  guard <| expr.isAppOfArity' ``Program.const 1
   let programSymbol := expr.appArg!
-  guard $ programSymbol.isAppOfArity' ``ProgramSymbol.mk 1
-  let symbolName := Lean.mkIdent $ Lean.Name.mkSimple (← extractString programSymbol)
+  guard <| programSymbol.isAppOfArity' ``ProgramSymbol.mk 1
+  let symbolName := Lean.mkIdent <| Lean.Name.mkSimple (← extractString programSymbol)
   return ⟨← `(dL_program| $symbolName:ident)⟩
 
 @[scoped delab app.Program.test]
 def delabTest : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Program.test 1
+  guard <| expr.isAppOfArity' ``Program.test 1
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| ? $Φ)⟩
 
 @[scoped delab app.Program.assign]
 def delabAssign : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Program.assign 2
+  guard <| expr.isAppOfArity' ``Program.assign 2
   let assignable := ⟨← delab expr.appFn!.appArg!⟩
   let t := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $assignable:ident := $t)⟩
@@ -498,7 +500,7 @@ def delabAssign : Delab := do
 @[scoped delab app.Program.seq]
 def delabSequence : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Program.seq 2
+  guard <| expr.isAppOfArity' ``Program.seq 2
   let α₁ := ⟨← delab expr.appFn!.appArg!⟩
   let α₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $α₁ ; $α₂)⟩
@@ -506,7 +508,7 @@ def delabSequence : Delab := do
 @[scoped delab app.Program.choice]
 def delabChoice : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Program.choice 2
+  guard <| expr.isAppOfArity' ``Program.choice 2
   let α₁ := ⟨← delab expr.appFn!.appArg!⟩
   let α₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $α₁ ∪ $α₂)⟩
@@ -514,21 +516,21 @@ def delabChoice : Delab := do
 @[scoped delab app.Program.loop]
 def delabLoop : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Program.loop 1
+  guard <| expr.isAppOfArity' ``Program.loop 1
   let α := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $α*)⟩
 
 @[scoped delab app.ODE.mk]
 def delabOde : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``ODE.mk 2
+  guard <| expr.isAppOfArity' ``ODE.mk 2
   let var := ⟨← delab expr.appFn!.appArg!⟩
   let term := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_ode| $var:ident = $term)⟩
 
 partial def delabOdeSystem : DelabM (Array (TSyntax `dL_ode)) := do
   let system ← getExpr
-  guard $ (system.isAppOfArity' ``List.nil 1) || (system.isAppOfArity ``List.cons 3)
+  guard <| (system.isAppOfArity' ``List.nil 1) || (system.isAppOfArity ``List.cons 3)
 
   if system.isAppOfArity' ``List.nil 1 then
     pure #[]
@@ -541,7 +543,7 @@ partial def delabOdeSystem : DelabM (Array (TSyntax `dL_ode)) := do
 @[scoped delab app.Program.ode]
 def delabODE : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Program.ode 2
+  guard <| expr.isAppOfArity' ``Program.ode 2
   let Ψ := ⟨← delab expr.appArg!⟩
 
   withAppFn do
@@ -556,19 +558,19 @@ section Delaborators.Formula
 @[scoped delab app.Formula.True]
 def delabTrue : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.True 0
+  guard <| expr.isAppOfArity' ``Formula.True 0
   return ⟨← `(dL_formula| true)⟩
 
 @[scoped delab app.Formula.False]
 def delabFalse : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.False 0
+  guard <| expr.isAppOfArity' ``Formula.False 0
   return ⟨← `(dL_formula| false)⟩
 
 @[scoped delab app.Formula.and]
 def delabAnd : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.and 2
+  guard <| expr.isAppOfArity' ``Formula.and 2
   let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ ∧ $Φ₂)⟩
@@ -576,9 +578,10 @@ def delabAnd : Delab := do
 @[scoped delab app.Formula.applyPred]
 def delabApplyPred : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.applyPred 2
+  guard <| expr.isAppOfArity' ``Formula.applyPred 2
   let args := (← delabTermVector expr.appArg!).toArray
-  let p := Lean.mkIdent $ Lean.Name.mkSimple (← delabSymbol ``PredicateSymbol.mk 2 (expr.appFn!.appArg!))
+  let p := Lean.mkIdent <|
+    Lean.Name.mkSimple (← delabSymbol ``PredicateSymbol.mk 2 (expr.appFn!.appArg!))
   if args.size == 0 then
     `($p)
   else if args.size == 1 then
@@ -589,30 +592,30 @@ def delabApplyPred : Delab := do
     let as := args[1:].toArray
     `($p ($a, $[$as],*))
 
-def delabInEquality(ctor : Name) (fn: Lean.Term → Lean.Term → Delab) : Delab := do
+def delabInEquality (ctor : Name) (fn : Lean.Term → Lean.Term → Delab) : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ctor 2
+  guard <| expr.isAppOfArity' ctor 2
   let t₁ := ⟨← delab expr.appFn!.appArg!⟩
   let t₂ := ⟨← delab expr.appArg!⟩
   return ⟨← fn t₁ t₂⟩
 
 @[scoped delab app.Formula.eq]
-def delabEq : Delab := delabInEquality ``Formula.eq (λt₁ t₂ => `($t₁ = $t₂))
+def delabEq : Delab := delabInEquality ``Formula.eq (fun t₁ t₂ => `($t₁ = $t₂))
 
 @[scoped delab app.Formula.gte]
-def delabGte : Delab := delabInEquality ``Formula.gte (λt₁ t₂ => `($t₁ ≥ $t₂))
+def delabGte : Delab := delabInEquality ``Formula.gte (fun t₁ t₂ => `($t₁ ≥ $t₂))
 
 @[scoped delab app.Formula.not]
 def delabNot : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.not 1
+  guard <| expr.isAppOfArity' ``Formula.not 1
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| ¬$Φ)⟩
 
 @[scoped delab app.Formula.or]
 def delabOr : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.or 2
+  guard <| expr.isAppOfArity' ``Formula.or 2
   let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ ∨ $Φ₂)⟩
@@ -620,7 +623,7 @@ def delabOr : Delab := do
 @[scoped delab app.Formula.forall]
 def delabForall : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.forall 2
+  guard <| expr.isAppOfArity' ``Formula.forall 2
   let x := ⟨← delab expr.appFn!.appArg!⟩
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| ∀$x, $Φ)⟩
@@ -628,7 +631,7 @@ def delabForall : Delab := do
 @[scoped delab app.Formula.exists]
 def delabExists : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.exists 2
+  guard <| expr.isAppOfArity' ``Formula.exists 2
   let x := ⟨← delab expr.appFn!.appArg!⟩
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| ∃$x, $Φ)⟩
@@ -636,7 +639,7 @@ def delabExists : Delab := do
 @[scoped delab app.Formula.box]
 def delabBox : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.box 2
+  guard <| expr.isAppOfArity' ``Formula.box 2
   let α := ⟨← delab expr.appFn!.appArg!⟩
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| [$α]$Φ)⟩
@@ -644,7 +647,7 @@ def delabBox : Delab := do
 @[scoped delab app.Formula.diamond]
 def delabDiamond : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.diamond 2
+  guard <| expr.isAppOfArity' ``Formula.diamond 2
   let α := ⟨← delab expr.appFn!.appArg!⟩
   let Φ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| ⟨$α⟩$Φ)⟩
@@ -652,7 +655,7 @@ def delabDiamond : Delab := do
 @[scoped delab app.Formula.implies]
 def delabImplies : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.implies 2
+  guard <| expr.isAppOfArity' ``Formula.implies 2
   let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ → $Φ₂)⟩
@@ -660,23 +663,25 @@ def delabImplies : Delab := do
 @[scoped delab app.Formula.equiv]
 def delabEquiv : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.equiv 2
+  guard <| expr.isAppOfArity' ``Formula.equiv 2
   let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ ↔ $Φ₂)⟩
 
 @[scoped delab app.Formula.neq]
-def delabNeq : Delab := delabInEquality ``Formula.neq (λt₁ t₂ => `($t₁ ≠ $t₂))
+def delabNeq : Delab := delabInEquality ``Formula.neq (fun t₁ t₂ => `($t₁ ≠ $t₂))
 
 @[scoped delab app.Formula.gt]
-def delabGt : Delab := delabInEquality ``Formula.gt (λt₁ t₂ => `($t₁ > $t₂))
+def delabGt : Delab := delabInEquality ``Formula.gt (fun t₁ t₂ => `($t₁ > $t₂))
 
 @[scoped delab app.Formula.lt]
-def delabLt : Delab := delabInEquality ``Formula.lt (λt₁ t₂ => `($t₁ < $t₂))
+def delabLt : Delab := delabInEquality ``Formula.lt (fun t₁ t₂ => `($t₁ < $t₂))
 
 @[scoped delab app.Formula.lte]
-def delabLte : Delab := delabInEquality ``Formula.lte (λt₁ t₂ => `($t₁ ≤ $t₂))
+def delabLte : Delab := delabInEquality ``Formula.lte (fun t₁ t₂ => `($t₁ ≤ $t₂))
 
 end Delaborators.Formula
 
 end Delaborators
+
+end Embedding
