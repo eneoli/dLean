@@ -52,13 +52,13 @@ theorem TermVector.mem_of_ne_of_mem {n : ℕ}
   exact List.mem_of_ne_of_mem h hx
 
 theorem TermVector.mem_toList_iff {n : ℕ}
-                                  {t: Term}
+                                  {t : Term}
                                   {ts : TermVector n}
                                   : t ∈ ts.toList ↔ t ∈ ts := Iff.rfl
 
 @[simp]
 theorem TermVector.mem_toList_cons {n : ℕ}
-                                   {t: Term}
+                                   {t : Term}
                                    {ts : TermVector n}
                                    : (TermVector.cons t ts).toList = t :: ts.toList := by
   rfl
@@ -86,7 +86,7 @@ theorem TermVector.toList_leq_size {n : ℕ}
                     omega
 
 theorem TermVector.sizeOf_lt_of_mem {n : ℕ}
-                                    {t: Term}
+                                    {t : Term}
                                     {ts : TermVector n}
                                     (h : t ∈ ts)
                                     : sizeOf t < sizeOf ts := by
@@ -94,8 +94,8 @@ theorem TermVector.sizeOf_lt_of_mem {n : ℕ}
   apply TermVector.toList_leq_size
 
 theorem TermVector.mem_toVector_iff {n : ℕ}
-                                    (t: Term)
-                                    (ts: TermVector n)
+                                    (t : Term)
+                                    (ts : TermVector n)
                                     : t ∈ ts ↔ t ∈ ts.toVector := by
   apply Iff.intro
   .
@@ -134,7 +134,8 @@ section OdeSystem
 
 lemma OdeSystem.assignables_union_iff {head : ODE}
                                       {tail : OdeSystem}
-                                      : OdeSystem.assignables (head :: tail) = {head.var} ∪ OdeSystem.assignables tail := by
+                                      : OdeSystem.assignables (head :: tail)
+                                      = {head.var} ∪ OdeSystem.assignables tail := by
   simp[OdeSystem.assignables]
 
 end OdeSystem

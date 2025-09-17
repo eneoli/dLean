@@ -12,7 +12,8 @@ open Semantics
 
 theorem ode_evolution_formula_size_bound {system : OdeSystem}
                                          {ψ : Formula}
-                                         : (odeEvolutionFormula system ψ).size < 1 + sizeOf system + ψ.size + 2*system.length := by
+                                         : (odeEvolutionFormula system ψ).size
+                                           < 1 + sizeOf system + ψ.size + 2*system.length := by
   induction system
   . simp[odeEvolutionFormula]
   . next head _ _ =>
@@ -76,7 +77,12 @@ theorem Term.coincidence (t : Term)
         intro t ht
         apply TermVector.coincidence ts
         .
-          simp_all only [Term.freeVars, Term.signature, Interpretation.eq_union_iff_both, Finset.coe_union]
+          simp_all only [
+            Term.freeVars,
+            Term.signature,
+            Interpretation.eq_union_iff_both,
+            Finset.coe_union
+          ]
           trivial
         . exact (TermVector.mem_toVector_iff _ _).mpr ht
 
@@ -171,7 +177,12 @@ theorem Formula.coincidence (Φ : Formula)
     | .diamond α φ =>
       simp_all[Formula.denote, Formula.freeVars, Formula.signature]
       intro v' hv' hvv'
-      have ⟨w', hww'⟩ := Program.coincidence α i j v w (α.freeVars ∪ φ.freeVars \ α.mustBoundVars) (by simp) (by simp[h]) h.2.1 v' hvv'
+      obtain ⟨w', hww'⟩ := by
+        apply Program.coincidence α i j v w (α.freeVars ∪ φ.freeVars \ α.mustBoundVars)
+        . simp
+        . simp[h]
+        . exact h.2.1
+        . exact hvv'
       apply Exists.intro w'
       apply And.intro
       .
@@ -266,7 +277,7 @@ theorem Program.coincidence (α  : Program)
       apply Or.elim h3
       .
         intro h3
-        have ⟨w', hw'⟩ := Program.coincidence α i j v v' S hs.1 h1 (by simp[h2]) w h3
+        let ⟨w', hw'⟩ := Program.coincidence α i j v v' S hs.1 h1 (by simp[h2]) w h3
         apply Exists.intro w'
         apply And.intro
         . exact Or.inl hw'.1
@@ -275,7 +286,7 @@ theorem Program.coincidence (α  : Program)
           exact ⟨this.1, by simp[State.is_eq_on_subset this.2]⟩
       .
         intro h3
-        have ⟨w', hw'⟩ := Program.coincidence β i j v v' S hs.2 h1 h4 w h3
+        let ⟨w', hw'⟩ := Program.coincidence β i j v v' S hs.2 h1 h4 w h3
         apply Exists.intro w'
         apply And.intro
         . exact Or.inr hw'.1
@@ -289,8 +300,8 @@ theorem Program.coincidence (α  : Program)
       simp[Program.freeVars] at hs
       simp[Program.denote, Program.mustBoundVars]
 
-      have ⟨u, hu⟩ := h3
-      have ⟨u', hu'⟩ := Program.coincidence α i j v v' S hs.1 h1 h2.1 u hu.1
+      let ⟨u, hu⟩ := h3
+      let ⟨u', hu'⟩ := Program.coincidence α i j v v' S hs.1 h1 h2.1 u hu.1
       obtain ⟨w', hw'⟩ := by
         apply Program.coincidence β i j u u' (S ∪ α.mustBoundVars)
         . exact Set.subset_union_of_subset_left hs.2 α.mustBoundVars
@@ -311,20 +322,20 @@ theorem Program.coincidence (α  : Program)
       induction hw
       next => exact Exists.intro v' ⟨by constructor, h1⟩
       next a b c hvb hbc ih =>
-        have ⟨b', hb'⟩ := ih
-        have ⟨c', hc'⟩ := Program.coincidence α i j b b' S hs hb'.2 h2 c hbc
+        let ⟨b', hb'⟩ := ih
+        let ⟨c', hc'⟩ := Program.coincidence α i j b b' S hs hb'.2 h2 c hbc
 
         apply Exists.intro c'
         apply And.intro
         . exact LoopClosure.trans v' b' c' hb'.1 hc'.1
-        . exact And.left $ State.eq_union_iff_both.mp hc'.2
+        . exact And.left <| State.eq_union_iff_both.mp hc'.2
     | .ode system ψ  =>
       intros h1 h2 w h3
       simp[Program.denote] at h3
       obtain ⟨r, hr, φ, hφ⟩ := h3
 
       let evolving_vars := system.assignables ∪ (system.assignables.map Assignable.diff_emb)
-      let φ' : ℝ → State := λt x => if x ∈ evolving_vars then φ t x else v' x
+      let φ' : ℝ → State := fun t x => if x ∈ evolving_vars then φ t x else v' x
       let w' := φ' r
 
       apply Exists.intro w'

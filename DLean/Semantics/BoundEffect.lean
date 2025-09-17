@@ -15,7 +15,7 @@ theorem Program.bound_effect {α : Program}
   | .const a =>
       simp [Program.boundVars, State.isEqExcept]
   | .assign a t =>
-      simp_all[Program.boundVars, Program.denote, State.isEqExcept, State.isEqOn, State.update]
+      simp_all[Program.boundVars, Program.denote, State.isEqExcept, State.update]
   | .test ψ =>
       simp_all[Program.boundVars, Program.denote, State.isEqExcept]
   | .choice α β =>
@@ -45,9 +45,10 @@ theorem Program.bound_effect {α : Program}
       simp only [Program.boundVars, Program.denote, Set.mem_setOf_eq]
       rintro ⟨r, _, φ, h, h2, h3⟩
       obtain ⟨_, h3, _⟩ := h3 r (by simp_all)
-      have : v.isEqExcept (φ r) (↑system.assignables ∪ ↑(Finset.map Assignable.diff_emb system.assignables)) := by
+      have : State.isEqExcept v (φ r)
+              (↑system.assignables ∪ ↑(Finset.map Assignable.diff_emb system.assignables)) := by
         apply State.eq_except_superset
         . exact State.eq_except_trans h h3
         . simp
 
-      simp_all[State.isEq, State.isEqExcept, State.isEqOn]
+      simp_all[State.isEq, State.isEqExcept]

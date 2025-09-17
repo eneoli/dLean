@@ -12,7 +12,7 @@ structure Sequent where
   left : Multiset Formula
   right : Multiset Formula
 
-infixr: 66 " ⊢ " => Sequent.mk
+infixr:66 " ⊢ " => Sequent.mk
 
 def semantics (Γ : Multiset Formula) (Δ : Multiset Formula) : Prop := match Γ.toList , Δ.toList with
   | [], [] => true → false
@@ -95,7 +95,8 @@ macro_rules
   | `(⌈ ⊢ ⌉) => `(Sequent.mk ∅ ∅)
   | `(⌈ $[$p:dL_formula],* ⊢ ⌉) => `(Sequent.mk [$[[Formula|$p]],*] ∅)
   | `(⌈ ⊢ $q:dL_formula,* ⌉) => `(Sequent.mk ∅ [$[[Formula|$q]],*])
-  | `(⌈ $[$p:dL_formula],* ⊢ $q:dL_formula,* ⌉) => `(Sequent.mk [$[[Formula|$p]],*] [$[[Formula|$q]],*])
+  | `(⌈ $[$p:dL_formula],* ⊢ $q:dL_formula,* ⌉) =>
+      `(Sequent.mk [$[[Formula|$p]],*] [$[[Formula|$q]],*])
 
 theorem dL_sound_complete (Γ Δ : Multiset Formula) : Provable (Γ ⊢ Δ) ↔ semantics Γ Δ := by
   sorry
