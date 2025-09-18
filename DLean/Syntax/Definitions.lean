@@ -87,7 +87,8 @@ def TermVector.toList {n : ℕ} (xs : TermVector n) : List Term := match xs with
 
 def TermVector.toVector {n : ℕ} (xs : TermVector n) : Vector Term n := match xs with
   | nil => Vector.emptyWithCapacity 0
-  | cons x xs => Vector.cast (by simp +arith) $ Vector.append (Vector.singleton x) (TermVector.toVector xs)
+  | cons x xs =>
+      Vector.cast (by simp +arith) <| Vector.append (Vector.singleton x) (TermVector.toVector xs)
 
 def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
   apply @a.elimAsArray Term
@@ -95,7 +96,7 @@ def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
 
   let rec go (m : ℕ) (hm : m < n) : TermVector (n - m) :=
     if hmn : m + 1 = n then
-      cast (by rw[←hmn]; simp) $ TermVector.cons a[m] TermVector.nil
+      cast (by rw[←hmn]; simp) <| TermVector.cons a[m] TermVector.nil
     else
       let rest := go (m + 1) (by omega)
       cast (
@@ -103,7 +104,7 @@ def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
           rw[Nat.sub_add_eq]
           rw[Nat.sub_one_add_one]
           omega
-      ) $ TermVector.cons a[m] rest
+      ) <| TermVector.cons a[m] rest
 
   if h : n = 0 then
     exact cast (by simp[h]) TermVector.nil
@@ -123,7 +124,8 @@ deriving Repr, DecidableEq, BEq
 
 abbrev OdeSystem := List ODE
 
-def OdeSystem.assignables (system : OdeSystem) : Finset Assignable := (List.map ODE.var system).toFinset
+def OdeSystem.assignables (system : OdeSystem) : Finset Assignable :=
+  (List.map ODE.var system).toFinset
 
 mutual
 inductive Program : Type where
@@ -152,10 +154,10 @@ inductive Formula : Type where
 deriving Repr, DecidableEq
 end
 
-def Formula.or (P : Formula) (Q: Formula) :=
-  Formula.not $ Formula.and (Formula.not P) (Formula.not Q)
+def Formula.or (P : Formula) (Q : Formula) :=
+  Formula.not <| Formula.and (Formula.not P) (Formula.not Q)
 
-def Formula.implies (P : Formula) (Q: Formula) :=
+def Formula.implies (P : Formula) (Q : Formula) :=
   Formula.or (Formula.not P) Q
 
 def Formula.equiv (P : Formula) (Q : Formula) :=
@@ -165,7 +167,7 @@ def Formula.neq (t₁ : Term) (t₂ : Term) :=
   Formula.not (Formula.eq t₁ t₂)
 
 def Formula.gt (t₁ : Term) (t₂ : Term) :=
-  Formula.and (Formula.gte t₁ t₂) (Formula.not $ Formula.eq t₁ t₂)
+  Formula.and (Formula.gte t₁ t₂) (Formula.not <| Formula.eq t₁ t₂)
 
 def Formula.lt (t₁ : Term) (t₂ : Term) :=
   Formula.gt t₂ t₁

@@ -16,4 +16,5 @@ def Formula.eval (i : Interpretation) (s : State) (Φ : Formula) : Prop := match
   | .diamond α Φ' => ∃ (s' : State), ⟨s, s'⟩ ∈ Program.denote i α → Formula.eval i s' Φ'
   | .eq t₁ t₂ => ∀ (i : Interpretation), Term.denote i s t₁ = Term.denote i s t₂
   | .gte t₁ t₂ => ∀ (i : Interpretation), Term.denote i s t₁ >= Term.denote i s t₂
-  | .applyPred p args => ∀ (i : Interpretation), i (Symbol.Predicate p) $ args.toVector.map (Term.denote i s)
+  | .applyPred p args =>
+      ∀ (i : Interpretation), i (Symbol.Predicate p) <| args.toVector.map (Term.denote i s)

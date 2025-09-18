@@ -8,26 +8,28 @@ import DLean.Semantics.FreeVariables
 
 open Semantics
 
-noncomputable def Term.denote (i: Interpretation) (s : State) (t : Term) : ℝ :=
+noncomputable def Term.denote (i : Interpretation) (s : State) (t : Term) : ℝ :=
   match t with
     | Term.var  v         => s v
     | Term.neg  t         => - denote i s t
     | Term.plus x y       => denote i s x + denote i s y
     | Term.times x y      => denote i s x * denote i s y
-    | Term.applyFn f args => let argValues := Vector.map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
-                             match _ : f with
-                               | .num num   => num.value
-                               | .sym fnSym =>
-                                 have : f.arity = fnSym.arity := by simp_all only [Fn.arity]
-                                 (i (Symbol.Function fnSym)).1 (argValues[·])
-    | Term.differential t => ∑ x ∈ t.freeVars, s (Assignable.diff x) *
-                                                      (
-                                                        deriv (
-                                                          fun y => denote i (
-                                                            s.update x y
-                                                          ) t
-                                                        ) (s x)
-                                                      )
+    | Term.applyFn f args =>
+      let argValues := Vector.map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
+      match _ : f with
+        | .num num   => num.value
+        | .sym fnSym =>
+          have : f.arity = fnSym.arity := by simp_all only [Fn.arity]
+          (i (Symbol.Function fnSym)).1 (argValues[·])
+    | Term.differential t =>
+      ∑ x ∈ t.freeVars, s (Assignable.diff x) *
+                        (
+                          deriv (
+                            fun y => denote i (
+                              s.update x y
+                            ) t
+                          ) (s x)
+                        )
 decreasing_by
   all_goals try decreasing_trivial
   have : e ∈ args := (TermVector.mem_toVector_iff e args).mpr h
@@ -67,7 +69,7 @@ def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) : Formula := match s
   | [] => Ψ
   | {var, term} :: xs => Formula.and (
       Formula.eq (Term.var var.diff) term
-    ) $ odeEvolutionFormula xs Ψ
+    ) <| odeEvolutionFormula xs Ψ
 
 def Program.denote (i : Interpretation) (α : Program) : SetRel State State := match α with
   | Program.const a       => i (Symbol.Program a)
@@ -102,19 +104,23 @@ end
 
 section Theorems
 
-lemma odeEvolutionFormula_freeVars_union_iff {head : ODE}
-                                             {tail : OdeSystem}
-                                             {Ψ    : Formula}
-                                             : (odeEvolutionFormula (head :: tail) Ψ).freeVars = {head.var.diff} ∪
-                                                                                            head.term.freeVars.toSet ∪
-                                                                                            (odeEvolutionFormula tail Ψ).freeVars := by
+lemma odeEvolutionFormula_freeVars_union_iff
+      {head : ODE}
+      {tail : OdeSystem}
+      {Ψ : Formula}
+      : (odeEvolutionFormula (head :: tail) Ψ).freeVars
+      = {head.var.diff} ∪
+        head.term.freeVars.toSet ∪
+        (odeEvolutionFormula tail Ψ).freeVars := by
   induction tail
   all_goals simp_all[odeEvolutionFormula, Term.freeVars, Formula.freeVars]
 
-lemma ode_system_freeVars_union_iff {head : ODE}
-                                    {tail : OdeSystem}
-                                    {Ψ    : Formula}
-                                    : (Program.ode (head :: tail) Ψ).freeVars = {head.var} ∪ head.term.freeVars.toSet ∪ (Program.ode tail Ψ).freeVars  := by
+lemma ode_system_freeVars_union_iff
+      {head : ODE}
+      {tail : OdeSystem}
+      {Ψ : Formula}
+      : (Program.ode (head :: tail) Ψ).freeVars
+      = {head.var} ∪ head.term.freeVars.toSet ∪ (Program.ode tail Ψ).freeVars := by
   simp[Program.freeVars]
   rw[←Set.union_assoc]
   rw[OdeSystem.assignables_union_iff]
@@ -128,28 +134,34 @@ lemma ode_system_freeVars_union_iff {head : ODE}
     rw[Set.union_comm]
   simp
 
-lemma ode_system_freeVars_head {head : ODE}
-                               {tail : OdeSystem}
-                               {Ψ    : Formula}
-                               : {head.var} ∪ head.term.freeVars.toSet ⊆ (Program.ode (head :: tail) Ψ).freeVars := by
+lemma ode_system_freeVars_head
+      {head : ODE}
+      {tail : OdeSystem}
+      {Ψ : Formula}
+      : {head.var} ∪ head.term.freeVars.toSet ⊆ (Program.ode (head :: tail) Ψ).freeVars := by
   simp[ode_system_freeVars_union_iff]
 
-lemma ode_system_freeVars_cons {head : ODE}
-                               {tail : OdeSystem}
-                               {Ψ    : Formula}
-                               : (Program.ode tail Ψ).freeVars ⊆ (Program.ode (head :: tail) Ψ).freeVars := by
+lemma ode_system_freeVars_cons
+      {head : ODE}
+      {tail : OdeSystem}
+      {Ψ : Formula}
+      : (Program.ode tail Ψ).freeVars ⊆ (Program.ode (head :: tail) Ψ).freeVars := by
   simp[ode_system_freeVars_union_iff]
 
-lemma ode_evolution_formula_signature_eq_ode_signature (system : OdeSystem)
-                                                       (Ψ : Formula)
-                                                       : (odeEvolutionFormula system Ψ).signature = (Program.ode system Ψ).signature := by
+lemma ode_evolution_formula_signature_eq_ode_signature
+      (system : OdeSystem)
+      (Ψ : Formula)
+      : (odeEvolutionFormula system Ψ).signature = (Program.ode system Ψ).signature := by
   induction system
   all_goals simp_all[odeEvolutionFormula, Formula.signature, Program.signature, Term.signature]
 
-lemma ode_evolution_formula_freeVars_eq_ode_freeVars {system : OdeSystem}
-                                                     {Ψ : Formula}
-                                                     : ∀ x : Assignable, ¬x ∈ system.assignables ∪ (Finset.map Assignable.diff_emb system.assignables)
-                                                     → (x ∈ (odeEvolutionFormula system Ψ).freeVars → x ∈ (Program.ode system Ψ).freeVars) := by
+lemma ode_evolution_formula_freeVars_eq_ode_freeVars
+      {system : OdeSystem}
+      {Ψ : Formula}
+      : ∀ x : Assignable,
+      ¬x ∈ system.assignables ∪ (Finset.map Assignable.diff_emb system.assignables)
+      → (x ∈ (odeEvolutionFormula system Ψ).freeVars
+      → x ∈ (Program.ode system Ψ).freeVars) := by
   induction system
   . simp[OdeSystem.assignables, odeEvolutionFormula, Program.freeVars]
   . next head _ ih =>
