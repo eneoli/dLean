@@ -150,6 +150,7 @@ inductive Formula : Type where
   | exists    : Variable → Formula → Formula
   | diamond   : Program  → Formula → Formula
   | box       : Program  → Formula → Formula
+  | ref       : Program  → Program → Formula
 deriving Repr, DecidableEq
 end
 
@@ -174,6 +175,8 @@ def Formula.lt (t₁ : Term) (t₂ : Term) :=
 def Formula.lte (t₁ : Term) (t₂ : Term) :=
   Formula.gte t₂ t₁
 
+def Formula.progEquiv (α₁ α₂ : Program) : Formula :=
+  Formula.and (Formula.ref α₁ α₂) (Formula.ref α₂ α₁)
 mutual
 noncomputable def Formula.size (Φ : Formula) := match Φ with
   | Formula.applyPred p ts => 1 + sizeOf p + sizeOf ts
@@ -187,6 +190,7 @@ noncomputable def Formula.size (Φ : Formula) := match Φ with
   | Formula.gte t₁ t₂      => 1 + sizeOf t₁ + sizeOf t₂
   | Formula.diamond α Φ    => 1 + α.size + Φ.size
   | Formula.box α Φ        => 1 + α.size + Φ.size
+  | Formula.ref α₁ α₂      => 1 + α₁.size + α₂.size
 
 noncomputable def Program.size (α : Program) := match α with
   | Program.test Φ        => 1 + Φ.size

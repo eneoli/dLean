@@ -14,6 +14,7 @@ def Formula.boundVars (Φ : Formula) : Set Assignable := match Φ with
   | .exists x Φ    => {Assignable.var x} ∪ Formula.boundVars Φ
   | .box α Φ
   | .diamond α Φ   => Program.boundVars α ∪ Formula.boundVars Φ
+  | .ref α β       => Program.boundVars α ∪ Program.boundVars β
 
 
 def Program.boundVars (α : Program) : Set Assignable := match α with

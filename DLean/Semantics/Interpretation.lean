@@ -49,6 +49,7 @@ def Formula.signature (Φ : Formula) : Finset Symbol := match Φ with
   | Formula.diamond α Φ'     => α.signature ∪ Φ'.signature
   | Formula.eq t₁ t₂         => t₁.signature ∪ t₂.signature
   | Formula.gte t₁ t₂        => t₁.signature ∪ t₂.signature
+  | Formula.ref α₁ α₂        => α₁.signature ∪ α₂.signature
 
 def Program.signature (α : Program) : Finset Symbol := match α with
   | Program.const a      => {Symbol.Program a}
