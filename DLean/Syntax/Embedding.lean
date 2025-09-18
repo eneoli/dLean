@@ -38,8 +38,8 @@ scoped syntax:max dL_term " ≤ " dL_term : dL_formula
 scoped syntax:70  "¬" dL_formula:70 : dL_formula
 scoped syntax:60  "∀" ident ", " dL_formula:60 : dL_formula
 scoped syntax:60  "∃" ident ", " dL_formula:60 : dL_formula
-scoped syntax:60  "[" dL_program "]" dL_formula : 60 : dL_formula
-scoped syntax:60  "⟨" dL_program "⟩" dL_formula : 60 : dL_formula
+scoped syntax:60  "[" dL_program "]" dL_formula:60 : dL_formula
+scoped syntax:60  "⟨" dL_program "⟩" dL_formula:60 : dL_formula
 scoped syntax:50 dL_program " ≼ " dL_program : dL_formula
 scoped syntax:50 dL_program " ≃ " dL_program : dL_formula
 scoped syntax:40  dL_formula:41 " ∧ " dL_formula:40 : dL_formula
@@ -697,7 +697,7 @@ def delabLte : Delab := delabInEquality ``Formula.lte (fun t₁ t₂ => `($t₁ 
 @[scoped delab app.Formula.ref]
 def delabRef : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.ref 2
+  guard <| expr.isAppOfArity' ``Formula.ref 2
   let α₁ := ⟨← delab expr.appFn!.appArg!⟩
   let α₂ := ⟨← delab expr.appArg!⟩
   return ⟨← `(dL_formula| $α₁:dL_program ≼ $α₂:dL_program)⟩
@@ -705,7 +705,7 @@ def delabRef : Delab := do
 @[scoped delab app.Formula.progEquiv]
 def delabProgEquiv : Delab := do
   let expr ← getExpr
-  guard $ expr.isAppOfArity' ``Formula.progEquiv 2
+  guard <| expr.isAppOfArity' ``Formula.progEquiv 2
   let α₁ := ⟨← delab expr.appFn!.appArg!⟩
   let α₂ := ⟨← delab expr.appArg!⟩
   return ⟨← `(dL_formula| $α₁:dL_program ≃ $α₂:dL_program)⟩
