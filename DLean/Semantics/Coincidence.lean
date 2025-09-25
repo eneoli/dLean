@@ -155,7 +155,7 @@ theorem Formula.coincidence (Φ : Formula)
             exact (Interpretation.eq_union_iff_both.mp h.2).2
         . exact (TermVector.mem_toVector_iff t ts).mpr ht
 
-      simp[Formula.denote, Membership.mem, Set.Mem]
+      simp only [Formula.denote, Set.mem_setOf_eq]
       conv in Vector.map (Term.denote i _) ts.toVector =>
         rw[Vector.map_congr_left this]
       simp_all[Formula.signature, Interpretation.isEqOn]
