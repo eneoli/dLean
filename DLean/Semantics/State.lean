@@ -1,4 +1,5 @@
 import Mathlib.Data.Set.Operations
+import Mathlib.Logic.Function.Basic
 import DLean.Syntax.Syntax
 
 namespace Semantics
@@ -6,10 +7,7 @@ namespace Semantics
 def State : Type := Assignable → ℝ
 
 def State.update (s : State) (assignable : Assignable) (r : ℝ) : State := fun a =>
-    if a = assignable then
-      r
-    else
-      s a
+    Function.update s assignable r a
 
 def State.isEq (s₁ : State) (s₂ : State) : Prop :=
     ∀x:Assignable, s₁ x = s₂ x
@@ -22,6 +20,7 @@ def State.isEqExcept (s₁ : State) (s₂ : State) (except : Set Assignable) :=
 
 def State.zero : State := fun _ => 0
 
+/-- Unused -/
 def State.singleton (x : Assignable) (r : ℝ) := State.zero.update x r
 
 section Theorems
@@ -51,7 +50,7 @@ theorem State.eq_on_except_eq_on_if_update {v : State}
                                            (y : ℝ)
                                            : State.isEqOn v w (S \ {a}) →
                                              State.isEqOn (v.update a y) (w.update a y) S := by
-  simp[State.isEqOn, Set.EqOn, State.update]
+  simp[State.isEqOn, Set.EqOn, State.update, Function.update]
   exact fun h x a_1 ↦ ite_congr rfl (congrFun rfl) (h a_1)
 
 theorem State.eq_on_eq_on_if_update {v : State}
@@ -62,7 +61,7 @@ theorem State.eq_on_eq_on_if_update {v : State}
                                     : State.isEqOn v w S →
                                       State.isEqOn (v.update a y) (w.update a y) S := by
 
-  simp[State.isEqOn, Set.EqOn, State.update]
+  simp[State.isEqOn, Set.EqOn, State.update, Function.update]
   exact fun h x a_1 ↦ congrArg (ite (x = a) y) (h a_1)
 
 theorem State.eq_on_extends_if_update {v : State}
@@ -72,7 +71,7 @@ theorem State.eq_on_extends_if_update {v : State}
                                       (y : ℝ)
                                       : State.isEqOn v w S
                                         → State.isEqOn (v.update a y) (w.update a y) (S ∪ {a}) := by
-  simp[State.isEqOn, Set.EqOn, State.update]
+  simp[State.isEqOn, Set.EqOn, State.update, Function.update]
   exact fun h a_2 a_3 ↦ congrArg (ite (a_2 = a) y) (h a_3)
 
 theorem State.eq_on_univ {v : State}
