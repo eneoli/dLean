@@ -1,3 +1,4 @@
+import Mathlib.Data.Set.Operations
 import DLean.Syntax.Syntax
 
 namespace Semantics
@@ -14,10 +15,10 @@ def State.isEq (s₁ : State) (s₂ : State) : Prop :=
     ∀x:Assignable, s₁ x = s₂ x
 
 def State.isEqOn (s₁ : State) (s₂ : State) (on : Set Assignable) : Prop :=
-    ∀ x ∈ on, s₁ x = s₂ x
+    on.EqOn s₁ s₂
 
 def State.isEqExcept (s₁ : State) (s₂ : State) (except : Set Assignable) :=
-  ∀ (x : Assignable), ¬x ∈ except → s₁ x = s₂ x
+  State.isEqOn s₁ s₂ exceptᶜ
 
 def State.zero : State := fun _ => 0
 
@@ -31,7 +32,7 @@ lemma State.is_eq_on_subset {s₁ : State}
                             {on₂ : Set Assignable}
                             (h : State.isEqOn s₁ s₂ on₁)
                             (hs : on₂ ⊆ on₁) : State.isEqOn s₁ s₂ on₂ := by
-    exact fun x a ↦ h x (hs a)
+    exact Set.EqOn.mono hs h
 
 @[simp]
 theorem State.eq_union_iff_both {v : State}
@@ -41,24 +42,7 @@ theorem State.eq_union_iff_both {v : State}
                                 : State.isEqOn v w (S₁ ∪ S₂) ↔
                                   State.isEqOn v w S₁ ∧
                                   State.isEqOn v w S₂ := by
-  apply Iff.intro
-  .
-    intro h
-    apply And.intro
-    all_goals (apply State.is_eq_on_subset h ; simp)
-  .
-    intro h
-    simp_all only [State.isEqOn]
-    let ⟨h1, h2⟩ := h
-    intro x h'
-    apply Set.mem_or_mem_of_mem_union at h'
-    apply Or.elim h'
-    .
-      intro p
-      exact h1 x p
-    .
-      intro q
-      exact h2 x q
+  exact Set.eqOn_union
 
 theorem State.eq_on_except_eq_on_if_update {v : State}
                                            {w : State}
@@ -67,9 +51,8 @@ theorem State.eq_on_except_eq_on_if_update {v : State}
                                            (y : ℝ)
                                            : State.isEqOn v w (S \ {a}) →
                                              State.isEqOn (v.update a y) (w.update a y) S := by
-
-  simp[State.isEqOn, State.update]
-  exact fun h x a_1 ↦ ite_congr rfl (congrFun rfl) (h x a_1)
+  simp[State.isEqOn, Set.EqOn, State.update]
+  exact fun h x a_1 ↦ ite_congr rfl (congrFun rfl) (h a_1)
 
 theorem State.eq_on_eq_on_if_update {v : State}
                                     {w : State}
@@ -79,8 +62,8 @@ theorem State.eq_on_eq_on_if_update {v : State}
                                     : State.isEqOn v w S →
                                       State.isEqOn (v.update a y) (w.update a y) S := by
 
-  simp[State.isEqOn, State.update]
-  exact fun h x a_1 ↦ congrArg (ite (x = a) y) (h x a_1)
+  simp[State.isEqOn, Set.EqOn, State.update]
+  exact fun h x a_1 ↦ congrArg (ite (x = a) y) (h a_1)
 
 theorem State.eq_on_extends_if_update {v : State}
                                       {w : State}
@@ -89,30 +72,29 @@ theorem State.eq_on_extends_if_update {v : State}
                                       (y : ℝ)
                                       : State.isEqOn v w S
                                         → State.isEqOn (v.update a y) (w.update a y) (S ∪ {a}) := by
-  simp[State.isEqOn, State.update]
-  exact fun h a_2 a_3 ↦ congrArg (ite (a_2 = a) y) (h a_2 a_3)
+  simp[State.isEqOn, Set.EqOn, State.update]
+  exact fun h a_2 a_3 ↦ congrArg (ite (a_2 = a) y) (h a_3)
 
 theorem State.eq_on_univ {v : State}
                          {w : State}
                          : State.isEqOn v w Assignable.Set → v = w := by
-  simp[State.isEqOn]
-  intro h
-  funext x
-  exact h x
+  exact (Set.eqOn_univ _ _).mp
+
 
 @[simp]
 theorem State.eq_rfl {v : State} {S : Set Assignable} : State.isEqOn v v S := by
-  exact fun x ↦ congrFun rfl
+  exact Set.eqOn_refl _ _
 
 @[simp]
-theorem State.eq_empty {v w : State} : State.isEqOn v w ∅ := by simp[State.isEqOn]
+theorem State.eq_empty {v w : State} : State.isEqOn v w ∅ := by
+  exact Set.eqOn_empty _ _
 
 theorem State.eq_on_symm {v w : State}
                          {S : Set Assignable}
                          : State.isEqOn v w S → State.isEqOn w v S := by
-  simp[State.isEqOn]
-  exact fun h x hx ↦ Eq.symm (Real.ext_cauchy (congrArg Real.cauchy (h x hx)))
+  exact Set.EqOn.symm
 
+/- For backward reasoning, see `Set.EqOn.trans` -/
 theorem State.eq_on_trans {v : State}
                           {w : State}
                           {x : State}
@@ -121,20 +103,20 @@ theorem State.eq_on_trans {v : State}
                           : State.isEqOn v x S₁
                           → State.isEqOn x w S₂
                           → State.isEqOn v w (S₁ ∩ S₂) := by
-  simp_all[State.isEqOn]
+  simp_all only [isEqOn, Set.EqOn, Set.mem_inter_iff, implies_true]
 
 theorem State.eq_except_iff_eq_on {v : State}
                                   {w : State}
                                   {S : Set Assignable}
                                   : State.isEqExcept v w S ↔ State.isEqOn v w Sᶜ := by
-  simp[State.isEqOn, State.isEqExcept]
+  simp only [State.isEqExcept]
 
 theorem State.eq_except_superset {v : State}
                                  {w : State}
                                  {S : Set Assignable}
                                  {V : Set Assignable}
                                  : State.isEqExcept v w S → V ⊇ S → State.isEqExcept v w V := by
-  exact fun h hs x a ↦ h x fun b ↦ a (hs b)
+  exact fun h hs x a ↦ h fun b ↦ a (hs b)
 
 theorem State.eq_except_union {v : State}
                               {w : State}
@@ -163,6 +145,7 @@ theorem State.eq_except_trans {v : State}
                               → State.isEqExcept x w S₂
                               → State.isEqExcept v w (S₁ ∪ S₂) := by
   simp_all[State.isEqExcept]
+  exact State.eq_on_trans
 
 @[simp]
 theorem State.eq_except_univ {v : State}
