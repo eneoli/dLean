@@ -81,7 +81,7 @@ def Program.denote (i : Interpretation) (α : Program) : SetRel State State := m
       (s₁, s₂) | ∃r ≥ 0,
                  ∃φ:ℝ → State,
                   State.isEqExcept s₁ (φ 0) (system.assignables.map Assignable.diff_emb) ∧
-                  State.isEq s₂ (φ r) ∧
+                  s₂ = φ r ∧
                   (
                     ∀ζ ∈ Set.Icc 0 r, φ ζ ∈ (odeEvolutionFormula system Q).denote i ∧
                     State.isEqExcept (φ 0) (φ ζ)
@@ -121,17 +121,9 @@ lemma ode_system_freeVars_union_iff
       : (Program.ode (head :: tail) Ψ).freeVars
       = {head.var} ∪ head.term.freeVars.toSet ∪ (Program.ode tail Ψ).freeVars := by
   simp[Program.freeVars]
-  rw[←Set.union_assoc]
   rw[OdeSystem.assignables_union_iff]
-  rw[←Set.union_assoc]
-  simp only [Finset.coe_union]
-  rw[←Set.union_assoc]
-  conv =>
-    lhs;lhs;lhs
-    rw[Set.union_comm, ←Set.union_assoc]
-    lhs
-    rw[Set.union_comm]
-  simp
+  grind only [= Set.mem_union, = Set.mem_insert_iff,
+    = Finset.mem_union, = Finset.mem_singleton, = Finset.mem_coe]
 
 lemma ode_system_freeVars_head
       {head : ODE}
@@ -154,31 +146,32 @@ lemma ode_evolution_formula_signature_eq_ode_signature
   induction system
   all_goals simp_all[odeEvolutionFormula, Formula.signature, Program.signature, Term.signature]
 
+
+lemma ode_system_boundVars_union_iff
+      {head : ODE}
+      {tail : OdeSystem}
+      {Ψ : Formula}
+      : (Program.ode (head :: tail) Ψ).boundVars
+      = {head.var} ∪ {head.var.diff} ∪ (Program.ode tail Ψ).boundVars := by
+  simp only [Program.boundVars, OdeSystem.assignables, List.map_cons, List.toFinset_cons,
+             Finset.map_insert, Finset.coe_insert]
+  have : Assignable.diff_emb head.var = head.var.diff := by rfl
+  grind only [= Set.mem_union, = Set.mem_singleton_iff, = Set.mem_insert_iff]
+
+
 lemma ode_evolution_formula_freeVars_eq_ode_freeVars
       {system : OdeSystem}
       {Ψ : Formula}
-      : ∀ x : Assignable,
-      ¬x ∈ system.assignables ∪ (Finset.map Assignable.diff_emb system.assignables)
-      → (x ∈ (odeEvolutionFormula system Ψ).freeVars
-      → x ∈ (Program.ode system Ψ).freeVars) := by
-  induction system
-  . simp[OdeSystem.assignables, odeEvolutionFormula, Program.freeVars]
-  . next head _ ih =>
-    intro x hx h
-    by_cases hc : x ∈ head.term.freeVars
-    .
-      apply ode_system_freeVars_head
-      exact Set.mem_union_right {head.var} hc
-    .
-      simp[odeEvolutionFormula_freeVars_union_iff, hc] at h
-      apply Or.elim h
-      .
-        simp[OdeSystem.assignables] at hx
-        exact False.elim ∘ hx.1
-      .
-        intro hr
-        simp[OdeSystem.assignables_union_iff] at hx
-        apply ode_system_freeVars_cons
-        exact ih x (by simp ; exact ⟨hx.2.2.1, hx.2.2.2⟩) hr
+      : (odeEvolutionFormula system Ψ).freeVars \ (Program.ode system Ψ).mustBoundVars
+        ⊆ (Program.ode system Ψ).freeVars := by
+    induction system
+    . simp[OdeSystem.assignables, unionListOfFinsets, odeEvolutionFormula,
+           Program.freeVars, Program.mustBoundVars, Program.boundVars]
+    . next hd _ h =>
+      simp_all only [Program.mustBoundVars]
+      rw[ode_system_freeVars_union_iff, odeEvolutionFormula_freeVars_union_iff,
+         ode_system_boundVars_union_iff]
+      grind only [= Set.mem_singleton_iff, = Set.mem_union, = Set.subset_def, = Set.mem_diff,
+        = Finset.mem_coe]
 
 end Theorems
