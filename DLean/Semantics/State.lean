@@ -24,14 +24,6 @@ def State.singleton (x : Assignable) (r : ℝ) := State.zero.update x r
 
 section Theorems
 
-lemma State.is_eq_on_subset {s₁ : State}
-                            {s₂ : State}
-                            {on₁ : Set Assignable}
-                            {on₂ : Set Assignable}
-                            (h : Set.EqOn s₁ s₂ on₁)
-                            (hs : on₂ ⊆ on₁) : Set.EqOn s₁ s₂ on₂ := by
-    exact Set.EqOn.mono hs h
-
 theorem State.eq_on_except_eq_on_if_update {v : State}
                                            {w : State}
                                            {S : Set Assignable}
