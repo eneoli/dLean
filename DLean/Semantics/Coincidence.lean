@@ -31,7 +31,7 @@ theorem TermVector.coincidence {n : ℕ}
                                (j : Interpretation)
                                (v : State)
                                (w : State)
-                               : State.isEqOn v w ts.freeVars ∧
+                               : Set.EqOn v w ts.freeVars ∧
                                  Interpretation.isEqOn i j ts.signature
                                  → ∀ t ∈ ts, t.denote i v = t.denote j w := by
   match ts with
@@ -56,10 +56,10 @@ theorem Term.coincidence (t : Term)
                          (j : Interpretation)
                          (v : State)
                          (w : State)
-                         : State.isEqOn v w t.freeVars ∧
+                         : Set.EqOn v w t.freeVars ∧
                            Interpretation.isEqOn i j t.signature → t.denote i v = t.denote j w := by
   match t with
-  | .var a => simp_all[Term.freeVars, Term.denote, State.isEqOn]
+  | .var a => simp_all[Term.freeVars, Term.denote, Set.EqOn]
   | .neg a =>
       intro h
       simp_all[Term.denote, Term.freeVars, Term.signature]
@@ -93,23 +93,24 @@ theorem Term.coincidence (t : Term)
         | .sym _ => simp_all[Term.denote, Term.signature, Interpretation.isEqOn, Function.signature]
   | .differential t =>
       intro h
-      simp[Term.denote]
+      simp only [Term.denote]
       apply Finset.sum_equiv (by rfl) (fun i ↦ by rfl)
       intro a ha
       congr
-      . exact h.1 a.diff (Term.freeVar_lifts_to_diff t a ha)
+      . exact h.1 (Term.freeVar_lifts_to_diff t a ha)
       .
         have : ∀ y : ℝ, Term.denote i (v.update a y) t = Term.denote j (w.update a y) t := by
                 intro y
                 apply Term.coincidence _ _ _ (v.update a y) (w.update a y)
                 apply And.intro
-                . simp_all[State.eq_on_eq_on_if_update, Term.freeVars]
+                . simp_all[(State.eq_on_except_eq_on_if_update _ _).mp,
+                           Set.EqOn.mono (s₂:= t.freeVars.toSet), Term.freeVars]
                 . simp_all[Term.signature]
 
         simp_all[Term.freeVars]
       .
-        simp[State.isEqOn] at h
-        exact h.1 a (Term.freeVars_subset_diff_freeVars t ha)
+        simp[Set.EqOn] at h
+        exact h.1 (Term.freeVars_subset_diff_freeVars t ha)
 
 end
 
@@ -120,7 +121,7 @@ theorem Formula.coincidence (Φ : Formula)
                             (j : Interpretation)
                             (v : State)
                             (w : State)
-                            : State.isEqOn v w Φ.freeVars ∧
+                            : Set.EqOn v w Φ.freeVars ∧
                               Interpretation.isEqOn i j Φ.signature
                               → v ∈ Φ.denote i → w ∈ Φ.denote j := by
   intro h
@@ -137,7 +138,7 @@ theorem Formula.coincidence (Φ : Formula)
       simp[Formula.freeVars, Formula.signature] at h
       simp[Formula.denote]
       apply not_imp_not.mpr
-      exact Formula.coincidence Φ' j i w v ⟨State.eq_on_symm h.1, Interpretation.eq_on_symm h.2⟩
+      exact Formula.coincidence Φ' j i w v ⟨Set.EqOn.symm h.1, Interpretation.eq_on_symm h.2⟩
     | .and Φ₁ Φ₂ =>
       simp_all[Formula.freeVars, Formula.signature, Formula.denote]
       intro hv1 hv2
@@ -155,7 +156,7 @@ theorem Formula.coincidence (Φ : Formula)
             exact (Interpretation.eq_union_iff_both.mp h.2).2
         . exact (TermVector.mem_toVector_iff t ts).mpr ht
 
-      simp[Formula.denote, Membership.mem, Set.Mem]
+      simp only [Formula.denote, Set.mem_setOf_eq]
       conv in Vector.map (Term.denote i _) ts.toVector =>
         rw[Vector.map_congr_left this]
       simp_all[Formula.signature, Interpretation.isEqOn]
@@ -164,7 +165,7 @@ theorem Formula.coincidence (Φ : Formula)
       intro hr y
       apply Formula.coincidence Φ' i j (v.update x y) (w.update x y)
       . apply And.intro
-        . exact State.eq_on_except_eq_on_if_update x y h.1
+        . exact (State.eq_on_except_eq_on_if_update x y).mp h.1
         . exact h.2
       . exact hr y
     | .exists x Φ' =>
@@ -173,7 +174,7 @@ theorem Formula.coincidence (Φ : Formula)
       apply Exists.intro y
       apply Formula.coincidence Φ' i j (v.update x y) (w.update x y)
       . apply And.intro
-        . exact State.eq_on_except_eq_on_if_update x y h.1
+        . exact (State.eq_on_except_eq_on_if_update x y).mp h.1
         . exact h.2
       . assumption
     | .diamond α φ =>
@@ -190,13 +191,11 @@ theorem Formula.coincidence (Φ : Formula)
       .
         have : v'.isEqOn w' φ.freeVars ∧ i.isEqOn j ↑φ.signature := by
           simp[h]
-          apply State.is_eq_on_subset
-          . exact hww'.2
-          .
-            have : φ.freeVars \ α.mustBoundVars ∪ α.mustBoundVars
-                 ⊆ α.freeVars ∪ φ.freeVars \ α.mustBoundVars ∪ α.mustBoundVars := by
-              (conv => rhs ; apply Set.union_assoc) ; simp
-            simp_all
+          apply Set.EqOn.mono ?_ hww'.2
+          have : φ.freeVars \ α.mustBoundVars ∪ α.mustBoundVars
+                ⊆ α.freeVars ∪ φ.freeVars \ α.mustBoundVars ∪ α.mustBoundVars := by
+            (conv => rhs ; apply Set.union_assoc) ; simp
+          simp_all
 
         exact Formula.coincidence φ i j v' w' this hv'
       . exact hww'.1
@@ -206,19 +205,17 @@ theorem Formula.coincidence (Φ : Formula)
       obtain ⟨v', hvv'⟩ := by
         apply Program.coincidence α j i w v (α.freeVars ∪ φ.freeVars \ α.mustBoundVars)
         . simp
-        . exact State.eq_on_symm h.1
+        . exact Set.EqOn.symm h.1
         . apply Interpretation.eq_on_symm
           . simp_all[Finset.coe_union, Interpretation.eq_union_iff_both]
         . exact hww'
 
       apply Formula.coincidence φ i j v' w'
       . apply And.intro
-        . apply State.is_eq_on_subset
-          . exact State.eq_on_symm hvv'.2
-          .
-            rw[Set.union_assoc α.freeVars (φ.freeVars \ α.mustBoundVars) α.mustBoundVars]
-            apply Set.subset_union_of_subset_right
-            exact Set.subset_diff_union φ.freeVars α.mustBoundVars
+        . apply Set.EqOn.mono ?_ (Set.EqOn.symm hvv'.2)
+          rw[Set.union_assoc α.freeVars (φ.freeVars \ α.mustBoundVars) α.mustBoundVars]
+          apply Set.subset_union_of_subset_right
+          exact Set.subset_diff_union φ.freeVars α.mustBoundVars
         . exact Interpretation.is_eq_on_subset h.2 (by simp)
       . exact h3 hvv'.1
     | .ref α β =>
@@ -226,13 +223,13 @@ theorem Formula.coincidence (Φ : Formula)
                      Formula.freeVars, Formula.signature]
       intros href w' hin
       obtain ⟨v', hin', h'⟩ : ∃ v' : State, (v,v') ∈ α.denote i
-                              ∧ State.isEqOn w' v' (α.freeVars
+                              ∧ Set.EqOn w' v' (α.freeVars
                                                     ∪ ((α.boundVars ∪ β.boundVars)
                                                        \ α.mustBoundVars)
                                                     ∪ α.mustBoundVars) := by
         apply α.coincidence j _ w
         . exact Set.subset_union_left
-        . refine State.eq_on_symm (State.is_eq_on_subset h.1 ?_)
+        . refine Set.EqOn.symm (Set.EqOn.mono ?_ h.1)
           exact Set.union_subset_union Set.subset_union_left
                   (Set.diff_subset_diff_right Set.inter_subset_left)
         . exact Interpretation.eq_on_symm (Interpretation.is_eq_on_subset h.2 Set.subset_union_left)
@@ -241,13 +238,13 @@ theorem Formula.coincidence (Φ : Formula)
 
       apply href at hin'
       obtain ⟨w'', hin', h''⟩ : ∃ w'' : State, (w,w'') ∈ β.denote j
-                                ∧ State.isEqOn v' w'' (β.freeVars
+                                ∧ Set.EqOn v' w'' (β.freeVars
                                                       ∪ ((α.boundVars ∪ β.boundVars)
                                                           \ β.mustBoundVars)
                                                       ∪ β.mustBoundVars) := by
         apply β.coincidence i _ v
         . exact Set.subset_union_left
-        . apply State.is_eq_on_subset h.1
+        . apply Set.EqOn.mono ?_ h.1
           exact Set.union_subset_union Set.subset_union_right
                   (Set.diff_subset_diff_right Set.inter_subset_right)
         . exact Interpretation.is_eq_on_subset h.2 Set.subset_union_right
@@ -255,19 +252,13 @@ theorem Formula.coincidence (Φ : Formula)
       rw[Set.union_assoc, Set.diff_union_self] at h''
 
       have hweq : w' = w'' := by
-        apply State.eq_on_univ
-        have hb := State.eq_except_iff_eq_on.mp (Program.bound_effect hin)
-        have hb' := State.eq_except_iff_eq_on.mp (Program.bound_effect hin')
-        apply State.eq_on_trans (State.eq_on_symm hb) at hb'
-        have h' : w'.isEqOn v' (α.boundVars ∪ β.boundVars) := by
-          exact State.is_eq_on_subset h' (Set.subset_union_of_subset_right Set.subset_union_left _)
-        have h'' : w'.isEqOn w'' (α.boundVars ∪ β.boundVars) := by
-          rw[<- Set.inter_self  (_ ∪ _)]
-          apply State.eq_on_trans h'
-          exact State.is_eq_on_subset h'' (Set.subset_union_of_subset_right Set.subset_union_left _)
-        apply State.is_eq_on_subset
-        . exact State.eq_union_iff_both.mpr ⟨h'', hb'⟩
-        . rw[<- Set.compl_union, Set.union_compl_self]
+        rw[<-Set.eqOn_univ]
+        have hb := Program.bound_effect hin
+        have hb' := Program.bound_effect hin'
+        clear * - h h' h'' hb hb'
+        unfold State.isEqExcept Set.EqOn at *
+        grind only [= Set.mem_union, = Set.mem_compl_iff, = Set.mem_inter_iff,
+          = Set.mem_diff]
       rw[hweq]
       assumption
 termination_by Φ.size
@@ -282,11 +273,11 @@ theorem Program.coincidence (α  : Program)
                             (v' : State)
                             (S  : Set Assignable)
                             (hs : α.freeVars ⊆ S)
-                            : State.isEqOn v v' S
+                            : Set.EqOn v v' S
                               → Interpretation.isEqOn i j α.signature
                               → ∀ (w  : State), ⟨v, w⟩   ∈ α.denote i
                               → ∃ (w' : State), ⟨v', w'⟩ ∈ α.denote j
-                              ∧ State.isEqOn w w' (S ∪ α.mustBoundVars) := by
+                              ∧ Set.EqOn w w' (S ∪ α.mustBoundVars) := by
   match α with
     | .const a =>
       simp[Program.denote, Program.signature]
@@ -294,24 +285,20 @@ theorem Program.coincidence (α  : Program)
       simp[Program.freeVars] at hs
       simp[Interpretation.isEqOn] at h2
       rw[hs] at h1
-      rw[← State.eq_on_univ h1]
+      rw[← (Set.eqOn_univ _ _).mp h1]
       rw[← h2]
       apply Exists.intro w
       apply And.intro
       . assumption
       . simp
     | .assign a t =>
-      simp[Program.denote]
-      simp[Program.freeVars] at hs
+      simp only [Program.denote, Set.mem_setOf_eq, existsAndEq, forall_eq, true_and]
+      simp only [Program.freeVars] at hs
       intro h1 h2
-      rw[Term.coincidence t i j v v' ⟨State.is_eq_on_subset h1 hs, h2⟩]
-      simp[Program.mustBoundVars, Program.boundVars]
-      simp[Program.signature] at h2
-      apply And.intro
-      . exact State.eq_on_eq_on_if_update a _ h1
-      .
-        have := @State.eq_on_extends_if_update v v' ∅ a (Term.denote j v' t)
-        simp_all
+      rw[Term.coincidence t i j v v' ⟨Set.EqOn.mono hs h1, h2⟩]
+      simp only [Program.mustBoundVars, Program.boundVars]
+      simp only [Program.signature] at h2
+      simp_all only [State.eq_on_extends_if_update]
     | .test Ψ =>
       simp[Program.denote, Program.mustBoundVars, Program.boundVars]
       simp[Program.freeVars] at hs
@@ -319,7 +306,7 @@ theorem Program.coincidence (α  : Program)
       rw[hwv] at hw
       rw[hwv]
       apply And.intro
-      . exact (Formula.coincidence Ψ i j v v' ⟨State.is_eq_on_subset h1 hs, h2⟩) hw
+      . exact (Formula.coincidence Ψ i j v v' ⟨Set.EqOn.mono hs h1, h2⟩) hw
       . simp[h1]
     | .choice α β =>
       simp[Program.denote, Program.signature, Program.mustBoundVars]
@@ -333,8 +320,8 @@ theorem Program.coincidence (α  : Program)
         apply And.intro
         . exact Or.inl hw'.1
         .
-          have := State.eq_union_iff_both.mp hw'.2
-          exact ⟨this.1, by simp[State.is_eq_on_subset this.2]⟩
+          have := Set.eqOn_union.mp hw'.2
+          exact ⟨this.1, by simp[Set.EqOn.mono _ this.2]⟩
       .
         intro h3
         let ⟨w', hw'⟩ := Program.coincidence β i j v v' S hs.2 h1 h4 w h3
@@ -342,8 +329,8 @@ theorem Program.coincidence (α  : Program)
         apply And.intro
         . exact Or.inr hw'.1
         .
-          have := State.eq_union_iff_both.mp hw'.2
-          exact ⟨this.1, by simp[State.is_eq_on_subset this.2]⟩
+          have := Set.eqOn_union.mp hw'.2
+          exact ⟨this.1, by simp[Set.EqOn.mono _ this.2]⟩
     | .seq α β =>
       intro h1 h2 w h3
       simp[Program.signature] at h2
@@ -356,14 +343,14 @@ theorem Program.coincidence (α  : Program)
       obtain ⟨w', hw'⟩ := by
         apply Program.coincidence β i j u u' (S ∪ α.mustBoundVars)
         . exact Set.subset_union_of_subset_left hs.2 α.mustBoundVars
-        . simp[State.eq_union_iff_both.mp hu'.2]
+        . simp[Set.eqOn_union.mp hu'.2]
         . exact h2.2
         . exact hu.2
 
       apply Exists.intro w'
       apply And.intro
       . exact Exists.intro u' ⟨hu'.1, hw'.1⟩
-      . simp_all only [State.eq_union_iff_both, and_self]
+      . simp_all only [Set.eqOn_union, and_self]
     | .loop α =>
       intro h1 h2 w hw
       simp[Program.freeVars] at hs
@@ -379,14 +366,14 @@ theorem Program.coincidence (α  : Program)
         apply Exists.intro c'
         apply And.intro
         . exact LoopClosure.trans v' b' c' hb'.1 hc'.1
-        . exact And.left <| State.eq_union_iff_both.mp hc'.2
+        . exact And.left <| Set.eqOn_union.mp hc'.2
     | .ode system ψ  =>
       intros h1 h2 w h3
       simp[Program.denote] at h3
       obtain ⟨r, hr, φ, hφ⟩ := h3
 
       let evolving_vars := system.assignables ∪ (system.assignables.map Assignable.diff_emb)
-      let φ' : ℝ → State := fun t x => if x ∈ evolving_vars then φ t x else v' x
+      let φ' : ℝ → State := fun t => evolving_vars.piecewise (φ t) v'
       let w' := φ' r
 
       apply Exists.intro w'
@@ -399,19 +386,13 @@ theorem Program.coincidence (α  : Program)
         and_intros
         .
           simp only [State.isEqExcept]
-          intros x hx
           unfold φ' evolving_vars
-          simp
-          intro hif
-          cases hif
-          .
-            rw[← hφ.1 x hx]
-            apply Eq.symm
-            apply h1
-            apply hs
-            simp[Program.freeVars, *]
-          . contradiction
-        . exact congrFun rfl
+          rw[Set.eqOn_comm, ←Finset.piecewise_coe, Set.eqOn_piecewise]
+          simp[Set.inter_union_distrib_left]
+          apply State.eq_on_trans
+          . exact Set.EqOn.symm hφ.1
+          . exact Set.EqOn.mono (by simp_all[Program.freeVars]) h1
+        . rfl
         .
           intro ζ hil hir
           have ⟨ha, hb, hc⟩ := hφ.2.2 ζ hil hir
@@ -419,41 +400,40 @@ theorem Program.coincidence (α  : Program)
           .
             apply Formula.coincidence (odeEvolutionFormula system ψ) i j (φ ζ) (φ' ζ) _ ha
             apply And.intro
-            . simp only [State.isEqOn]
-              intros x hx
-              unfold φ' evolving_vars
-              split
-              . rfl
-              next he =>
-                rw[← hb x (by simp_all)]
-                rw[← hφ.1 x (by simp_all)]
-                apply h1
-                apply hs
-                exact ode_evolution_formula_freeVars_eq_ode_freeVars x he hx
+            . unfold φ' evolving_vars
+              rw[Set.eqOn_comm, ←Finset.piecewise_coe, Set.eqOn_piecewise]
+              and_intros
+              . simp
+              . apply Set.EqOn.trans (f₂:=v)
+                . apply Set.EqOn.symm (Set.EqOn.mono _ h1)
+                  rw[<-Set.diff_compl, compl_compl]
+                  have := subset_trans ode_evolution_formula_freeVars_eq_ode_freeVars hs
+                  simp_all only [Program.mustBoundVars, Program.boundVars, Finset.coe_union]
+                . apply Set.EqOn.mono Set.inter_subset_right
+                  simp_all[State.isEqExcept, Set.EqOn.trans (f₂:=φ 0),
+                          Set.EqOn.mono Set.inter_subset_right]
             . simp_all only [ode_evolution_formula_signature_eq_ode_signature]
-          . simp_all[State.isEqExcept, evolving_vars, φ']
+          . simp_all[State.isEqExcept, evolving_vars, φ', Set.EqOn]
           . intros x hx
             unfold φ' evolving_vars
             simp[hx]
-            split
-            next _ =>
-              exact hc x hx
-            next he =>
-              exfalso
-              exact he (Or.inr ⟨x, by trivial⟩)
+            rw[Finset.piecewise_eq_of_mem]
+            . exact hc x hx
+            . simp only [Finset.mem_union, Finset.mem_map]
+              exact (Or.inr ⟨x, by trivial⟩)
       .
-        simp only [State.isEqOn]
+        simp only [Set.EqOn]
         intros x hx
         rw[hφ.2.1]
-        unfold w' φ' evolving_vars
+        unfold w' φ' evolving_vars Finset.piecewise
         simp[Program.mustBoundVars, Program.boundVars] at hx
         cases hx
         next hx =>
           split
           . rfl
           .
-            rw[← (hφ.2.2 r (by assumption) (by simp)).2.1 x (by simp_all)]
-            rw[← h1 x hx]
+            rw[← (hφ.2.2 r (by assumption) (by simp)).2.1 (by simp_all)]
+            rw[← h1 hx]
             apply Eq.symm
             apply hφ.1
             simp_all
