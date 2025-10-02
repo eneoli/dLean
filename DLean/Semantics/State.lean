@@ -19,7 +19,6 @@ def State.isEqExcept (s₁ : State) (s₂ : State) (except : Set Assignable) :=
 
 def State.zero : State := fun _ => 0
 
-/-- Unused -/
 def State.singleton (x : Assignable) (r : ℝ) := State.zero.update x r
 
 section Theorems
