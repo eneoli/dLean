@@ -35,13 +35,13 @@ deriving Repr, DecidableEq, BEq
 
 structure Number : Type where
   n : ℕ
-  e : ℕ
-  sign : Bool
+  e : ℤ
 deriving Repr, DecidableEq, BEq
 
-def Number.value (num : Number) : ℝ :=
-  let {n, e, sign} := num
-  if sign then n * 10 ^ (0 - e) else n * 10 ^ e
+def Number.value (num : Number) : ℚ :=
+  let {n, e} := num
+  n * 10 ^ e
+
 
 inductive Fn : Type where
   | num :  Number → Fn
