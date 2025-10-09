@@ -46,9 +46,15 @@ inductive LoopClosure (sem : Set (State × State)) : State → State → Prop wh
             → sem ⟨v, w⟩
             → LoopClosure sem u w
 
+def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) : Formula := match system with
+  | [] => Ψ
+  | {var, term} :: xs => Formula.and (
+      Formula.eq (Term.var var.diff) term
+    ) <| odeEvolutionFormula xs Ψ
+
 mutual
 def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ with
-  | Formula.applyPred p ts => fun s => let args := .map (Term.denote i s) ts.toVector
+  | Formula.applyPred p ts => fun s => let args := fun t => (Term.denote i s ts.toVector[t])
                                        i (Symbol.Predicate p) args
   | Formula.True           => Set.univ
   | Formula.False          => ∅
@@ -64,12 +70,6 @@ def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ w
 termination_by Φ.size
 decreasing_by
   all_goals simp +arith[Formula.size]
-
-def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) : Formula := match system with
-  | [] => Ψ
-  | {var, term} :: xs => Formula.and (
-      Formula.eq (Term.var var.diff) term
-    ) <| odeEvolutionFormula xs Ψ
 
 def Program.denote (i : Interpretation) (α : Program) : SetRel State State := match α with
   | Program.const a       => i (Symbol.Program a)
@@ -103,6 +103,16 @@ decreasing_by
 end
 
 section Theorems
+
+open scoped ContDiff
+
+theorem Term.cont_diff {n : ℕ}
+                       (i : Interpretation)
+                       (v : State)
+                       (t : Term)
+                       : ContDiff ℝ ∞
+                          (fun (args : Fin n → ℝ) => Term.denote (i.assignDots args).2 v t) := by
+  sorry
 
 lemma odeEvolutionFormula_freeVars_union_iff
       {head : ODE}

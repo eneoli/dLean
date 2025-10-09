@@ -15,6 +15,15 @@ inductive Symbol where
   | Program   : ProgramSymbol   → Symbol
 deriving Repr, DecidableEq, BEq
 
+instance : Coe FunctionSymbol Symbol where
+  coe := Symbol.Function
+
+instance : Coe PredicateSymbol Symbol where
+  coe := Symbol.Predicate
+
+instance : Coe ProgramSymbol Symbol where
+  coe := Symbol.Program
+
 mutual
 
 def Function.signature : (f : Fn) → Finset Symbol
@@ -66,8 +75,8 @@ end
 open scoped ContDiff
 
 def Interpretation.ReturnType : (symbol : Symbol) → Type
-  | Symbol.Predicate p => Vector ℝ p.arity → Prop
   | Symbol.Function  f => {g : (Fin f.arity → ℝ) → ℝ // ContDiff ℝ ∞ g}
+  | Symbol.Predicate p => (Fin p.arity → ℝ) → Prop
   | Symbol.Program   _ => State × State → Prop
 
 def Interpretation : Type := (s : Symbol) → Interpretation.ReturnType s
@@ -76,6 +85,29 @@ def Interpretation.empty : Interpretation
   | Symbol.Predicate _ => fun _ => False
   | Symbol.Function  _ => ⟨fun _  => (0 : ℝ), contDiff_const⟩
   | Symbol.Program   _ => fun _ => False
+
+def Interpretation.assignDot (n : ℕ) (i : Interpretation) (r : ℝ) : Interpretation :=
+  fun s =>
+    match s with
+      | Symbol.Function f => match f with
+        | .dot n' =>
+          if n = n' then
+            ⟨fun _ => r, contDiff_const⟩
+          else
+            i (.Function (.dot n))
+        | f => i f
+      | s => i s
+
+def Interpretation.assignDots {n : ℕ}
+                              (i : Interpretation)
+                              (args : Fin n → ℝ)
+                              : TermVector n × Interpretation :=
+  let dots := TermVector.generate n <|
+    fun i => Term.applyFn (Fn.sym (FunctionSymbol.dot i)) .nil
+
+  let idots := Fin.foldl n (fun i n' => i.assignDot n' (args n')) i
+
+  ⟨dots, idots⟩
 
 def Interpretation.isEqOn (i : Interpretation) (j : Interpretation) (on : Set Symbol) :=
   ∀ s ∈ on, i s = j s

@@ -156,8 +156,6 @@ theorem Formula.coincidence (Φ : Formula)
         . exact (TermVector.mem_toVector_iff t ts).mpr ht
 
       simp[Formula.denote, Membership.mem, Set.Mem]
-      conv in Vector.map (Term.denote i _) ts.toVector =>
-        rw[Vector.map_congr_left this]
       simp_all[Formula.signature, Interpretation.isEqOn]
     | .forall x Φ' =>
       simp_all[Formula.denote, Formula.freeVars, Formula.signature]
