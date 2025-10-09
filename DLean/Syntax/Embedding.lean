@@ -135,7 +135,7 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
 
   | `(dL_term|$f:ident ($args:dL_term,*)) => do
     let args : Array Syntax := args
-    let fn ← mkAppM ``Fn.sym #[← mkAppM ``FunctionSymbol.mk #[
+    let fn ← mkAppM ``Fn.sym #[← mkAppM ``FunctionSymbol.udef #[
       Lean.mkStrLit f.getId.toString,
       Lean.mkNatLit args.size,
     ]]
@@ -408,10 +408,10 @@ def delabFn.sym : Delab := do
   guard <| expr.isAppOfArity' ``Fn.sym 1
   delab expr.appArg!
 
-@[scoped delab app.FunctionSymbol.mk]
+@[scoped delab app.FunctionSymbol.udef]
 def delabFunctionSymbol.mk : Delab := do
   let expr ← getExpr
-  guard <| expr.isAppOfArity' ``FunctionSymbol.mk 2
+  guard <| expr.isAppOfArity' ``FunctionSymbol.udef 2
   let name := expr.appFn!.appArg!
   pure <| Lean.mkIdent <| Lean.Name.mkSimple (← extractString name)
 

@@ -3,12 +3,12 @@ import Mathlib.Data.Finset.Basic
 
 structure Variable : Type where
   name : String
-deriving Repr, DecidableEq, BEq
+deriving Repr, DecidableEq, BEq, Inhabited
 
 inductive Assignable : Type where
   | var  : Variable   → Assignable
   | diff : Assignable → Assignable
-deriving Repr, DecidableEq, BEq
+deriving Repr, DecidableEq, BEq, Inhabited
 
 abbrev Assignable.Set : Set Assignable := Set.univ
 
@@ -28,10 +28,14 @@ def Assignable.diff_emb : Assignable ↪ Assignable := {
 instance : Coe Variable Assignable where
   coe := Assignable.var
 
-structure FunctionSymbol : Type where
-  name  : String
-  arity : ℕ
+inductive FunctionSymbol : Type where
+  | dot : ℕ → FunctionSymbol
+  | udef : String → ℕ → FunctionSymbol
 deriving Repr, DecidableEq, BEq
+
+def FunctionSymbol.arity : FunctionSymbol → ℕ
+  | .dot _ => 0
+  | .udef _ n => n
 
 structure Number : Type where
   n : ℕ
@@ -49,8 +53,8 @@ inductive Fn : Type where
 deriving Repr, DecidableEq, BEq
 
 abbrev Fn.arity (f : Fn) : ℕ := match f with
-  | .num _           => 0
-  | .sym {arity, ..} => arity
+  | .num _ => 0
+  | .sym s => s.arity
 
 structure PredicateSymbol : Type where
   name  : String
@@ -76,10 +80,14 @@ inductive Term : Type where
   | times        : Term       → Term               → Term
   | applyFn      : (f : Fn)   → TermVector f.arity → Term
   | differential : Term       → Term
-deriving Repr, DecidableEq
+deriving Repr, DecidableEq, Inhabited
 end
 
 def TermVector.singleton (t : Term) : TermVector 1 := TermVector.cons t TermVector.nil
+
+def TermVector.generate : (n : ℕ) → (f : ℕ → Term) → TermVector n
+  | 0, _ => .nil
+  | n + 1, f => .cons (f 0) (.generate n (f ∘ (· + 1)))
 
 def TermVector.toList {n : ℕ} (xs : TermVector n) : List Term := match xs with
   | nil => []
