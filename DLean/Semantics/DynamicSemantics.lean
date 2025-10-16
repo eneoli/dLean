@@ -87,7 +87,7 @@ def Program.denote (i : Interpretation) (α : Program) : SetRel State State := m
                     State.isEqExcept (φ 0) (φ ζ)
                     (system.assignables ∪ (system.assignables.map Assignable.diff_emb)) ∧
                     ∀x∈system.assignables,
-                      HasDerivAt (fun t => φ t x) (φ ζ (Assignable.diff x)) ζ
+                      HasDerivWithinAt (fun t => φ t x) (φ ζ (Assignable.diff x)) (Set.Icc 0 r) ζ
                   )
     }
 termination_by α.size
