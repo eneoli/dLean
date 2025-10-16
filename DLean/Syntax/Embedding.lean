@@ -7,14 +7,16 @@ namespace Embedding
 
 section SyntaxCategories
 
+declare_syntax_cat dL_var        (behavior := symbol)
 declare_syntax_cat dL_term       (behavior := symbol)
 declare_syntax_cat dL_formula    (behavior := symbol)
 declare_syntax_cat dL_program    (behavior := symbol)
 declare_syntax_cat dL_ode        (behavior := symbol)
 declare_syntax_cat dL_ode_system (behavior := symbol)
 
-scoped syntax:max ident : dL_term
-scoped syntax:max dL_term "’" : dL_term
+scoped syntax:max ident : dL_var
+scoped syntax:max dL_var "’" : dL_var
+scoped syntax:max dL_var : dL_term
 scoped syntax:max num : dL_term
 scoped syntax:max scientific : dL_term
 scoped syntax:max "(" dL_term ")" : dL_term
@@ -48,17 +50,20 @@ scoped syntax:30  dL_formula:31 " ∨ " dL_formula:30 : dL_formula
 scoped syntax:20  dL_formula:21 " → " dL_formula:20 : dL_formula
 scoped syntax:10  dL_formula:11 " ↔ " dL_formula:11 : dL_formula
 
-scoped syntax:40 (ident " = " dL_term) : dL_ode
+scoped syntax:40 (ident "’" " = " dL_term) : dL_ode
 scoped syntax:40 dL_ode,+ : dL_ode_system
 
 scoped syntax:max ident : dL_program
 scoped syntax:max " ( " dL_program " ) " : dL_program
-scoped syntax:40 ident " := " dL_term : dL_program
+scoped syntax:40 dL_var " := " dL_term : dL_program
 scoped syntax:40 dL_ode_system (" & " dL_formula)? : dL_program
 scoped syntax:30 "?" dL_formula:60 : dL_program
 scoped syntax:30 dL_program:30 "* " : dL_program
 scoped syntax:20 dL_program:21 " ; " dL_program:20 : dL_program
 scoped syntax:10 dL_program:11 " ∪ " dL_program:10 : dL_program
+
+instance : Coe (TSyntax `ident) (TSyntax `dL_var) where
+  coe s := ⟨s.raw⟩
 
 end SyntaxCategories
 
@@ -72,44 +77,33 @@ def parseVariable (str : String) : MetaM Q(Variable) := do
     let variableName : Q(String) := mkStrLit pre.asString
     pure q(Variable.mk $variableName)
 
-inductive parseAssignable.Constraint : Type where
-  | END_ARBITRARY
-  | END_WITH_PRIME
-  | END_WITH_PRIME_EX
-  | END_WITH_NO_PRIME_ASSIGNABLE
-deriving DecidableEq
+partial def elabVar : Syntax → MetaM Q(Assignable)
+  -- second match is used for ode
+  | `(dL_var| $var:ident) | `($var:ident) => do
+    let varExpr : Q(Variable) ← parseVariable var.getId.toString
+    pure q(Assignable.var $varExpr)
 
-def parseAssignable (c : parseAssignable.Constraint) (str : String) : MetaM Q(Assignable) := do
-  let ⟨pre, post⟩ := str.toList.span Char.isAlphanum
-  if pre.length == 0 then
-    throwError "Assignables need to start with an alphanumeric part."
-  else if not <| post.all (BEq.beq '\'') then
-    throwError "Assignables can only end with alphanumeric chars or primes."
-  else if (c = .END_WITH_PRIME || c = .END_WITH_PRIME_EX) && post.isEmpty then
-    throwError "Expected primed identifier."
-  else if (c = .END_WITH_NO_PRIME_ASSIGNABLE) && not post.isEmpty then
-    throwError "Expected not primed identifier."
-  else
-    let variableName : Q(String) := mkStrLit pre.asString
-    let baseAssignableExpr := q(Assignable.var (Variable.mk $variableName))
-    let numPrimes := if c == .END_WITH_PRIME_EX then post.tail else post
-    pure <| List.foldl (fun e _ => q(Assignable.diff $e)) baseAssignableExpr numPrimes
+  | `(dL_var| $var’) => do
+    let varExpr ← elabVar var
+    pure q(Assignable.diff $varExpr)
+
+  | _ => Lean.Elab.throwUnsupportedSyntax
 
 partial def elabTerm : Syntax → MetaM Q(_root_.Term)
-  | `(dL_term| $var:ident) => do
-    let assignableExpr ← parseAssignable .END_ARBITRARY var.getId.toString
-    mkAppM ``Term.var #[assignableExpr]
+  | `(dL_term| $var:dL_var) => do
+    let varExpr ← elabVar var
+    pure q(_root_.Term.var $varExpr)
 
   | `(dL_term| $n:num) => do
     let nExpr : Q(ℕ) := mkNatLit (n.getNat)
-    pure q(Term.applyFn (Fn.num (Number.mk $nExpr 0)) TermVector.nil)
+    pure q(Term.applyFn (Fn.num $nExpr) TermVector.nil)
 
   | `(dL_term| $r:scientific) => do
     let (n, sign, e) := r.getScientific
     let nExpr : Q(ℕ) := mkNatLit n
     let eExpr : Q(ℕ) := mkNatLit e
     let eSign : Q(ℤ) := if sign then q(-$eExpr) else q($eExpr)
-    pure q(Term.applyFn (Fn.num (Number.mk $nExpr $eSign)) TermVector.nil)
+    pure q(Term.applyFn (Fn.num ($nExpr * 10 ^ $eSign)) TermVector.nil)
 
   | `(dL_term| - $t:dL_term) => do
     let tExpr ← elabTerm t
@@ -132,15 +126,15 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
 
   | `(dL_term|$f:ident ($args:dL_term,*)) => do
     let args : Array Syntax := args
-    let fn ← mkAppM ``Fn.sym #[← mkAppM ``FunctionSymbol.mk #[
-      Lean.mkStrLit f.getId.toString,
-      Lean.mkNatLit args.size,
-    ]]
+    let fnName : Q(String) := mkStrLit f.getId.toString
+    let fnArity : Q(ℕ) := mkNatLit args.size
+    let fn : Q(Fn) := q(Fn.sym (FunctionSymbol.mk $fnName $fnArity))
+
     let argsExpr ← Array.mapM id <| (args.map elabTerm)
     let argsTermVectorExpr ← argsExpr.foldrM
       (fun e acc => mkAppM ``TermVector.cons #[e, acc])
       (.const ``TermVector.nil [])
-    mkAppM ``Term.applyFn <| #[fn, argsTermVectorExpr]
+    pure <| mkApp q(Term.applyFn $fn) argsTermVectorExpr
 
   | `(dL_term|( $t:dL_term )') => do
     let tExpr ← elabTerm t
@@ -262,8 +256,8 @@ partial def elabProgram : Syntax → MetaM Q(Program)
     let programSymbolExpr := q(ProgramSymbol.mk $programSymbol)
     pure q(Program.const $programSymbolExpr)
 
-  | `(dL_program| $name:ident := $t:dL_term) => do
-    let var ← parseAssignable .END_ARBITRARY name.getId.toString
+  | `(dL_program| $name:dL_var := $t:dL_term) => do
+    let var ← elabVar name
     let term ← elabTerm t
     pure q(Program.assign $var $term)
 
@@ -271,10 +265,9 @@ partial def elabProgram : Syntax → MetaM Q(Program)
     let Φ ← elabFormula Φ
     pure q(Program.test $Φ)
 
-  | `(dL_program| $[$v:ident = $t:dL_term],* $[& $ψ:dL_formula]?) => do
-    let assignables ←
-      v.mapM (parseAssignable .END_WITH_PRIME_EX ∘ Lean.Name.toString ∘ Lean.TSyntax.getId)
+  | `(dL_program| $[$v:ident’ = $t:dL_term],* $[& $ψ:dL_formula]?) => do
     let terms ← t.mapM elabTerm
+    let assignables ← v.mapM elabVar
     let system := (Array.zipWith (fun a t => q(ODE.mk $a $t)) assignables terms).toList
     let systemExpr : Q(OdeSystem) := system.foldr (fun ode expr => q(List.cons $ode $expr)) q([])
     let constraint := (← ψ.mapM elabFormula).getD q(Formula.True)
@@ -299,6 +292,7 @@ partial def elabProgram : Syntax → MetaM Q(Program)
   | _ => Lean.Elab.throwUnsupportedSyntax
 end
 
+scoped elab "[Var|" v:dL_var "]"         : term => elabVar v
 scoped elab "[Term|" t:dL_term "]"       : term => elabTerm t
 scoped elab "[Formula|" Φ:dL_formula "]" : term => elabFormula Φ
 scoped elab "[Program|" α:dL_program "]" : term => elabProgram α
@@ -350,19 +344,9 @@ def delabAssignable.diff : Delab := do
   let expr ← getExpr
   guard <| expr.isAppOfArity' ``Assignable.diff 1
   let a := ⟨← delab expr.appArg!⟩
-  return ⟨←`(dL_term| $a’)⟩
+  return ⟨←`(dL_var| $a’)⟩
 
 section Delaborators.Term
-
-@[app_delab Number.mk]
-def delabNumber.mk : Delab := do
-  let expr ← getExpr
-  guard <| expr.isAppOfArity' ``Number.mk 2
-  let n := ⟨← delab expr.appFn!.appArg!⟩
-  let e : NumLit := ⟨← delab expr.appArg!⟩
-  match e.raw.isNatLit? with
-  | some 0 => `($n)
-  | _ => `($n e $e)
 
 @[app_delab Fn.num]
 def delabFn.num : Delab := do
@@ -507,10 +491,9 @@ def delabLoop : Delab := do
 def delabOde : Delab := do
   let expr ← getExpr
   guard <| expr.isAppOfArity' ``ODE.mk 2
-  let var : Q(Assignable):= expr.appFn!.appArg!
-  let var' : TSyntax `ident := ⟨← delab q(Assignable.diff $var)⟩
+  let var  := ⟨← delab expr.appFn!.appArg!⟩
   let term := ⟨← delab expr.appArg!⟩
-  return ⟨←`(dL_ode| $var':ident = $term)⟩
+  return ⟨←`(dL_ode| $var:ident’ = $term)⟩
 
 partial def delabOdeSystem : DelabM (Array (TSyntax `dL_ode)) := do
   let system ← getExpr
