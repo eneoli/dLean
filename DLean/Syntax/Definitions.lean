@@ -76,9 +76,9 @@ def TermVector.toList {n : ℕ} (xs : TermVector n) : List Term := match xs with
   | cons x xs => x :: TermVector.toList xs
 
 def TermVector.toVector {n : ℕ} (xs : TermVector n) : Vector Term n := match xs with
-  | nil => Vector.emptyWithCapacity 0
+  | nil => #v[]
   | cons x xs =>
-      Vector.cast (by simp +arith) <| Vector.append (Vector.singleton x) (TermVector.toVector xs)
+      Vector.cast (Nat.one_add _) <| #v[x] ++ (TermVector.toVector xs)
 
 def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
   apply @a.elimAsArray Term
