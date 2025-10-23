@@ -20,7 +20,7 @@ scoped syntax:max dL_var : dL_term
 scoped syntax:max num : dL_term
 scoped syntax:max scientific : dL_term
 scoped syntax:max "(" dL_term ")" : dL_term
-scoped syntax:max "(" dL_term ")'" : dL_term
+scoped syntax:max "(" dL_term ")’" : dL_term
 scoped syntax:max ident "(" dL_term,* ")" : dL_term
 scoped syntax:30  " - " dL_term:30 : dL_term
 scoped syntax:20  dL_term:20 " * " dL_term:21 : dL_term
@@ -136,7 +136,7 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
       (.const ``TermVector.nil [])
     pure <| mkApp q(Term.applyFn $fn) argsTermVectorExpr
 
-  | `(dL_term|( $t:dL_term )') => do
+  | `(dL_term|( $t:dL_term )’) => do
     let tExpr ← elabTerm t
     pure q(Term.differential $tExpr)
 
@@ -430,7 +430,7 @@ def delabTerm.differential : Delab := do
   let expr ← getExpr
   guard <| expr.isAppOfArity' ``Term.differential 1
   let t := ⟨← delab expr.appArg!⟩
-  return ⟨← `(dL_term| ($t)')⟩
+  return ⟨← `(dL_term| ($t)’)⟩
 
 end Delaborators.Term
 
