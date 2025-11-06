@@ -1,6 +1,8 @@
 import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Topology.Algebra.Module.LinearMap
 import Mathlib.Data.Rel
 
+import DLean.Util.ContDiff
 import DLean.Syntax.Syntax
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
@@ -106,13 +108,138 @@ section Theorems
 
 open scoped ContDiff
 
-theorem Term.cont_diff {n : ℕ}
+-- We cannot parameterize the function over entire states as the (euclidian) norm could
+-- be possibly infinite. In theory there is something called L∞ norm but NormedAddCommGroup
+-- requires us to return a real number. Also I'm not sure if the set of assignables is *countable*
+-- infinite.
+
+-- We therefore fix a finite set of variables that is allowed to change.
+-- This set has to be fixed as otherwise we cannot compare/"wiggle" states.
+
+-- TODO maybe like this?
+#check WellFounded
+macro_rules | `(tactic| decreasing_trivial) => `(tactic|
+  have ha : ∀ {n : ℕ} (v : TermVector n) (x : Fin n), sizeOf (v.toVector[x]) < sizeOf v := sorry ;
+  have hb : sizeOf fargs < sizeOf (applyFn (Fn.sym f) fargs) := sorry
+  decreasing_trivial
+  )
+
+theorem Term.contDiff {n : ℕ}
                        (i : Interpretation)
                        (v : State)
+                       (A : Finset Assignable)
                        (t : Term)
                        : ContDiff ℝ ∞
-                          (fun (args : Fin n → ℝ) => Term.denote (i.assignDots args).2 v t) := by
-  sorry
+                          (
+                            fun args : (Fin n → ℝ) × ({a : Assignable // a ∈ A } → ℝ) ↦
+                              let dots := args.1
+                              let as := args.2
+                              Term.denote (i.assignDots dots).2 (v.finUpdate as) t
+                          ) := by
+  match t with
+  | .var a =>
+    simp[Term.denote]
+    apply ContDiff.comp State.finUpdate_contDiff contDiff_snd
+  | .neg t' =>
+    simp[Term.denote]
+    apply ContDiff.neg
+    apply Term.contDiff
+  | .plus t₁ t₂ =>
+    simp[Term.denote]
+    apply ContDiff.add
+    . apply Term.contDiff
+    . apply Term.contDiff
+  | .times t₁ t₂ =>
+    simp[Term.denote]
+    apply ContDiff.mul
+    . apply Term.contDiff
+    . apply Term.contDiff
+  | .applyFn f fargs =>
+      match f with
+      | .num n => simp[Term.denote, contDiff_const]
+      | .sym f =>
+        simp[Term.denote]
+        apply contDiff_dep_app
+        .
+          match f with
+          | .dot n' =>
+            simp[Interpretation.assignDots]
+            by_cases h : n' < n
+            .
+              simp[h]
+              apply contDiff_pi.mp
+              apply ContDiff.fst
+              apply ContDiff.fst
+              apply contDiff_id
+            .
+              simp[h]
+              apply ContDiff.snd'
+              apply Interpretation.contDiff_fun
+          | .udef f n =>
+            simp[Interpretation.assignDots]
+            apply ContDiff.snd'
+            apply Interpretation.contDiff_fun
+        .
+          apply contDiff_pi.mpr
+          exact fun x ↦ @Term.contDiff n i v A fargs.toVector[x]
+  | .differential t =>
+    simp[Term.denote]
+    apply ContDiff.sum
+    intros a ha
+    apply ContDiff.mul
+    . apply ContDiff.comp State.finUpdate_contDiff contDiff_snd
+    .
+     simp[State.finUpdate_extend]
+     apply ContDiff.fderiv_apply
+     .
+      have := @Term.contDiff n i v (A ∪ {a}) t
+      have fg : ContDiff ℝ ∞ (Function.uncurry
+        fun (args: (Fin n → ℝ) × ({ a // a ∈ A } → ℝ)) (y : ℝ) ↦
+          ((⟨
+            args.1,
+            fun b =>
+              if h : a = b then
+                y
+              else
+                (args.2 ⟨b.1, by clear args ; aesop⟩)
+            ⟩) : (Fin n → ℝ) × ({ a' // a' ∈ A ∪ {a}} → ℝ))
+      ) := by
+        apply ContDiff.prodMk
+        .
+          apply ContDiff.fst
+          apply ContDiff.fst
+          apply contDiff_id
+        .
+          apply contDiff_pi.mpr
+          intros b
+          by_cases h : a = b
+          .
+            simp[h]
+            apply ContDiff.snd
+            apply contDiff_id
+          .
+            simp[h]
+            apply contDiff_pi.mp
+            apply ContDiff.fst'
+            apply ContDiff.snd
+            apply contDiff_id
+
+      apply ContDiff.comp this fg
+     . apply ContDiff.comp State.finUpdate_contDiff contDiff_snd
+     . apply contDiff_const
+     . apply Std.IsPreorder.le_refl
+termination_by
+  sizeOf t
+decreasing_by
+  all_goals try decreasing_tactic
+  -- TODO automate this?
+  have ha : sizeOf fargs.toVector[x] < sizeOf fargs := by
+    apply TermVector.sizeOf_lt_of_mem
+    simp[TermVector.mem_toVector_iff]
+
+  have hb : sizeOf fargs < sizeOf (applyFn (Fn.sym f) fargs) := by simp
+
+  decreasing_trivial
 
 lemma odeEvolutionFormula_freeVars_union_iff
       {head : ODE}
