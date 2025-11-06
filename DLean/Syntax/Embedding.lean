@@ -462,7 +462,7 @@ def delabAssign : Delab := do
   guard <| expr.isAppOfArity' ``Program.assign 2
   let assignable := ⟨← delab expr.appFn!.appArg!⟩
   let t := ⟨← delab expr.appArg!⟩
-  return ⟨←`(dL_program| $assignable:ident := $t)⟩
+  return ⟨←`(dL_program| $assignable:dL_var := $t)⟩
 
 @[app_delab Program.seq]
 def delabSequence : Delab := do
