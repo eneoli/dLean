@@ -86,18 +86,6 @@ def Interpretation.empty : Interpretation
   | Symbol.Function  _ => ⟨fun _  => (0 : ℝ), contDiff_const⟩
   | Symbol.Program   _ => fun _ => False
 
-def Interpretation.assignDot (n : ℕ) (i : Interpretation) (r : ℝ) : Interpretation :=
-  fun s =>
-    match s with
-      | Symbol.Function f => match f with
-        | .dot n' =>
-          if n = n' then
-            ⟨fun _ => r, contDiff_const⟩
-          else
-            i (.Function (.dot n))
-        | f => i f
-      | s => i s
-
 def Interpretation.assignDots {n : ℕ}
                               (i : Interpretation)
                               (args : Fin n → ℝ)
@@ -105,7 +93,16 @@ def Interpretation.assignDots {n : ℕ}
   let dots := TermVector.generate n <|
     fun i => Term.applyFn (Fn.sym (FunctionSymbol.dot i)) .nil
 
-  let idots := Fin.foldl n (fun i n' => i.assignDot n' (args n')) i
+  let idots := fun s =>
+    match s with
+      | Symbol.Function f => match f with
+        | .dot n' =>
+          if h : n' < n then
+            ⟨fun _ => args ⟨n', h⟩, contDiff_const⟩
+          else
+            i (.Function (.dot n))
+        | f => i f
+      | s => i s
 
   ⟨dots, idots⟩
 
@@ -161,7 +158,12 @@ theorem Interpretation.is_eq_on_subset {i : Interpretation}
 
 theorem Interpretation.eq_on_symm {i j : Interpretation}
                                   {S : Set Symbol} : Interpretation.isEqOn i j S →
-                                                     Interpretation.isEqOn j i S := by
-  exact fun h s hs ↦ Eq.symm (h s hs)
+                                                     Interpretation.isEqOn j i S :=
+  fun h s hs ↦ Eq.symm (h s hs)
+
+theorem Interpretation.contDiff_fun {i : Interpretation}
+                                    {f : FunctionSymbol}
+                                    : ContDiff ℝ ∞ (i (Symbol.Function f)).1 :=
+  (i (Symbol.Function f)).2
 
 end Theorems
