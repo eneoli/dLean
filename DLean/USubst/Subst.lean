@@ -17,7 +17,6 @@ def Symbol.SubstType : Symbol → Type
     | .fn : (s : Symbol) → (TermVector s.arity → Term) → SubstEntry
     ...
 -/
-
 structure SubstEntry : Type where
   symbol : Symbol
   rhs : symbol.SubstType
@@ -37,6 +36,7 @@ def Symbol.default : (symbol : Symbol) → symbol.SubstType
   | .Predicate p => Formula.applyPred p
   | .Program a => Program.const a
 
+-- TODO Subst admissible?
 def Subst.get (σ : Subst) (symbol : Symbol) : symbol.SubstType :=
   match σ with
     | ⟨.nil, _⟩ => symbol.default
@@ -119,17 +119,24 @@ noncomputable def Subst.adjoint (σ : Subst)
   fun s =>
     match s with
       | .Function f =>
+        let dots := Term.dots f.arity
+        let t := σ.get (.Function f) dots
         ⟨
-          fun args =>
-            let ⟨dots, idots⟩ := i.assignDots args
-            let t := σ.get (.Function f) dots
+          fun args ↦
+            let idots := i.assignDots args
             Term.denote idots v t,
           by
-            apply Term.cont_diff
+            have hg := @Term.contDiff f.arity i v ∅ t
+            have hf : ContDiff ℝ ∞ (fun x ↦ (⟨x, fun _ ↦ 0⟩ :
+              (Fin f.arity → ℝ) × ({a // a ∈ (∅ : Finset Assignable)} → ℝ))) :=
+                contDiff_prodMk_left (fun _ ↦ 0)
+
+            exact ContDiff.comp hg hf
         ⟩
       | .Predicate p =>
-        fun args =>
-          let ⟨dots, idots⟩ := i.assignDots args
+        fun args ↦
+          let dots := Term.dots p.arity
+          let idots := i.assignDots args
           let Φ := σ.get (.Predicate p) dots
           v ∈ Formula.denote idots Φ
       | .Program a =>
