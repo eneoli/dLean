@@ -89,11 +89,8 @@ def Interpretation.empty : Interpretation
 def Interpretation.assignDots {n : ℕ}
                               (i : Interpretation)
                               (args : Fin n → ℝ)
-                              : TermVector n × Interpretation :=
-  let dots := TermVector.generate n <|
-    fun i => Term.applyFn (Fn.sym (FunctionSymbol.dot i)) .nil
-
-  let idots := fun s =>
+                              : Interpretation :=
+  fun s =>
     match s with
       | Symbol.Function f => match f with
         | .dot n' =>
@@ -103,8 +100,6 @@ def Interpretation.assignDots {n : ℕ}
             i (.Function (.dot n))
         | f => i f
       | s => i s
-
-  ⟨dots, idots⟩
 
 def Interpretation.isEqOn (i : Interpretation) (j : Interpretation) (on : Set Symbol) :=
   ∀ s ∈ on, i s = j s

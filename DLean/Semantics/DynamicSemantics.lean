@@ -134,7 +134,7 @@ theorem Term.contDiff {n : ℕ}
                             fun args : (Fin n → ℝ) × ({a : Assignable // a ∈ A } → ℝ) ↦
                               let dots := args.1
                               let as := args.2
-                              Term.denote (i.assignDots dots).2 (v.finUpdate as) t
+                              Term.denote (i.assignDots dots) (v.finUpdate as) t
                           ) := by
   match t with
   | .var a =>

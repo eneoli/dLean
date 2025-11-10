@@ -122,6 +122,10 @@ def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
 instance {n : ℕ} : Membership Term (TermVector n) where
   mem := fun vec elem => elem ∈ vec.toList
 
+def Term.dots (n : ℕ) : TermVector n :=
+  TermVector.generate n <|
+    fun i ↦ Term.applyFn (Fn.sym (FunctionSymbol.dot i)) .nil
+
 def Term.minus (t₁ : Term) (t₂ : Term) :=
   Term.plus t₁ (Term.neg t₂)
 
