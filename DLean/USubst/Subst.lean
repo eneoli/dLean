@@ -88,7 +88,7 @@ def Formula.applySubst (σ : Subst) (Φ : Formula) := match Φ with
   | .exists x Φ       => .exists x (Φ.applySubst σ)
   | .diamond α Φ      => .diamond (α.applySubst σ) (Φ.applySubst σ)
   | .box α Φ          => .box (α.applySubst σ) (Φ.applySubst σ)
-  | .ref _ _          => sorry -- TODO(refinement): Enguerrand
+  | .ref α β          => .ref (α.applySubst σ) (β.applySubst σ)
   | .applyPred p args =>
     let sargs := TermVector.applySubst σ args
     Subst.get σ p sargs
