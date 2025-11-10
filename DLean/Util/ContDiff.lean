@@ -8,7 +8,7 @@ open scoped ContDiff
 
 universe u uE uF uG
 
-variable {𝕜 : Type*}   [NontriviallyNormedField 𝕜]
+variable {𝕜 : Type*} [NontriviallyNormedField 𝕜]
          {E : Type uE} [NormedAddCommGroup E] [NormedSpace 𝕜 E]
          {F : Type uF} [NormedAddCommGroup F] [NormedSpace 𝕜 F]
          {G : Type uG} [NormedAddCommGroup G] [NormedSpace 𝕜 G]
