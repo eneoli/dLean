@@ -122,6 +122,12 @@ theorem TermVector.signature_cons {n : ℕ}
   simp
 
 @[simp]
+theorem Interpretation.eq_on_rfl {i : Interpretation}
+                                 {S : Set Symbol}
+                                 : i.isEqOn i S :=
+  fun _ ↦ congrFun rfl
+
+@[simp]
 theorem Interpretation.eq_union_iff_both {i : Interpretation}
                                          {j : Interpretation}
                                          {S₁ : Set Symbol}
