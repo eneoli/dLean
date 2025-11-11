@@ -2,6 +2,7 @@ import DLean.Syntax.Definitions
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.DynamicSemantics
+import DLean.Semantics.Coincidence
 
 open Semantics
 
@@ -21,10 +22,20 @@ structure SubstEntry : Type where
   symbol : Symbol
   rhs : symbol.SubstType
 
+def SubstEntry.freeVars (entry : SubstEntry) : Set Assignable :=
+  let {symbol, rhs} := entry
+  match symbol with
+    | .Function f => rhs (Term.dots f.arity) |> Term.freeVars
+    | .Predicate p => rhs (Term.dots p.arity) |> Formula.freeVars
+    | .Program _ => ∅
+
 def Subst.Nodup (σ : List SubstEntry) : Prop :=
   (σ.map SubstEntry.symbol).Nodup
 
 def Subst : Type := { σ : List SubstEntry // Subst.Nodup σ }
+
+def Subst.freeVars (σ : Subst) : Set Assignable :=
+  σ.1.foldr ((· ∪ ·) ∘ SubstEntry.freeVars) ∅
 
 theorem Subst.tail_nodup {e : SubstEntry}
                          {σ : List SubstEntry}
@@ -143,3 +154,50 @@ noncomputable def Subst.adjoint (σ : Subst)
           Program.denote i (σ.get a)
 
 end SubstAdjoint
+
+section Theorems
+
+def Subst.free_vars_subset_fun {σ : Subst}
+                               {f : FunctionSymbol}
+                               : ↑(σ.get f (Term.dots f.arity)).freeVars ⊆ σ.freeVars := by
+  sorry
+
+def Subst.free_vars_subset_pred {σ : Subst}
+                                {p : PredicateSymbol}
+                                : ↑(σ.get p (Term.dots p.arity)).freeVars ⊆ σ.freeVars := by
+  sorry
+
+
+def Subst.admissible_adjoint {v w : State}
+                             {σ : Subst}
+                             {i : Interpretation}
+                             (heq : State.isEqOn v w σ.freeVars)
+                             : Subst.adjoint σ i v = Subst.adjoint σ i w := by
+  funext x
+  match x with
+    | .Function f =>
+      simp[Subst.adjoint]
+      congr
+      funext args
+      apply Term.coincidence
+      and_intros
+      .
+        apply State.is_eq_on_subset
+        . exact heq
+        . apply Subst.free_vars_subset_fun
+      . simp
+    | .Predicate p =>
+      simp[Subst.adjoint]
+      funext args
+      apply propext
+      apply Iff.intro
+      all_goals
+      apply Formula.coincidence
+      and_intros
+      . apply State.is_eq_on_subset
+        . first | exact heq | exact State.eq_on_symm heq
+        . apply Subst.free_vars_subset_pred
+      . simp
+    | .Program a => simp[Subst.adjoint]
+
+end Theorems
