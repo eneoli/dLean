@@ -303,17 +303,7 @@ section Delaborators
 open PrettyPrinter Delaborator SubExpr
 
 /--
-Extract the string of a symbol/variable for better pretty-printing.
-The purpose is to allow the variable/symbols' delab to hide .mk and/or arity.
-Still use the expression even if it is not directly a string when its elaboration
-is atomic enough to be used in place (e.g. Lean's variable/const).
-More complex expressions would be ambiguous so default delab should be used.
-
-|  Expr   |  Output   |
-|:-------:|:---------:|
-| `"x"`   | `x`       |
-| `y`     | `y`       |
-| `(f 0)` | `failure` |
+Extract the string of a symbol/variable to return an ident instead.
 -/
 def delabStructString (expr : Q(String)) : Delab := do
   let e ← reduce expr
@@ -321,9 +311,6 @@ def delabStructString (expr : Q(String)) : Delab := do
     | .lit lit => match lit with
       | .strVal s => return mkIdent <| Name.mkSimple <| s
       | _ => throwError "Exptected String Literal"
-    | .bvar _ | .fvar _ | .mvar _ | .const _ _ =>
-      let e  := ⟨←delab expr⟩
-      return ⟨←`(dL_term| $e:ident)⟩
     | _ => failure
 
 @[app_delab Variable.mk]
