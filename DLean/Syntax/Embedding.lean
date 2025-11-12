@@ -50,7 +50,7 @@ scoped syntax:30  dL_formula:31 " ∨ " dL_formula:30 : dL_formula
 scoped syntax:20  dL_formula:21 " → " dL_formula:20 : dL_formula
 scoped syntax:10  dL_formula:11 " ↔ " dL_formula:11 : dL_formula
 
-scoped syntax:40 (ident "’" " = " dL_term) : dL_ode
+scoped syntax:40 (dL_var " = " dL_term) : dL_ode
 scoped syntax:40 dL_ode,+ : dL_ode_system
 
 scoped syntax:max ident : dL_program
@@ -61,9 +61,6 @@ scoped syntax:30 "?" dL_formula:60 : dL_program
 scoped syntax:30 dL_program:30 "* " : dL_program
 scoped syntax:20 dL_program:21 " ; " dL_program:20 : dL_program
 scoped syntax:10 dL_program:11 " ∪ " dL_program:10 : dL_program
-
-instance : Coe (TSyntax `ident) (TSyntax `dL_var) where
-  coe s := ⟨s.raw⟩
 
 end SyntaxCategories
 
@@ -78,8 +75,7 @@ def parseVariable (str : String) : MetaM Q(Variable) := do
     pure q(Variable.mk $variableName)
 
 partial def elabVar : Syntax → MetaM Q(Assignable)
-  -- second match is used for ode
-  | `(dL_var| $var:ident) | `($var:ident) => do
+  | `(dL_var| $var:ident) => do
     let varExpr : Q(Variable) ← parseVariable var.getId.toString
     pure q(Assignable.var $varExpr)
 
@@ -265,13 +261,16 @@ partial def elabProgram : Syntax → MetaM Q(Program)
     let Φ ← elabFormula Φ
     pure q(Program.test $Φ)
 
-  | `(dL_program| $[$v:ident’ = $t:dL_term],* $[& $ψ:dL_formula]?) => do
+  | `(dL_program| $[$v:dL_var’ = $t:dL_term],* $[& $ψ:dL_formula]?) => do
     let terms ← t.mapM elabTerm
     let assignables ← v.mapM elabVar
     let system := (Array.zipWith (fun a t => q(ODE.mk $a $t)) assignables terms).toList
     let systemExpr : Q(OdeSystem) := system.foldr (fun ode expr => q(List.cons $ode $expr)) q([])
     let constraint := (← ψ.mapM elabFormula).getD q(Formula.True)
     pure q(Program.ode $systemExpr $constraint)
+
+  | `(dL_program| $_:dL_ode_system $[& $_:dL_formula]?) => do
+    throwError "Left hand side of ODE should be a primed variable"
 
   | `(dL_program| $α:dL_program ∪ $β:dL_program) => do
     let αExpr ← elabProgram α
@@ -493,7 +492,7 @@ def delabOde : Delab := do
   guard <| expr.isAppOfArity' ``ODE.mk 2
   let var  := ⟨← delab expr.appFn!.appArg!⟩
   let term := ⟨← delab expr.appArg!⟩
-  return ⟨←`(dL_ode| $var:ident’ = $term)⟩
+  return ⟨←`(dL_ode| $var:dL_var’ = $term)⟩
 
 partial def delabOdeSystem : DelabM (Array (TSyntax `dL_ode)) := do
   let system ← getExpr
