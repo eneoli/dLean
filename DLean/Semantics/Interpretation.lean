@@ -24,6 +24,11 @@ instance : Coe PredicateSymbol Symbol where
 instance : Coe ProgramSymbol Symbol where
   coe := Symbol.Program
 
+abbrev Symbol.arity : Symbol → ℕ
+  | .Predicate p => p.arity
+  | .Function f => f.arity
+  | .Program _ => 0
+
 mutual
 
 def Function.signature : (f : Fn) → Finset Symbol

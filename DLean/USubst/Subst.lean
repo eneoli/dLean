@@ -6,28 +6,24 @@ import DLean.Semantics.Coincidence
 
 open Semantics
 
-def Symbol.SubstType : Symbol → Type
-  | .Function f => TermVector f.arity → Term
-  | .Predicate p => TermVector p.arity → Formula
-  | .Program _ => _root_.Program
-
 -- Creating an inductive type for each Symbol kind does not solve
 -- the problem of missing Equality Reflection:
-/-
-  inductive SubstEntry : Type where
-    | .fn : (s : Symbol) → (TermVector s.arity → Term) → SubstEntry
-    ...
--/
-structure SubstEntry : Type where
-  symbol : Symbol
-  rhs : symbol.SubstType
+-- .. but together with freedom of arity (see commented line in SubstType)
+-- this should solve issues of dependent pattern matching
+inductive SubstEntry : Type where
+  | fn : (f : FunctionSymbol) → (TermVector f.arity → Term) → SubstEntry
+  | pred : (p : PredicateSymbol) → (TermVector p.arity → Formula) → SubstEntry
+  | prog : (a : ProgramSymbol) → Program → SubstEntry
 
-def SubstEntry.freeVars (entry : SubstEntry) : Set Assignable :=
-  let {symbol, rhs} := entry
-  match symbol with
-    | .Function f => rhs (Term.dots f.arity) |> Term.freeVars
-    | .Predicate p => rhs (Term.dots p.arity) |> Formula.freeVars
-    | .Program _ => ∅
+def SubstEntry.symbol : SubstEntry → Symbol
+  | .fn f _ => .Function f
+  | .pred p _ => .Predicate p
+  | .prog a _ => .Program a
+
+def SubstEntry.freeVars :SubstEntry → Set Assignable
+  | .fn f rhs => rhs (Term.dots f.arity) |> Term.freeVars
+  | .pred p rhs => rhs (Term.dots p.arity) |> Formula.freeVars
+  | .prog _ α => α.freeVars
 
 def Subst.Nodup (σ : List SubstEntry) : Prop :=
   (σ.map SubstEntry.symbol).Nodup
@@ -42,27 +38,36 @@ theorem Subst.tail_nodup {e : SubstEntry}
                          : Subst.Nodup (e::σ) → Subst.Nodup σ := by
   simp[Subst.Nodup]
 
+def Symbol.SubstType : Symbol → Type
+  | .Function f => TermVector f.arity → Term
+  | .Predicate p => TermVector p.arity → Formula
+  | .Program _ => _root_.Program
+
+def SubstEntry.rhs (e : SubstEntry) : e.symbol.SubstType :=
+  match e with
+    | .fn _ rhs => rhs
+    | .pred _ rhs => rhs
+    | .prog _ rhs => rhs
+
 def Symbol.default : (symbol : Symbol) → symbol.SubstType
   | .Function f => Term.applyFn (.sym f)
   | .Predicate p => Formula.applyPred p
   | .Program a => Program.const a
 
--- TODO Subst admissible?
 def Subst.get (σ : Subst) (symbol : Symbol) : symbol.SubstType :=
   match σ with
     | ⟨.nil, _⟩ => symbol.default
     | ⟨e::σ', h⟩ =>
-      if heq : e.symbol = symbol then
-        -- I don't like this, but if we stick with returning functions
-        -- there is no other way since we encode the arity in the type
-        cast (by simp[heq]) e.rhs
+      if heq : symbol = e.symbol then
+        heq ▸ e.rhs
       else
         Subst.get ⟨σ', Subst.tail_nodup h⟩ symbol
 termination_by
-  sizeOf σ.1
+  σ.1
 
 section SubstApplication
 
+-- TODO Subst admissible?
 mutual
 
 def TermVector.applySubst {n : ℕ} (σ : Subst) (ts : TermVector n) : TermVector n :=
@@ -145,10 +150,10 @@ noncomputable def Subst.adjoint (σ : Subst)
             exact ContDiff.comp hg hf
         ⟩
       | .Predicate p =>
+        let dots := Term.dots p.arity
+        let Φ := σ.get (.Predicate p) dots
         fun args ↦
-          let dots := Term.dots p.arity
           let idots := i.assignDots args
-          let Φ := σ.get (.Predicate p) dots
           v ∈ Formula.denote idots Φ
       | .Program a =>
           Program.denote i (σ.get a)
@@ -157,16 +162,54 @@ end SubstAdjoint
 
 section Theorems
 
+theorem Subst.free_vars_head {σ : Subst}
+                             {e : SubstEntry}
+                             {h : Subst.Nodup (e :: σ.1)}
+                             : e.freeVars ⊆ Subst.freeVars (⟨e :: σ.1, h⟩) := by
+  simp[Subst.freeVars]
+
+theorem Subst.free_vars_tail {σ : Subst}
+                             {e : SubstEntry}
+                             {h : Subst.Nodup (e :: σ.1)}
+                             : σ.freeVars ⊆ Subst.freeVars (⟨e :: σ.1, h⟩) := by
+  simp[Subst.freeVars]
+
 def Subst.free_vars_subset_fun {σ : Subst}
                                {f : FunctionSymbol}
                                : ↑(σ.get f (Term.dots f.arity)).freeVars ⊆ σ.freeVars := by
-  sorry
+  match h : σ with
+    | ⟨.nil, _⟩ =>
+      simp[Subst.get, Subst.freeVars, Symbol.default, Term.freeVars, Term.dots_free_vars]
+    | ⟨.cons x xs, hnodup⟩ =>
+      let σ' : Subst := ⟨xs, Subst.tail_nodup hnodup⟩
+      simp[Subst.get]
+      by_cases h : x.symbol = Symbol.Function f
+      .
+        simp[h]
+        have := @Subst.free_vars_head σ' x hnodup
+        simp[σ', SubstEntry.freeVars] at this
+        match hx : x with
+          | .fn f' rhs =>
+            have hf : f' = f := by
+              simp[SubstEntry.symbol] at h
+              assumption
+            cases hf
+            simp at this
+            simp[SubstEntry.rhs]
+            exact this
+          | .pred p _ => simp[SubstEntry.symbol] at h
+          | .prog a _ => simp[SubstEntry.symbol] at h
+      .
+        have := @Subst.free_vars_tail σ' x hnodup
+        have := @Subst.free_vars_subset_fun σ' f
+        grind only [= Set.subset_def, = Finset.mem_coe]
+termination_by
+  σ.1
 
 def Subst.free_vars_subset_pred {σ : Subst}
                                 {p : PredicateSymbol}
                                 : ↑(σ.get p (Term.dots p.arity)).freeVars ⊆ σ.freeVars := by
   sorry
-
 
 def Subst.admissible_adjoint {v w : State}
                              {σ : Subst}
