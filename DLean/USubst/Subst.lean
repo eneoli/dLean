@@ -10,6 +10,7 @@ open Semantics
 -- the problem of missing Equality Reflection:
 -- .. but together with freedom of arity (see commented line in SubstType)
 -- this should solve issues of dependent pattern matching
+-- Instead just save Term/Formula with dots for parameters? Frees us from
 inductive SubstEntry : Type where
   | fn : (f : FunctionSymbol) → (TermVector f.arity → Term) → SubstEntry
   | pred : (p : PredicateSymbol) → (TermVector p.arity → Formula) → SubstEntry
@@ -54,6 +55,22 @@ def Symbol.default : (symbol : Symbol) → symbol.SubstType
   | .Predicate p => Formula.applyPred p
   | .Program a => Program.const a
 
+def Subst.getFn (σ : Subst) (f : FunctionSymbol) (args : TermVector f.arity) : Term :=
+  match σ with
+    | ⟨.nil, _⟩ => Term.applyFn (.sym f) args
+    | ⟨e::σ', h⟩ =>
+      match e with
+        | .fn f' rhs =>
+          if heq : f' = f then
+            rhs (heq ▸ args) -- meh
+          else
+            Subst.getFn ⟨σ', Subst.tail_nodup h⟩ f args
+        | _ => Subst.getFn ⟨σ', Subst.tail_nodup h⟩ f args
+termination_by
+  σ.1
+
+-- Can we get rid of symbol.SubstType?
+-- Custom functions for each symbol kind?
 def Subst.get (σ : Subst) (symbol : Symbol) : symbol.SubstType :=
   match σ with
     | ⟨.nil, _⟩ => symbol.default
@@ -178,27 +195,22 @@ def Subst.free_vars_subset_fun {σ : Subst}
                                {f : FunctionSymbol}
                                : ↑(σ.get f (Term.dots f.arity)).freeVars ⊆ σ.freeVars := by
   match h : σ with
-    | ⟨.nil, _⟩ =>
-      simp[Subst.get, Subst.freeVars, Symbol.default, Term.freeVars, Term.dots_free_vars]
+    | ⟨.nil, _⟩ => simp[Subst.get, Symbol.default, Term.freeVars]
     | ⟨.cons x xs, hnodup⟩ =>
       let σ' : Subst := ⟨xs, Subst.tail_nodup hnodup⟩
       simp[Subst.get]
       by_cases h : x.symbol = Symbol.Function f
       .
-        simp[h]
         have := @Subst.free_vars_head σ' x hnodup
-        simp[σ', SubstEntry.freeVars] at this
         match hx : x with
+          | .pred _ _ => simp[SubstEntry.symbol] at h
+          | .prog _ _ => simp[SubstEntry.symbol] at h
           | .fn f' rhs =>
-            have hf : f' = f := by
-              simp[SubstEntry.symbol] at h
-              assumption
+            have hf : f' = f := by simp_all[SubstEntry.symbol]
             cases hf
-            simp at this
-            simp[SubstEntry.rhs]
-            exact this
-          | .pred p _ => simp[SubstEntry.symbol] at h
-          | .prog a _ => simp[SubstEntry.symbol] at h
+
+            simp only [] -- what is happening here
+            simp_all[σ', SubstEntry.freeVars, SubstEntry.rhs]
       .
         have := @Subst.free_vars_tail σ' x hnodup
         have := @Subst.free_vars_subset_fun σ' f
