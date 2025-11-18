@@ -42,6 +42,28 @@ theorem TermVector.freeVars_cons {n : ℕ}
   simp
 
 @[simp]
+theorem Term.dot_free_vars {n : ℕ}
+                           : (Term.dot n).freeVars = ∅ := by
+  simp[Term.dot, Term.freeVars]
+
+@[simp]
+theorem Term.dots_free_vars_comp {n : ℕ}
+                                 {f : ℕ → ℕ}
+                                 : (TermVector.generate n (Term.dot ∘ f)).freeVars = ∅ := by
+  cases n
+  . simp
+  .
+    simp[TermVector.generate]
+    apply Term.dots_free_vars_comp
+
+@[simp]
+theorem Term.dots_free_vars {n : ℕ}
+                            : (Term.dots n).freeVars = ∅ := by
+  induction n
+  . simp
+  . simp[TermVector.generate, Term.dots]
+
+@[simp]
 theorem Term.freeVars_subset_diff_freeVars (t : Term) : t.freeVars ⊆ t.differential.freeVars := by
   simp[Term.freeVars]
 
