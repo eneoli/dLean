@@ -191,9 +191,9 @@ theorem Subst.free_vars_tail {σ : Subst}
                              : σ.freeVars ⊆ Subst.freeVars (⟨e :: σ.1, h⟩) := by
   simp[Subst.freeVars]
 
-def Subst.free_vars_subset_fun {σ : Subst}
-                               {f : FunctionSymbol}
-                               : ↑(σ.get f (Term.dots f.arity)).freeVars ⊆ σ.freeVars := by
+theorem Subst.free_vars_subset_fun {σ : Subst}
+                                   {f : FunctionSymbol}
+                                   : ↑(σ.get f (Term.dots f.arity)).freeVars ⊆ σ.freeVars := by
   match h : σ with
     | ⟨.nil, _⟩ => simp[Subst.get, Symbol.default, Term.freeVars]
     | ⟨.cons x xs, hnodup⟩ =>
@@ -218,10 +218,30 @@ def Subst.free_vars_subset_fun {σ : Subst}
 termination_by
   σ.1
 
-def Subst.free_vars_subset_pred {σ : Subst}
-                                {p : PredicateSymbol}
-                                : ↑(σ.get p (Term.dots p.arity)).freeVars ⊆ σ.freeVars := by
-  sorry
+theorem Subst.free_vars_subset_pred {σ : Subst}
+                                    {p : PredicateSymbol}
+                                    : ↑(σ.get p (Term.dots p.arity)).freeVars ⊆ σ.freeVars := by
+  match σ with
+    | ⟨.nil, _⟩ => simp[Subst.get, Symbol.default, Formula.freeVars]
+    | ⟨.cons x xs, hnodup⟩ =>
+      let σ' : Subst := ⟨xs, Subst.tail_nodup hnodup⟩
+      simp[Subst.get]
+      by_cases h : x.symbol = Symbol.Predicate p
+      .
+        have := @Subst.free_vars_head σ' x hnodup
+        match hx : x with
+          | .fn _ _ => simp[SubstEntry.symbol] at h
+          | .prog _ _ => simp[SubstEntry.symbol] at h
+          | .pred p' rhs =>
+            have hp : p' = p := by simp_all[SubstEntry.symbol]
+            cases hp
+            simp_all[σ', SubstEntry.freeVars, SubstEntry.rhs]
+      .
+        have := @Subst.free_vars_tail σ' x hnodup
+        have := @Subst.free_vars_subset_pred σ' p
+        grind only [= Set.subset_def]
+termination_by
+  σ.1
 
 def Subst.admissible_adjoint {v w : State}
                              {σ : Subst}
