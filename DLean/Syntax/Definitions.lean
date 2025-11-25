@@ -33,18 +33,8 @@ structure FunctionSymbol : Type where
   arity : ℕ
 deriving Repr, DecidableEq, BEq
 
-structure Number : Type where
-  n : ℕ
-  e : ℕ
-  sign : Bool
-deriving Repr, DecidableEq, BEq
-
-def Number.value (num : Number) : ℝ :=
-  let {n, e, sign} := num
-  if sign then n * 10 ^ (0 - e) else n * 10 ^ e
-
 inductive Fn : Type where
-  | num :  Number → Fn
+  | num :  ℚ → Fn
   | sym : FunctionSymbol → Fn
 deriving Repr, DecidableEq, BEq
 
