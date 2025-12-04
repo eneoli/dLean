@@ -126,6 +126,12 @@ theorem TermVector.signature_cons {n : ℕ}
   rw[TermVector.mem_toList_cons]
   simp
 
+theorem TermVector.signature_elem {n : ℕ}
+                                  {ts : TermVector n}
+                                  {x : Fin n}
+  : ts.toVector[x].signature ⊆ ts.signature := by
+  sorry
+
 @[simp]
 theorem Interpretation.eq_on_rfl {i : Interpretation}
                                  {S : Set Symbol}

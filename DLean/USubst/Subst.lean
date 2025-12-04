@@ -233,7 +233,6 @@ theorem Subst.free_vars_tail {σ : Subst}
       by_cases h : ((SubstEntry.symbol e) ∈ S)
       all_goals simp[Subst.freeVars, h]
 
-
 lemma Subst.get_fn_head {σ : Subst}
                         {f : FunctionSymbol}
                         {rhs : TermVector f.arity → Term}
@@ -303,6 +302,59 @@ theorem Subst.free_vars_subset_pred {σ : Subst}
 termination_by
   σ.1
 
+theorem Subst.admissible_symbol_subset {σ : Subst}
+                                       {U : FCSet Assignable}
+                                       {S₁ : Finset Symbol}
+                                       {S₂ : Finset Symbol}
+                                       (h : S₂ ⊆ S₁)
+  : Subst.admissible σ U S₁ → Subst.admissible σ U S₂ := by
+  sorry
+
+theorem Subst.admissible_subset {σ : Subst}
+                                {U : FCSet Assignable}
+                                {S : Finset Symbol}
+                                (f : FunctionSymbol)
+                                (hf : (.Function f) ∈ S)
+                                (hA : Subst.admissible σ U S)
+  : ((Subst.get σ f (Term.dots f.arity)).freeVars : Set _) ⊆ ((U : Set Assignable)ᶜ) := by
+  sorry
+
+theorem Subst.admissible_union {σ : Subst}
+                               {U : FCSet Assignable}
+                               {A B : Finset Symbol}
+  : σ.admissible U (A ∪ B) ↔ σ.admissible U A ∧ σ.admissible U B := by
+  apply Iff.intro
+  .
+    match σ with
+      | ⟨.nil, _⟩ => simp[Subst.admissible, Subst.freeVars]
+      | ⟨e :: σ', hsubst⟩ =>
+        intro h
+        by_cases hc : e.symbol ∈ (A ∪ B)
+        .
+          simp[Subst.admissible, Subst.freeVars, hc]
+          simp[Subst.admissible, Subst.freeVars, hc] at h
+          by_cases ha : e.symbol ∈ A
+          .
+            simp[ha]
+            by_cases hb : e.symbol ∈ B
+            .
+              simp[hb]
+              apply And.intro
+              .
+                have := @Subst.admissible_union ⟨σ', Subst.tail_nodup hsubst⟩ U A B
+                simp[Subst.admissible] at this
+                rw[FCSet.union_inter_distrib_right (e.freeVars) _ U]
+                congr 1
+                sorry
+              . sorry
+            . sorry
+          . sorry
+
+        sorry
+  . sorry
+termination_by
+  σ.1
+
 -- add second part
 theorem Subst.admissible_adjoint {v w : State}
                                  {σ : Subst}
@@ -336,11 +388,78 @@ theorem Subst.admissible_adjoint {v w : State}
       . simp
     | .Program a => simp[Subst.adjoint]
 
--- theorem Subst.admissible_adjoint.term {v w : State}
---                                       {σ : Subst}
---                                       {i : Interpretation}
---                                       {t : Term}
---                                       :
+theorem Subst.admissible_adjoint.term {v w μ : State}
+                                      {σ : Subst}
+                                      {i : Interpretation}
+                                      {t : Term}
+                                      {U : FCSet Assignable}
+                                      (hA : Subst.admissible σ U t.signature)
+                                      (hS : State.isEqOn v w Uᶜ)
+                                      : Term.denote (Subst.adjoint σ i v) μ t
+                                      = Term.denote (Subst.adjoint σ i w) μ t := by
+  match t with
+    | .var _ => simp[Term.denote]
+    | .neg  t         =>
+      simp[Term.denote]
+      simp[Term.signature] at hA
+      apply Subst.admissible_adjoint.term hA hS
+    | .plus x y
+    | .times x y =>
+      simp[Term.denote]
+      simp[Term.signature] at hA
+      apply Subst.admissible_union.mp at hA
+      congr 1
+      . exact Subst.admissible_adjoint.term hA.1 hS
+      . exact Subst.admissible_adjoint.term hA.2 hS
+
+    | .applyFn f args =>
+      match f with
+        | .num _ => simp[Term.denote]
+        | .sym f =>
+          simp[Term.denote]
+          simp[Term.signature] at hA
+          apply Subst.admissible_union.mp at hA
+          have : σ.adjoint i v (Symbol.Function f)
+               = σ.adjoint i w (Symbol.Function f):= by
+              simp[Subst.adjoint]
+              congr
+              funext x
+              apply Term.coincidence
+              and_intros
+              .
+                apply State.is_eq_on_subset hS
+                . exact Subst.admissible_subset f (by simp[Function.signature]) hA.1
+              . simp
+          simp[this]
+
+          have : ∀ (x : Fin f.arity), Term.denote (σ.adjoint i v) μ args.toVector[x]
+                                    = Term.denote (σ.adjoint i w) μ args.toVector[x] := by
+            intro x
+            apply Subst.admissible_adjoint.term
+            .
+              apply Subst.admissible_symbol_subset
+              . exact TermVector.signature_elem
+              . exact hA.2
+            . exact hS
+          simp_all
+    | Term.differential t =>
+      simp[Term.denote]
+      simp[Term.signature] at hA
+      have : ∀ (x : t.freeVars) (y : ℝ), Term.denote (Subst.adjoint σ i v) (μ.update x y) t
+                                       = Term.denote (Subst.adjoint σ i w) (μ.update x y) t :=
+        fun _ _ ↦ Subst.admissible_adjoint.term hA hS
+      simp_all
+decreasing_by
+  all_goals try decreasing_trivial
+  -- TODO automate this?
+  have ha : sizeOf args.toVector[x] < sizeOf args := by
+    apply TermVector.sizeOf_lt_of_mem
+    simp[TermVector.mem_toVector_iff]
+
+  have hb : sizeOf args < sizeOf (Term.applyFn (Fn.sym f) args) := by simp
+
+  decreasing_trivial
+
 
 -- theorem Subst.term {v : State}
 --                    {i : Interpretation}

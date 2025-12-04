@@ -36,6 +36,14 @@ instance {α : Type} [DecidableEq α] : SDiff (FCSet α) where
     | .Infinite A, .Finite B => .Infinite (A ∪ B)
     | .Finite A, .Infinite B => .Finite (A ∩ B)
 
+-- #check Set.compl
+-- instance {α : Type} [DecidableEq α] : Complement (FCSet α) where
+--   sdiff A B := match A, B with
+--     | .Finite A, .Finite B => .Finite (A \ B)
+--     | .Infinite A, .Infinite B => .Finite (B \ A)
+--     | .Infinite A, .Finite B => .Infinite (A ∪ B)
+--     | .Finite A, .Infinite B => .Finite (A ∩ B)
+
 def FCSet.toSet {α : Type} : FCSet α → Set α
   | .Finite A => A.toSet
   | .Infinite B => Bᶜ
@@ -100,5 +108,11 @@ theorem Set.to_set_finite {α : Type}
                           {A : Finset α}
   : ((FCSet.Finite A) : Set α) = (A : Set α) := by
     simp[FCSet.toSet]
+
+theorem FCSet.union_inter_distrib_right {α : Type}
+                                        [DecidableEq α]
+                                        (s t u : FCSet α)
+  : (s ∪ t) ∩ u = s ∩ u ∪ t ∩ u := by
+  sorry
 
 end Theorems
