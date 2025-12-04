@@ -3,14 +3,10 @@ import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.DynamicSemantics
 import DLean.Semantics.Coincidence
+import DLean.Util.FCSet
 
 open Semantics
 
--- Creating an inductive type for each Symbol kind does not solve
--- the problem of missing Equality Reflection:
--- .. but together with freedom of arity (see commented line in SubstType)
--- this should solve issues of dependent pattern matching
--- Instead just save Term/Formula with dots for parameters? Frees us from
 inductive SubstEntry : Type where
   | fn : (f : FunctionSymbol) → (TermVector f.arity → Term) → SubstEntry
   | pred : (p : PredicateSymbol) → (TermVector p.arity → Formula) → SubstEntry
@@ -21,23 +17,38 @@ def SubstEntry.symbol : SubstEntry → Symbol
   | .pred p _ => .Predicate p
   | .prog a _ => .Program a
 
-def SubstEntry.freeVars :SubstEntry → Set Assignable
-  | .fn f rhs => rhs (Term.dots f.arity) |> Term.freeVars
-  | .pred p rhs => rhs (Term.dots p.arity) |> Formula.freeVars
-  | .prog _ α => α.freeVars
+/-- Decidable version. -/
+def SubstEntry.freeVars : SubstEntry → FCSet Assignable
+  | .fn f rhs => rhs (Term.dots f.arity) |> Term.freeVars |> .Finite
+  | .pred p rhs => rhs (Term.dots p.arity) |> Formula.freeVars'
+  | .prog _ α => α.freeVars'
 
 def Subst.Nodup (σ : List SubstEntry) : Prop :=
   (σ.map SubstEntry.symbol).Nodup
 
 def Subst : Type := { σ : List SubstEntry // Subst.Nodup σ }
 
-def Subst.freeVars (σ : Subst) : Set Assignable :=
-  σ.1.foldr ((· ∪ ·) ∘ SubstEntry.freeVars) ∅
-
 theorem Subst.tail_nodup {e : SubstEntry}
                          {σ : List SubstEntry}
                          : Subst.Nodup (e::σ) → Subst.Nodup σ := by
   simp[Subst.Nodup]
+
+/-- Decidable version.
+ -- Restricts σ on the symbols contained in S if some. -/
+def Subst.freeVars (σ : Subst) (S : Option (Finset Symbol)) : FCSet Assignable :=
+  match σ with
+    | ⟨.nil, _⟩ => ∅
+    | ⟨e::xs, h⟩ =>
+      let σ' : Subst := ⟨xs, Subst.tail_nodup h⟩
+      match S with
+        | .none => e.freeVars ∪ σ'.freeVars S
+        | .some S =>
+          if e.symbol ∈ S then
+            e.freeVars ∪ σ'.freeVars S
+          else
+            σ'.freeVars S
+termination_by
+  σ.1
 
 def Symbol.SubstType : Symbol → Type
   | .Function f => TermVector f.arity → Term
@@ -55,22 +66,6 @@ def Symbol.default : (symbol : Symbol) → symbol.SubstType
   | .Predicate p => Formula.applyPred p
   | .Program a => Program.const a
 
-def Subst.getFn (σ : Subst) (f : FunctionSymbol) (args : TermVector f.arity) : Term :=
-  match σ with
-    | ⟨.nil, _⟩ => Term.applyFn (.sym f) args
-    | ⟨e::σ', h⟩ =>
-      match e with
-        | .fn f' rhs =>
-          if heq : f' = f then
-            rhs (heq ▸ args) -- meh
-          else
-            Subst.getFn ⟨σ', Subst.tail_nodup h⟩ f args
-        | _ => Subst.getFn ⟨σ', Subst.tail_nodup h⟩ f args
-termination_by
-  σ.1
-
--- Can we get rid of symbol.SubstType?
--- Custom functions for each symbol kind?
 def Subst.get (σ : Subst) (symbol : Symbol) : symbol.SubstType :=
   match σ with
     | ⟨.nil, _⟩ => symbol.default
@@ -84,58 +79,98 @@ termination_by
 
 section SubstApplication
 
--- TODO Subst admissible?
+/-- Restricts σ on the symbols in S. -/
+abbrev Subst.admissible (σ : Subst) (U : FCSet Assignable) (S : Finset Symbol) :=
+  (σ.freeVars S) ∩ U = ∅
+
+-- theorem foo (σ : Subst) (t: Term) : σ.admissible ∅ t.signature := by rfl
+
+
+
 mutual
 
-def TermVector.applySubst {n : ℕ} (σ : Subst) (ts : TermVector n) : TermVector n :=
+def TermVector.applySubst {n : ℕ} (σ : Subst) (ts : TermVector n) : Option (TermVector n) :=
   match ts with
-    | .nil => .nil
-    | .cons t ts => .cons (Term.applySubst σ t) (TermVector.applySubst σ ts)
+    | .nil => pure .nil
+    | .cons t ts => do
+      return .cons (← Term.applySubst σ t) (← TermVector.applySubst σ ts)
 
-def Term.applySubst (σ : Subst) (t : Term) :=
+def Term.applySubst (σ : Subst) (t : Term) : Option Term :=
   match t with
-    | .var _  => t
-    | .neg t' => .neg (Term.applySubst σ t')
-    | .plus t₁ t₂ => .plus (Term.applySubst σ t₁) (Term.applySubst σ t₂)
-    | .times t₁ t₂ => .times (Term.applySubst σ t₁) (Term.applySubst σ t₂)
-    | .differential t => .differential (Term.applySubst σ t)
-    | .applyFn (.num n) args =>
-        let sargs := TermVector.applySubst σ args
-        .applyFn (.num n) sargs
-    | .applyFn (.sym f) args =>
-        let sargs := TermVector.applySubst σ args
+    | .var _  => return t
+    | .neg t' => do return .neg (← Term.applySubst σ t')
+    | .plus t₁ t₂ => do return .plus (← Term.applySubst σ t₁) (← Term.applySubst σ t₂)
+    | .times t₁ t₂ => do return .times (← Term.applySubst σ t₁) (← Term.applySubst σ t₂)
+    | .differential t => do
+        guard <| σ.admissible ∅ t.signature
+        return .differential (← Term.applySubst σ t)
+    | .applyFn (.num n) args => do
+        let sargs ← TermVector.applySubst σ args
+        return .applyFn (.num n) sargs
+    | .applyFn (.sym f) args => do
+        let sargs ← TermVector.applySubst σ args
         Subst.get σ f sargs
 
 end
 
 mutual
 
-def Formula.applySubst (σ : Subst) (Φ : Formula) := match Φ with
+def Formula.applySubst (σ : Subst) (Φ : Formula) : Option Formula := match Φ with
   | .True
   | .False            => Φ
-  | .eq t₁ t₂         => .eq (t₁.applySubst σ) (t₂.applySubst σ)
-  | .gte t₁ t₂        => .gte (t₁.applySubst σ) (t₂.applySubst σ)
-  | .not Φ'           => .not (Φ'.applySubst σ)
-  | .and Φ₁ Φ₂        => .and (Φ₁.applySubst σ) (Φ₂.applySubst σ)
-  | .forall x Φ       => .forall x (Φ.applySubst σ)
-  | .exists x Φ       => .exists x (Φ.applySubst σ)
-  | .diamond α Φ      => .diamond (α.applySubst σ) (Φ.applySubst σ)
-  | .box α Φ          => .box (α.applySubst σ) (Φ.applySubst σ)
-  | .ref α β          => .ref (α.applySubst σ) (β.applySubst σ)
-  | .applyPred p args =>
-    let sargs := TermVector.applySubst σ args
-    Subst.get σ p sargs
+  | .eq t₁ t₂         => do return .eq (← t₁.applySubst σ) (← t₂.applySubst σ)
+  | .gte t₁ t₂        => do return .gte (← t₁.applySubst σ) (← t₂.applySubst σ)
+  | .not Φ'           => do return .not (← Φ'.applySubst σ)
+  | .and Φ₁ Φ₂        => do return .and (← Φ₁.applySubst σ) (← Φ₂.applySubst σ)
+  | .forall x Φ       => do
+      guard <| σ.admissible {.var x} Φ.signature
+      return .forall x (← Φ.applySubst σ)
+  | .exists x Φ       => do
+      guard <| σ.admissible {.var x} Φ.signature
+      return .exists x (← Φ.applySubst σ)
+  | .diamond α Φ      => do
+      let σα ← α.applySubst σ
 
-def Program.applySubst (σ : Subst) (α : Program) : Program := match α with
-  | .assign x t   => .assign x (t.applySubst σ)
-  | .test Φ       => .test (Φ.applySubst σ)
-  | .ode system Ψ =>
-    let ssystem := system.map (fun {var, term} => ODE.mk var (Term.applySubst σ term))
-    .ode ssystem (Ψ.applySubst σ)
-  | .choice α β   => .choice (α.applySubst σ) (β.applySubst σ)
-  | .seq α β      => .seq (α.applySubst σ) (β.applySubst σ)
-  | .loop α       => .loop (α.applySubst σ)
-  | .const a      => Subst.get σ a
+      guard <| σ.admissible σα.boundVars' Φ.signature
+      return .diamond σα (← Φ.applySubst σ)
+  | .box α Φ          => do
+      let σα ← α.applySubst σ
+
+      guard <| σ.admissible σα.boundVars' Φ.signature
+      return .box (← α.applySubst σ) (← Φ.applySubst σ)
+  | .ref α β          => do
+      guard <| True -- TODO(refinement): Enguerrand
+      return .ref (← α.applySubst σ) (← β.applySubst σ)
+  | .applyPred p args => do
+      let sargs ← TermVector.applySubst σ args
+      Subst.get σ p sargs
+
+def Program.applySubst (σ : Subst) (α : Program) : Option Program := match α with
+  | .assign x t   => return .assign x (← t.applySubst σ)
+  | .test Φ       => return .test (← Φ.applySubst σ)
+  | .ode system Ψ => do
+    let vars := (system.map ODE.var).toFinset
+    let vars' := vars.map Assignable.diff_emb
+    let terms := system.map ODE.term
+    let σΨ ← Ψ.applySubst σ
+
+    guard <| σ.admissible (.Finite (vars ∪ vars')) Ψ.signature
+    guard <| terms.all (σ.admissible (.Finite (vars ∪ vars')) ∘ Term.signature)
+
+    let ssystem ← system.mapM (fun {var, term} => do return ODE.mk var (← Term.applySubst σ term))
+    return .ode ssystem σΨ
+  | .choice α β   => return .choice (← α.applySubst σ) (← β.applySubst σ)
+  | .seq α β      => do
+    let σα ← α.applySubst σ
+
+    guard <| σ.admissible σα.boundVars' β.signature
+    return .seq σα (← β.applySubst σ)
+  | .loop α       => do
+    let σα ← α.applySubst σ
+
+    guard <| σ.admissible σα.boundVars' α.signature
+    return .loop σα
+  | .const a      => return Subst.get σ a
 
 end
 
@@ -182,18 +217,42 @@ section Theorems
 theorem Subst.free_vars_head {σ : Subst}
                              {e : SubstEntry}
                              {h : Subst.Nodup (e :: σ.1)}
-                             : e.freeVars ⊆ Subst.freeVars (⟨e :: σ.1, h⟩) := by
+                             : (e.freeVars : Set Assignable)
+                             ⊆ Subst.freeVars (⟨e :: σ.1, h⟩) .none := by
   simp[Subst.freeVars]
 
 theorem Subst.free_vars_tail {σ : Subst}
                              {e : SubstEntry}
                              {h : Subst.Nodup (e :: σ.1)}
-                             : σ.freeVars ⊆ Subst.freeVars (⟨e :: σ.1, h⟩) := by
-  simp[Subst.freeVars]
+                             {S : Option (Finset Symbol)}
+                             : (σ.freeVars S : Set Assignable)
+                             ⊆ Subst.freeVars ⟨e :: σ.1, h⟩ S := by
+  match S with
+    | .none => simp[Subst.freeVars]
+    | .some S =>
+      by_cases h : ((SubstEntry.symbol e) ∈ S)
+      all_goals simp[Subst.freeVars, h]
+
+
+lemma Subst.get_fn_head {σ : Subst}
+                        {f : FunctionSymbol}
+                        {rhs : TermVector f.arity → Term}
+                        {h : Subst.Nodup (.fn f rhs :: σ.1)}
+                        : Subst.get ⟨.fn f rhs :: σ.1, h⟩ (Symbol.Function f) = rhs := by
+  simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
+
+lemma Subst.get_tail {σ : Subst}
+                     {s : Symbol}
+                     {e : SubstEntry}
+                     {h₁ : Subst.Nodup (e :: σ.1)}
+                     {h₂ : ¬s = e.symbol}
+                     : Subst.get ⟨e :: σ.1, h₁⟩ s = σ.get s := by
+  simp_all[Subst.get]
 
 theorem Subst.free_vars_subset_fun {σ : Subst}
                                    {f : FunctionSymbol}
-                                   : ↑(σ.get f (Term.dots f.arity)).freeVars ⊆ σ.freeVars := by
+                                   : ((σ.get f (Term.dots f.arity)).freeVars : Set Assignable)
+                                   ⊆ σ.freeVars .none := by
   match h : σ with
     | ⟨.nil, _⟩ => simp[Subst.get, Symbol.default, Term.freeVars]
     | ⟨.cons x xs, hnodup⟩ =>
@@ -206,11 +265,9 @@ theorem Subst.free_vars_subset_fun {σ : Subst}
           | .pred _ _ => simp[SubstEntry.symbol] at h
           | .prog _ _ => simp[SubstEntry.symbol] at h
           | .fn f' rhs =>
-            have hf : f' = f := by simp_all[SubstEntry.symbol]
-            cases hf
-
-            simp only [] -- what is happening here
-            simp_all[σ', SubstEntry.freeVars, SubstEntry.rhs]
+            simp_all[SubstEntry.symbol]
+            cases h
+            simp_all[σ', Subst.freeVars, SubstEntry.freeVars, SubstEntry.rhs]
       .
         have := @Subst.free_vars_tail σ' x hnodup
         have := @Subst.free_vars_subset_fun σ' f
@@ -220,7 +277,8 @@ termination_by
 
 theorem Subst.free_vars_subset_pred {σ : Subst}
                                     {p : PredicateSymbol}
-                                    : ↑(σ.get p (Term.dots p.arity)).freeVars ⊆ σ.freeVars := by
+                                    : ((σ.get p (Term.dots p.arity)).freeVars : Set Assignable)
+                                    ⊆ σ.freeVars .none := by
   match σ with
     | ⟨.nil, _⟩ => simp[Subst.get, Symbol.default, Formula.freeVars]
     | ⟨.cons x xs, hnodup⟩ =>
@@ -233,9 +291,11 @@ theorem Subst.free_vars_subset_pred {σ : Subst}
           | .fn _ _ => simp[SubstEntry.symbol] at h
           | .prog _ _ => simp[SubstEntry.symbol] at h
           | .pred p' rhs =>
-            have hp : p' = p := by simp_all[SubstEntry.symbol]
-            cases hp
-            simp_all[σ', SubstEntry.freeVars, SubstEntry.rhs]
+            simp_all[SubstEntry.symbol]
+            cases h
+            simp_all[σ', Subst.freeVars, SubstEntry.freeVars, SubstEntry.rhs]
+            rw[Formula.free_vars_decidable (rhs (Term.dots p.arity))]
+            simp
       .
         have := @Subst.free_vars_tail σ' x hnodup
         have := @Subst.free_vars_subset_pred σ' p
@@ -243,11 +303,12 @@ theorem Subst.free_vars_subset_pred {σ : Subst}
 termination_by
   σ.1
 
-def Subst.admissible_adjoint {v w : State}
-                             {σ : Subst}
-                             {i : Interpretation}
-                             (heq : State.isEqOn v w σ.freeVars)
-                             : Subst.adjoint σ i v = Subst.adjoint σ i w := by
+-- add second part
+theorem Subst.admissible_adjoint {v w : State}
+                                 {σ : Subst}
+                                 {i : Interpretation}
+                                 (heq : State.isEqOn v w (σ.freeVars .none))
+                                 : Subst.adjoint σ i v = Subst.adjoint σ i w := by
   funext x
   match x with
     | .Function f =>
@@ -274,5 +335,19 @@ def Subst.admissible_adjoint {v w : State}
         . apply Subst.free_vars_subset_pred
       . simp
     | .Program a => simp[Subst.adjoint]
+
+-- theorem Subst.admissible_adjoint.term {v w : State}
+--                                       {σ : Subst}
+--                                       {i : Interpretation}
+--                                       {t : Term}
+--                                       :
+
+-- theorem Subst.term {v : State}
+--                    {i : Interpretation}
+--                    {σ : Subst}
+--                    {t : Term}
+--                    : Term.denote i v (t.applySubst σ)
+--                    = Term.denote (Subst.adjoint σ i v) v t := by
+--   sorry
 
 end Theorems
