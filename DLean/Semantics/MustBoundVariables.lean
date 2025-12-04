@@ -1,5 +1,6 @@
 import DLean.Syntax.Syntax
 import DLean.Semantics.BoundVariables
+import DLean.Util.FCSet
 
 def Program.mustBoundVars (α : Program) : Set Assignable := match α with
   | .assign _ _
@@ -9,3 +10,30 @@ def Program.mustBoundVars (α : Program) : Set Assignable := match α with
   | .seq α β    => Program.mustBoundVars α ∪ Program.mustBoundVars β
   | .const _
   | .loop _     => ∅
+
+/-- Decidable version. -/
+def Program.mustBoundVars' (α : Program) : FCSet Assignable := match α with
+  | .assign _ _
+  | .test _
+  | .ode _ _    => Program.boundVars' α
+  | .choice α β => Program.mustBoundVars' α ∩ Program.mustBoundVars' β
+  | .seq α β    => Program.mustBoundVars' α ∪ Program.mustBoundVars' β
+  | .const _
+  | .loop _     => ∅
+
+theorem Program.must_bound_vars_decidable (α : Program)
+  : Program.mustBoundVars α = Program.mustBoundVars' α := by
+  match α with
+    | .assign x t
+    | .test Φ
+    | .ode system Ψ =>
+      simp[Program.mustBoundVars, Program.mustBoundVars']
+      apply Program.bound_vars_decidable
+    | .choice α β
+    | .seq α β =>
+      simp[Program.mustBoundVars, Program.mustBoundVars']
+      rw[Program.must_bound_vars_decidable α]
+      rw[Program.must_bound_vars_decidable β]
+    | .const _
+    | .loop _  =>
+      simp[Program.mustBoundVars, Program.mustBoundVars']
