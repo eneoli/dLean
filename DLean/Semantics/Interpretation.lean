@@ -126,11 +126,29 @@ theorem TermVector.signature_cons {n : ℕ}
   rw[TermVector.mem_toList_cons]
   simp
 
+theorem TermVector.signature_in {n : ℕ}
+                                {ts : TermVector n}
+                                {t : Term}
+  : t ∈ ts -> t.signature ⊆ ts.signature := by
+    match ts with
+  | .nil => simp
+  | .cons t' ts' =>
+      simp only [signature_cons]
+      intro h
+      apply TermVector.mem_cons at h
+      cases h
+      . grind only [= Finset.subset_iff, = Finset.mem_union]
+      . have := TermVector.signature_in (t:=t) (ts:=ts')
+        grind only [= Finset.subset_iff, = Finset.mem_union]
+
+-- If only used once, maybe not worth having this theorem
 theorem TermVector.signature_elem {n : ℕ}
                                   {ts : TermVector n}
                                   {x : Fin n}
   : ts.toVector[x].signature ⊆ ts.signature := by
-  sorry
+  apply signature_in
+  rw[mem_toVector_iff]
+  apply Vector.getElem_mem
 
 @[simp]
 theorem Interpretation.eq_on_rfl {i : Interpretation}
