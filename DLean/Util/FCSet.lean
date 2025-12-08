@@ -2,6 +2,8 @@ import Mathlib.Data.Finset.Basic
 import Mathlib.Data.SetLike.Basic
 import Mathlib.Data.Set.Finite.Basic
 
+-- Note: Only useful for infinite carrier sets.
+-- Note: For finite carrier sets, we should define a custom equality because A = B^C is possible.
 inductive FCSet (α : Type) : Type where
   | Finite : Finset α → FCSet α
   | Infinite : Finset α → FCSet α
@@ -56,24 +58,24 @@ instance {α : Type} : Membership α (FCSet α) where
 
 section Theorems
 
-@[simp]
+@[simp, grind]
 theorem FCSet.to_set_empty {α : Type}
   : (∅ : FCSet α) = (∅ : Set α) := by
     simp[FCSet.toSet]
 
-@[simp]
+@[simp, grind]
 theorem FCSet.to_set_singleton {α : Type}
                                [DecidableEq α]
                                {x : α}
   : ({x} : FCSet α) = ({x} : Set α) := by
     simp[FCSet.toSet]
 
-@[simp]
+@[simp, grind]
 theorem FCSet.to_set_univ {α : Type}
   : (.univ : FCSet α) = (.univ : Set α) := by
     simp[FCSet.toSet]
 
-@[simp]
+@[simp, grind]
 theorem FCSet.to_set_union {α : Type}
                            [DecidableEq α]
                            {A : FCSet α}
@@ -83,7 +85,7 @@ theorem FCSet.to_set_union {α : Type}
     all_goals simp[FCSet.toSet]
     all_goals grind
 
-@[simp]
+@[simp, grind]
 theorem FCSet.to_set_inter {α : Type}
                            [DecidableEq α]
                            {A : FCSet α}
@@ -93,7 +95,7 @@ theorem FCSet.to_set_inter {α : Type}
     all_goals simp[FCSet.toSet]
     all_goals grind
 
-@[simp]
+@[simp, grind]
 theorem FCSet.to_set_diff {α : Type}
                           [DecidableEq α]
                           {A : FCSet α}
@@ -103,7 +105,7 @@ theorem FCSet.to_set_diff {α : Type}
     all_goals simp[FCSet.toSet]
     all_goals grind
 
-@[simp]
+@[simp, grind]
 theorem Set.to_set_finite {α : Type}
                           {A : Finset α}
   : ((FCSet.Finite A) : Set α) = (A : Set α) := by
@@ -114,5 +116,25 @@ theorem FCSet.union_inter_distrib_right {α : Type}
                                         (s t u : FCSet α)
   : (s ∪ t) ∩ u = s ∩ u ∪ t ∩ u := by
   sorry
+
+@[simp, grind]
+theorem FCSet.to_set_eq {α : Type}
+                        [inst : _root_.Infinite α]
+                        {A : FCSet α}
+                        {B : FCSet α}
+  : A = B ↔ (A : Set α) = (B : Set α) := by
+  apply Iff.intro
+  . simp_all[FCSet.toSet]
+  .
+    intro h
+    match A, B with
+      | .Finite A, .Finite B
+      | .Infinite A, .Infinite B =>
+        simp_all[FCSet.toSet]
+      | .Infinite A, .Finite B
+      | .Finite A, .Infinite B =>
+        have := Finset.finite_toSet A
+        have := Set.Finite.infinite_compl this
+        simp_all[FCSet.toSet]
 
 end Theorems
