@@ -80,12 +80,9 @@ termination_by
 section SubstApplication
 
 /-- Restricts σ on the symbols in S. -/
+-- @[reducible]
 abbrev Subst.admissible (σ : Subst) (U : FCSet Assignable) (S : Finset Symbol) :=
   (σ.freeVars S) ∩ U = ∅
-
--- theorem foo (σ : Subst) (t: Term) : σ.admissible ∅ t.signature := by rfl
-
-
 
 mutual
 
@@ -102,7 +99,7 @@ def Term.applySubst (σ : Subst) (t : Term) : Option Term :=
     | .plus t₁ t₂ => do return .plus (← Term.applySubst σ t₁) (← Term.applySubst σ t₂)
     | .times t₁ t₂ => do return .times (← Term.applySubst σ t₁) (← Term.applySubst σ t₂)
     | .differential t => do
-        guard <| σ.admissible ∅ t.signature
+        guard <| σ.admissible .univ t.signature
         return .differential (← Term.applySubst σ t)
     | .applyFn (.num n) args => do
         let sargs ← TermVector.applySubst σ args
@@ -139,7 +136,6 @@ def Formula.applySubst (σ : Subst) (Φ : Formula) : Option Formula := match Φ 
       guard <| σ.admissible σα.boundVars' Φ.signature
       return .box (← α.applySubst σ) (← Φ.applySubst σ)
   | .ref α β          => do
-      guard <| True -- TODO(refinement): Enguerrand
       return .ref (← α.applySubst σ) (← β.applySubst σ)
   | .applyPred p args => do
       let sargs ← TermVector.applySubst σ args
@@ -302,14 +298,65 @@ theorem Subst.free_vars_subset_pred {σ : Subst}
 termination_by
   σ.1
 
+theorem Subst.admissible_subst_cons {σ : Subst}
+                                    {e : SubstEntry}
+                                    {U : FCSet Assignable}
+                                    {S : Finset Symbol}
+                                    (hsubst : Subst.Nodup (e :: σ.1))
+  : Subst.admissible ⟨e :: σ.1, hsubst⟩ U S
+  ↔ (e.symbol ∈ S → e.freeVars ∩ U = ∅) ∧ Subst.admissible σ U S := by
+  simp_all[Subst.admissible, Subst.freeVars]
+  grind
+
 theorem Subst.admissible_symbol_subset {σ : Subst}
                                        {U : FCSet Assignable}
                                        {S₁ : Finset Symbol}
                                        {S₂ : Finset Symbol}
-                                       (h : S₂ ⊆ S₁)
+                                       (hs : S₂ ⊆ S₁)
   : Subst.admissible σ U S₁ → Subst.admissible σ U S₂ := by
-  sorry
+  intro h
+  match σ with
+    | ⟨.nil, _⟩ =>
+      apply FCSet.to_set_eq.mpr
+      simp[Subst.freeVars]
+    | ⟨e::σ', hsubst⟩ =>
+      have : Subst.admissible ⟨σ', Subst.tail_nodup hsubst⟩ U S₂ := by
+        apply Subst.admissible_symbol_subset hs
+        exact (Subst.admissible_subst_cons _).mp h |> And.right
+      by_cases e.symbol ∈ S₂
+      .
+        simp_all[Subst.admissible, Subst.freeVars]
+        grind
+      .
+        simp_all[Subst.admissible, Subst.freeVars]
+termination_by
+  σ.1
 
+theorem Subst.admissible_symbol_union {σ : Subst}
+                                      {U : FCSet Assignable}
+                                      {A : Finset Symbol}
+                                      {B : Finset Symbol}
+  : σ.admissible U (A ∪ B) ↔ σ.admissible U A ∧ σ.admissible U B := by
+  apply Iff.intro
+  .
+    intro h
+    and_intros
+    all_goals
+    exact @Subst.admissible_symbol_subset _ _ (A ∪ B) _ (by simp) h
+  .
+    intro h
+    match σ with
+      | ⟨.nil, _⟩ => simp[Subst.freeVars]
+      | ⟨e :: σ', hsubst⟩ =>
+      have hA := (@Subst.admissible_subst_cons ⟨σ', Subst.tail_nodup hsubst⟩ _ _ _ _).mp h.1
+      have hB := (@Subst.admissible_subst_cons ⟨σ', Subst.tail_nodup hsubst⟩ _ _ _ _).mp h.2
+      have := Subst.admissible_symbol_union.mpr ⟨hA.2, hB.2⟩
+      apply (@Subst.admissible_subst_cons ⟨σ', Subst.tail_nodup hsubst⟩ _ _ _ _).mpr
+      grind
+termination_by
+  σ.1
+
+-- TODO: cleanup, proper name
 theorem Subst.admissible_subset {σ : Subst}
                                 {U : FCSet Assignable}
                                 {S : Finset Symbol}
@@ -317,41 +364,35 @@ theorem Subst.admissible_subset {σ : Subst}
                                 (hf : (.Function f) ∈ S)
                                 (hA : Subst.admissible σ U S)
   : ((Subst.get σ f (Term.dots f.arity)).freeVars : Set _) ⊆ ((U : Set Assignable)ᶜ) := by
-  sorry
+  match σ with
+    | ⟨.nil, _⟩ =>
+      simp_all[Subst.get, Subst.freeVars, Symbol.default, Term.freeVars]
+    | ⟨e :: σ', hsubst⟩ =>
+      by_cases hc : .Function f = e.symbol
+      .
+        match he : e with
+          | .fn f' rhs =>
+          have : f' = f := by simp_all[SubstEntry.symbol]
+          cases this
+          cases he
+          have := @Subst.get_fn_head ⟨σ', Subst.tail_nodup hsubst⟩ f rhs hsubst
+          rw[this]
+          simp_all[Subst.freeVars, SubstEntry.freeVars, Subst.admissible]
 
-theorem Subst.admissible_union {σ : Subst}
-                               {U : FCSet Assignable}
-                               {A B : Finset Symbol}
-  : σ.admissible U (A ∪ B) ↔ σ.admissible U A ∧ σ.admissible U B := by
-  apply Iff.intro
-  .
-    match σ with
-      | ⟨.nil, _⟩ => simp[Subst.admissible, Subst.freeVars]
-      | ⟨e :: σ', hsubst⟩ =>
-        intro h
-        by_cases hc : e.symbol ∈ (A ∪ B)
+          rw[Set.union_inter_distrib_right] at hA
+          have : ↑(rhs (Term.dots f.arity)).freeVars ∩ U.toSet = ∅ := by grind
+          apply Set.subset_compl_iff_disjoint_left.mpr
+          simp[Disjoint]
+          grind
+          | .pred p rhs
+          | .prog a rhs =>
+            simp_all[SubstEntry.symbol]
+      .
+        simp[Subst.get, hc]
+        apply Subst.admissible_subset f hf
         .
-          simp[Subst.admissible, Subst.freeVars, hc]
-          simp[Subst.admissible, Subst.freeVars, hc] at h
-          by_cases ha : e.symbol ∈ A
-          .
-            simp[ha]
-            by_cases hb : e.symbol ∈ B
-            .
-              simp[hb]
-              apply And.intro
-              .
-                have := @Subst.admissible_union ⟨σ', Subst.tail_nodup hsubst⟩ U A B
-                simp[Subst.admissible] at this
-                rw[FCSet.union_inter_distrib_right (e.freeVars) _ U]
-                congr 1
-                sorry
-              . sorry
-            . sorry
-          . sorry
-
-        sorry
-  . sorry
+          have := (@Subst.admissible_subst_cons ⟨σ', Subst.tail_nodup hsubst⟩ _ _ _ _).mp hA
+          exact this.2
 termination_by
   σ.1
 
@@ -401,13 +442,13 @@ theorem Subst.admissible_adjoint.term {v w μ : State}
     | .var _ => simp[Term.denote]
     | .neg  t         =>
       simp[Term.denote]
-      simp[Term.signature] at hA
+      simp only [Term.signature] at hA
       apply Subst.admissible_adjoint.term hA hS
     | .plus x y
     | .times x y =>
       simp[Term.denote]
-      simp[Term.signature] at hA
-      apply Subst.admissible_union.mp at hA
+      simp only [Term.signature] at hA
+      apply Subst.admissible_symbol_union.mp at hA
       congr 1
       . exact Subst.admissible_adjoint.term hA.1 hS
       . exact Subst.admissible_adjoint.term hA.2 hS
@@ -417,8 +458,8 @@ theorem Subst.admissible_adjoint.term {v w μ : State}
         | .num _ => simp[Term.denote]
         | .sym f =>
           simp[Term.denote]
-          simp[Term.signature] at hA
-          apply Subst.admissible_union.mp at hA
+          simp only [Term.signature] at hA
+          apply Subst.admissible_symbol_union.mp at hA
           have : σ.adjoint i v (Symbol.Function f)
                = σ.adjoint i w (Symbol.Function f):= by
               simp[Subst.adjoint]
@@ -444,7 +485,7 @@ theorem Subst.admissible_adjoint.term {v w μ : State}
           simp_all
     | Term.differential t =>
       simp[Term.denote]
-      simp[Term.signature] at hA
+      simp only [Term.signature] at hA
       have : ∀ (x : t.freeVars) (y : ℝ), Term.denote (Subst.adjoint σ i v) (μ.update x y) t
                                        = Term.denote (Subst.adjoint σ i w) (μ.update x y) t :=
         fun _ _ ↦ Subst.admissible_adjoint.term hA hS
