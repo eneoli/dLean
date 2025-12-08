@@ -109,7 +109,7 @@ def Formula.freeVars (Φ : Formula) : Set Assignable := match Φ with
                                                   \ (α.mustBoundVars ∩ β.mustBoundVars))
 
 def Program.freeVars (α : Program) : Set Assignable := match α with
-  | .const _      => Assignable.Set
+  | .const _      => .univ
   | .assign _ t   => t.freeVars
   | .test Φ       => Formula.freeVars Φ
   | .seq α β

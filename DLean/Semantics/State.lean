@@ -109,7 +109,7 @@ theorem State.eq_on_extends_if_update {v : State}
 
 theorem State.eq_on_univ {v : State}
                          {w : State}
-                         : State.isEqOn v w Assignable.Set → v = w := by
+                         : State.isEqOn v w .univ → v = w := by
   simp[State.isEqOn]
   intro h
   funext x
@@ -182,7 +182,7 @@ theorem State.eq_except_trans {v : State}
 @[simp]
 theorem State.eq_except_univ {v : State}
                              {w : State}
-                             : State.isEqExcept v w Assignable.Set := by
+                             : State.isEqExcept v w .univ := by
   simp[State.isEqExcept]
 
 @[simp]

@@ -39,8 +39,6 @@ theorem Assignable_emb_inj : Function.Injective Assignable.emb := by
 instance : Infinite Assignable :=
   .of_injective Assignable.emb Assignable_emb_inj
 
-abbrev Assignable.Set : Set Assignable := Set.univ
-
 def Assignable.orderOfDerivate : Assignable → ℕ
   | .var _  => 0
   | .diff a => 1 + a.orderOfDerivate
