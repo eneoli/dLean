@@ -1,5 +1,7 @@
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Finite.Defs
+import Mathlib.Data.Fintype.EquivFin
 
 structure Variable : Type where
   name : String
@@ -9,6 +11,33 @@ inductive Assignable : Type where
   | var  : Variable   → Assignable
   | diff : Assignable → Assignable
 deriving Repr, DecidableEq, BEq, Inhabited
+
+instance : Coe Variable Assignable where
+  coe := Assignable.var
+protected def Assignable.emb : Nat → Assignable
+  | 0 => .var ⟨"a"⟩
+  | n + 1 => .diff (.emb n)
+
+theorem Assignable_emb_inj : Function.Injective Assignable.emb := by
+  simp[Function.Injective]
+  intros n
+  induction n
+  .
+    intro m h
+    match m with
+      | 0 => rfl
+      | m + 1 => simp_all[Assignable.emb]
+  .
+    next n ih =>
+    intros m h
+    match m with
+      | 0 => simp_all[Assignable.emb]
+      | m + 1 =>
+        simp[Assignable.emb] at h
+        simp[ih h]
+
+instance : Infinite Assignable :=
+  .of_injective Assignable.emb Assignable_emb_inj
 
 abbrev Assignable.Set : Set Assignable := Set.univ
 
@@ -24,9 +53,6 @@ def Assignable.diff_emb : Assignable ↪ Assignable := {
   toFun:= diff
   inj':= by simp[Function.Injective]
 }
-
-instance : Coe Variable Assignable where
-  coe := Assignable.var
 
 inductive FunctionSymbol : Type where
   | dot : ℕ → FunctionSymbol
