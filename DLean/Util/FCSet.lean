@@ -111,12 +111,6 @@ theorem Set.to_set_finite {α : Type}
   : ((FCSet.Finite A) : Set α) = (A : Set α) := by
     simp[FCSet.toSet]
 
-theorem FCSet.union_inter_distrib_right {α : Type}
-                                        [DecidableEq α]
-                                        (s t u : FCSet α)
-  : (s ∪ t) ∩ u = s ∩ u ∪ t ∩ u := by
-  sorry
-
 @[simp, grind]
 theorem FCSet.to_set_eq {α : Type}
                         [inst : _root_.Infinite α]
