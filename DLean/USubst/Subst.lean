@@ -236,6 +236,13 @@ lemma Subst.get_fn_head {σ : Subst}
                         : Subst.get ⟨.fn f rhs :: σ.1, h⟩ (Symbol.Function f) = rhs := by
   simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
 
+lemma Subst.get_pred_head {σ : Subst}
+                          {p : PredicateSymbol}
+                          {rhs : TermVector p.arity → Formula}
+                          {h : Subst.Nodup (.pred p rhs :: σ.1)}
+                          : Subst.get ⟨.pred p rhs :: σ.1, h⟩ (Symbol.Predicate p) = rhs := by
+  simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
+
 lemma Subst.get_tail {σ : Subst}
                      {s : Symbol}
                      {e : SubstEntry}
@@ -387,7 +394,37 @@ theorem Subst.admissible_get_fn_subset {σ : Subst}
 termination_by
   σ.1
 
--- add second part
+theorem Subst.admissible_get_pred_subset {σ : Subst}
+                                         {U : FCSet Assignable}
+                                         {S : Finset Symbol}
+                                         (p : PredicateSymbol)
+                                         (hp : .Predicate p ∈ S)
+                                         (hA : Subst.admissible σ U S)
+  : ((Subst.get σ p (Term.dots p.arity)).freeVars : Set _) ⊆ (U : Set Assignable)ᶜ := by
+  match σ with
+    | ⟨.nil, _⟩ => simp_all[Subst.get, Subst.freeVars, Symbol.default, Formula.freeVars]
+    | ⟨e :: σ', hsubst⟩ =>
+      by_cases hc : .Predicate p = e.symbol
+      .
+        match e with
+          | .pred p' rhs =>
+            have : p' = p := by simp_all[SubstEntry.symbol]
+            cases this
+            rw[@Subst.get_pred_head ⟨σ', Subst.tail_nodup hsubst⟩ p rhs hsubst]
+            simp_all[Subst.freeVars, SubstEntry.freeVars, Subst.admissible]
+            apply Set.subset_compl_iff_disjoint_left.mpr
+            simp[Formula.free_vars_decidable, Disjoint]
+            grind
+          | .fn _ _
+          | .prog _ _ => simp_all[SubstEntry.symbol]
+      .
+        simp[Subst.get, hc]
+        apply Subst.admissible_get_pred_subset p hp
+        exact (@Subst.admissible_subst_cons ⟨σ', Subst.tail_nodup hsubst⟩ _ _ _ _).mp hA
+          |> And.right
+termination_by
+  σ.1
+
 theorem Subst.admissible_adjoint {v w : State}
                                  {σ : Subst}
                                  {i : Interpretation}
@@ -443,7 +480,6 @@ theorem Subst.admissible_adjoint.term {v w μ : State}
       congr 1
       . exact Subst.admissible_adjoint.term hA.1 hS
       . exact Subst.admissible_adjoint.term hA.2 hS
-
     | .applyFn f args =>
       match f with
         | .num _ => simp[Term.denote]
@@ -460,7 +496,7 @@ theorem Subst.admissible_adjoint.term {v w μ : State}
               and_intros
               .
                 apply State.is_eq_on_subset hS
-                . exact Subst.admissible_get_fn_subset f (by simp[Function.signature]) hA.1
+                exact Subst.admissible_get_fn_subset f (by simp[Function.signature]) hA.1
               . simp
           simp[this]
 
@@ -492,6 +528,154 @@ decreasing_by
 
   decreasing_trivial
 
+mutual
+
+theorem Subst.admissible_adjoint.formula {v w : State}
+                                         {σ : Subst}
+                                         {i : Interpretation}
+                                         {Φ : Formula}
+                                         {U : FCSet Assignable}
+                                         (hA : Subst.admissible σ U Φ.signature)
+                                         (hS : State.isEqOn v w Uᶜ)
+                                         : Formula.denote (Subst.adjoint σ i v) Φ
+                                         = Formula.denote (Subst.adjoint σ i w) Φ := by
+  match Φ with
+    | .True
+    | .False => simp[Formula.denote]
+    | .applyPred p args =>
+      simp only [Formula.signature] at hA
+      apply Subst.admissible_symbol_union.mp at hA
+      simp[Formula.denote]
+      funext μ
+
+      have : Subst.adjoint σ i v (Symbol.Predicate p)
+           = Subst.adjoint σ i w (Symbol.Predicate p) := by
+        simp[Subst.adjoint]
+        funext args
+        simp
+        apply Iff.intro
+        all_goals
+          apply Formula.coincidence
+          and_intros
+          .
+            apply State.eq_on_symm
+            first
+              | apply State.is_eq_on_subset hS
+              | apply State.is_eq_on_subset (State.eq_on_symm hS)
+            exact Subst.admissible_get_pred_subset p (by simp) hA.1
+          . simp
+
+      have : ∀ (n : Fin p.arity), Term.denote (σ.adjoint i v) μ args.toVector[n]
+                                = Term.denote (σ.adjoint i w) μ args.toVector[n] := by
+        intros n
+        apply Subst.admissible_adjoint.term
+        .
+          apply Subst.admissible_symbol_subset
+          . exact TermVector.signature_elem
+          . exact hA.2
+        . exact hS
+      simp_all
+    | .eq t₁ t₂
+    | .gte t₁ t₂ =>
+      apply Subst.admissible_symbol_union.mp at hA
+      have : ∀ (μ : State), Term.denote (σ.adjoint i v) μ t₁ = Term.denote (σ.adjoint i w) μ t₁ :=
+        fun μ ↦Subst.admissible_adjoint.term hA.1 hS
+      have : ∀ (μ : State), Term.denote (σ.adjoint i v) μ t₂ = Term.denote (σ.adjoint i w) μ t₂ :=
+        fun μ ↦Subst.admissible_adjoint.term hA.2 hS
+      simp_all[Formula.denote]
+    | .not Φ' =>
+      simp[Formula.denote]
+      simp only [Formula.signature] at hA
+      exact Subst.admissible_adjoint.formula hA hS
+    | .and Φ₁ Φ₂ =>
+      simp[Formula.denote]
+      simp only [Formula.signature] at hA
+      apply Subst.admissible_symbol_union.mp at hA
+      congr 1
+      . exact Subst.admissible_adjoint.formula hA.1 hS
+      . exact Subst.admissible_adjoint.formula hA.2 hS
+    | .forall x Φ'
+    | .exists x Φ' =>
+      simp only [Formula.signature] at hA
+      have : Formula.denote (σ.adjoint i v) Φ' = Formula.denote (σ.adjoint i w) Φ' :=
+        Subst.admissible_adjoint.formula hA hS
+      simp_all[Formula.denote]
+    | .diamond α Φ'
+    | .box α Φ' =>
+      simp only [Formula.signature] at hA
+      apply Subst.admissible_symbol_union.mp at hA
+      have : Program.denote (σ.adjoint i v) α = Program.denote (σ.adjoint i w) α :=
+        Subst.admissible_adjoint.program hA.1 hS
+      have : Formula.denote (σ.adjoint i v) Φ' = Formula.denote (σ.adjoint i w) Φ' :=
+        Subst.admissible_adjoint.formula hA.2 hS
+      simp_all[Formula.denote]
+    | .ref α β =>
+      simp only [Formula.signature] at hA
+      apply Subst.admissible_symbol_union.mp at hA
+      have : Program.denote (σ.adjoint i v) α = Program.denote (σ.adjoint i w) α :=
+        Subst.admissible_adjoint.program hA.1 hS
+      have : Program.denote (σ.adjoint i v) β = Program.denote (σ.adjoint i w) β :=
+        Subst.admissible_adjoint.program hA.2 hS
+      simp_all[Formula.denote]
+termination_by
+  Φ.size
+decreasing_by
+  all_goals simp[Formula.size]
+  all_goals omega
+
+theorem Subst.admissible_adjoint.program {v w : State}
+                                         {σ : Subst}
+                                         {i : Interpretation}
+                                         {α : Program}
+                                         {U : FCSet Assignable}
+                                         (hA : Subst.admissible σ U α.signature)
+                                         (hS : State.isEqOn v w Uᶜ)
+                                         : Program.denote (Subst.adjoint σ i v) α
+                                         = Program.denote (Subst.adjoint σ i w) α := by
+  match α with
+    | .const a =>
+      simp[Program.denote, Subst.adjoint]
+    | .assign x t =>
+      simp only [Program.signature] at hA
+      have : ∀ (μ : State), Term.denote (σ.adjoint i v) μ t = Term.denote (σ.adjoint i w) μ t := by
+        intros μ
+        apply Subst.admissible_adjoint.term hA hS
+      simp_all[Program.denote]
+    | .test Φ =>
+      simp[Program.denote]
+      simp only [Program.signature] at hA
+      have : Formula.denote (σ.adjoint i v) Φ = Formula.denote (σ.adjoint i w) Φ :=
+        Subst.admissible_adjoint.formula hA hS
+      simp_all
+    | .ode system Ψ =>
+      simp[Program.denote]
+      have : Formula.denote (σ.adjoint i v) (odeEvolutionFormula system Ψ)
+           = Formula.denote (σ.adjoint i w) (odeEvolutionFormula system Ψ) := by
+        apply Subst.admissible_adjoint.formula
+        .
+          rw[ode_evolution_formula_signature_eq_ode_signature]
+          exact hA
+        . exact hS
+      simp_all
+    | .choice α β
+    | .seq α β =>
+      simp only [Program.signature] at hA
+      apply Subst.admissible_symbol_union.mp at hA
+      have := Subst.admissible_adjoint.program (i := i) (α := α) hA.1 hS
+      have := Subst.admissible_adjoint.program (i := i) (α := β) hA.2 hS
+      simp_all[Program.denote]
+    | .loop α =>
+      simp only [Program.signature] at hA
+      have := Subst.admissible_adjoint.program (i := i) (α := α) hA hS
+      simp_all[Program.denote]
+termination_by
+  α.size
+decreasing_by
+  all_goals simp[Program.size]
+  all_goals try omega
+  simp[ode_evolution_formula_size_bound, *]
+
+end
 
 -- theorem Subst.term {v : State}
 --                    {i : Interpretation}
