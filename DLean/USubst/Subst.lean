@@ -356,43 +356,34 @@ theorem Subst.admissible_symbol_union {σ : Subst}
 termination_by
   σ.1
 
--- TODO: cleanup, proper name
-theorem Subst.admissible_subset {σ : Subst}
-                                {U : FCSet Assignable}
-                                {S : Finset Symbol}
-                                (f : FunctionSymbol)
-                                (hf : (.Function f) ∈ S)
-                                (hA : Subst.admissible σ U S)
-  : ((Subst.get σ f (Term.dots f.arity)).freeVars : Set _) ⊆ ((U : Set Assignable)ᶜ) := by
+theorem Subst.admissible_get_fn_subset {σ : Subst}
+                                       {U : FCSet Assignable}
+                                       {S : Finset Symbol}
+                                       (f : FunctionSymbol)
+                                       (hf : .Function f ∈ S)
+                                       (hA : Subst.admissible σ U S)
+  : ((Subst.get σ f (Term.dots f.arity)).freeVars : Set _) ⊆ (U : Set Assignable)ᶜ := by
   match σ with
-    | ⟨.nil, _⟩ =>
-      simp_all[Subst.get, Subst.freeVars, Symbol.default, Term.freeVars]
+    | ⟨.nil, _⟩ => simp_all[Subst.get, Subst.freeVars, Symbol.default, Term.freeVars]
     | ⟨e :: σ', hsubst⟩ =>
       by_cases hc : .Function f = e.symbol
       .
-        match he : e with
+        match e with
           | .fn f' rhs =>
-          have : f' = f := by simp_all[SubstEntry.symbol]
-          cases this
-          cases he
-          have := @Subst.get_fn_head ⟨σ', Subst.tail_nodup hsubst⟩ f rhs hsubst
-          rw[this]
-          simp_all[Subst.freeVars, SubstEntry.freeVars, Subst.admissible]
-
-          rw[Set.union_inter_distrib_right] at hA
-          have : ↑(rhs (Term.dots f.arity)).freeVars ∩ U.toSet = ∅ := by grind
-          apply Set.subset_compl_iff_disjoint_left.mpr
-          simp[Disjoint]
-          grind
-          | .pred p rhs
-          | .prog a rhs =>
-            simp_all[SubstEntry.symbol]
+            have : f' = f := by simp_all[SubstEntry.symbol]
+            cases this
+            rw[@Subst.get_fn_head ⟨σ', Subst.tail_nodup hsubst⟩ f rhs hsubst]
+            simp_all[Subst.freeVars, SubstEntry.freeVars, Subst.admissible]
+            apply Set.subset_compl_iff_disjoint_left.mpr
+            simp[Disjoint]
+            grind
+          | .pred _ _
+          | .prog _ _ => simp_all[SubstEntry.symbol]
       .
         simp[Subst.get, hc]
-        apply Subst.admissible_subset f hf
-        .
-          have := (@Subst.admissible_subst_cons ⟨σ', Subst.tail_nodup hsubst⟩ _ _ _ _).mp hA
-          exact this.2
+        apply Subst.admissible_get_fn_subset f hf
+        exact (@Subst.admissible_subst_cons ⟨σ', Subst.tail_nodup hsubst⟩ _ _ _ _).mp hA
+          |> And.right
 termination_by
   σ.1
 
@@ -469,7 +460,7 @@ theorem Subst.admissible_adjoint.term {v w μ : State}
               and_intros
               .
                 apply State.is_eq_on_subset hS
-                . exact Subst.admissible_subset f (by simp[Function.signature]) hA.1
+                . exact Subst.admissible_get_fn_subset f (by simp[Function.signature]) hA.1
               . simp
           simp[this]
 
