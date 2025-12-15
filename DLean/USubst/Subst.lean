@@ -439,9 +439,9 @@ theorem Subst.admissible_adjoint {v w : State}
       apply Term.coincidence
       and_intros
       .
-        apply State.is_eq_on_subset
-        . exact heq
+        apply Set.EqOn.mono
         . apply Subst.free_vars_subset_fun
+        . assumption
       . simp
     | .Predicate p =>
       simp[Subst.adjoint]
@@ -451,9 +451,9 @@ theorem Subst.admissible_adjoint {v w : State}
       all_goals
       apply Formula.coincidence
       and_intros
-      . apply State.is_eq_on_subset
-        . first | exact heq | exact State.eq_on_symm heq
+      . apply Set.EqOn.mono
         . apply Subst.free_vars_subset_pred
+        . first | exact heq | exact Set.EqOn.symm heq
       . simp
     | .Program a => simp[Subst.adjoint]
 
@@ -495,8 +495,9 @@ theorem Subst.admissible_adjoint.term {v w μ : State}
               apply Term.coincidence
               and_intros
               .
-                apply State.is_eq_on_subset hS
-                exact Subst.admissible_get_fn_subset f (by simp[Function.signature]) hA.1
+                apply Set.EqOn.mono
+                . exact Subst.admissible_get_fn_subset f (by simp[Function.signature]) hA.1
+                . assumption
               . simp
           simp[this]
 
@@ -546,6 +547,7 @@ theorem Subst.admissible_adjoint.formula {v w : State}
       simp only [Formula.signature] at hA
       apply Subst.admissible_symbol_union.mp at hA
       simp[Formula.denote]
+      congr
       funext μ
 
       have : Subst.adjoint σ i v (Symbol.Predicate p)
@@ -558,10 +560,10 @@ theorem Subst.admissible_adjoint.formula {v w : State}
           apply Formula.coincidence
           and_intros
           .
-            apply State.eq_on_symm
+            apply Set.EqOn.symm
             first
-              | apply State.is_eq_on_subset hS
-              | apply State.is_eq_on_subset (State.eq_on_symm hS)
+              | apply Set.EqOn.mono _ hS
+              | apply Set.EqOn.mono _ (Set.EqOn.symm hS)
             exact Subst.admissible_get_pred_subset p (by simp) hA.1
           . simp
 
