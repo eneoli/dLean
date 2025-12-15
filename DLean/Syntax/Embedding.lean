@@ -124,7 +124,7 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
     let args : Array Syntax := args
     let fnName : Q(String) := mkStrLit f.getId.toString
     let fnArity : Q(ℕ) := mkNatLit args.size
-    let fn : Q(Fn) := q(Fn.sym (FunctionSymbol.mk $fnName $fnArity))
+    let fn : Q(Fn) := q(Fn.sym (FunctionSymbol.udef $fnName $fnArity))
 
     let argsExpr ← Array.mapM id <| (args.map elabTerm)
     let argsTermVectorExpr ← argsExpr.foldrM
@@ -346,10 +346,10 @@ def delabFn.sym : Delab := do
   guard <| expr.isAppOfArity' ``Fn.sym 1
   delab expr.appArg!
 
-@[app_delab FunctionSymbol.mk]
-def delabFunctionSymbol.mk : Delab := do
+@[app_delab FunctionSymbol.udef]
+def delabFunctionSymbol.udef : Delab := do
   let expr ← getExpr
-  guard <| expr.isAppOfArity' ``FunctionSymbol.mk 2
+  guard <| expr.isAppOfArity' ``FunctionSymbol.udef 2
   delabStructString expr.appFn!.appArg!
 
 partial def delabTermVector (expr : Expr) : DelabM (List (Lean.TSyntax `term)) := do

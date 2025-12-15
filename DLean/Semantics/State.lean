@@ -141,8 +141,7 @@ theorem State.finUpdate_extend {v : State}
                                     f ⟨b.1, by aesop⟩
                               ) := by
       funext
-      simp[State.finUpdate, State.update]
-      aesop
+      grind[Function.update, State.finUpdate]
 
 open scoped ContDiff
 
