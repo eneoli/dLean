@@ -1,3 +1,7 @@
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.ContDiff.Defs
+import Mathlib.Analysis.Calculus.ContDiff.Operations
+
 import Mathlib.Data.Set.Operations
 import Mathlib.Logic.Function.Basic
 import DLean.Syntax.Syntax
@@ -7,6 +11,17 @@ namespace Semantics
 def State : Type := Assignable → ℝ
 
 abbrev State.update : State → Assignable → ℝ → State := Function.update
+
+abbrev AssignableOf (A : Finset Assignable) : Type := {a : Assignable // a ∈ A }
+
+def State.finUpdate {A : Finset Assignable}
+                    (s : State)
+                    (f : AssignableOf A → ℝ) : State :=
+  fun a =>
+    if h : a ∈ A then
+      f ⟨a, h⟩
+    else
+      s a
 
 def State.isEq (s₁ : State) (s₂ : State) : Prop :=
     ∀x:Assignable, s₁ x = s₂ x
@@ -102,8 +117,47 @@ theorem State.eq_except_trans {v : State}
 @[simp]
 theorem State.eq_except_univ {v : State}
                              {w : State}
-                             : State.isEqExcept v w Assignable.Set := by
+                             : State.isEqExcept v w .univ := by
   simp[State.isEqExcept]
+
+@[simp]
+theorem State.finUpdate_empty {v : State}
+                              {f : AssignableOf ∅ → ℝ}
+                              : v.finUpdate f = v := by
+  funext
+  simp[State.finUpdate]
+
+theorem State.finUpdate_extend {v : State}
+                               {A : Finset Assignable}
+                               {f : AssignableOf A → ℝ}
+                               {a : Assignable}
+                               {y : ℝ}
+                               : (v.finUpdate f).update a y
+                               = @v.finUpdate (A ∪ {a}) (
+                                fun b ↦
+                                  if h : a = b.1 then
+                                    y
+                                  else
+                                    f ⟨b.1, by aesop⟩
+                              ) := by
+      funext
+      grind[Function.update, State.finUpdate]
+
+open scoped ContDiff
+
+theorem State.finUpdate_contDiff {v : State}
+                                 {A : Finset Assignable}
+                                 {a : Assignable}
+                                 : ContDiff ℝ ∞ fun (x : AssignableOf A → ℝ) ↦ v.finUpdate x a := by
+  simp[State.finUpdate]
+  by_cases h : a ∈ A
+  .
+    simp[h]
+    apply contDiff_pi.mp
+    apply contDiff_id
+  .
+    simp[h]
+    apply contDiff_const
 
 end Theorems
 

@@ -1,16 +1,43 @@
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Finite.Defs
+import Mathlib.Data.Fintype.EquivFin
 
 structure Variable : Type where
   name : String
-deriving Repr, DecidableEq, BEq
+deriving Repr, DecidableEq, BEq, Inhabited
 
 inductive Assignable : Type where
   | var  : Variable   → Assignable
   | diff : Assignable → Assignable
-deriving Repr, DecidableEq, BEq
+deriving Repr, DecidableEq, BEq, Inhabited
 
-abbrev Assignable.Set : Set Assignable := Set.univ
+instance : Coe Variable Assignable where
+  coe := Assignable.var
+protected def Assignable.emb : Nat → Assignable
+  | 0 => .var ⟨"a"⟩
+  | n + 1 => .diff (.emb n)
+
+theorem Assignable_emb_inj : Function.Injective Assignable.emb := by
+  simp[Function.Injective]
+  intros n
+  induction n
+  .
+    intro m h
+    match m with
+      | 0 => rfl
+      | m + 1 => simp_all[Assignable.emb]
+  .
+    next n ih =>
+    intros m h
+    match m with
+      | 0 => simp_all[Assignable.emb]
+      | m + 1 =>
+        simp[Assignable.emb] at h
+        simp[ih h]
+
+instance : Infinite Assignable :=
+  .of_injective Assignable.emb Assignable_emb_inj
 
 def Assignable.orderOfDerivate : Assignable → ℕ
   | .var _  => 0
@@ -25,13 +52,14 @@ def Assignable.diff_emb : Assignable ↪ Assignable := {
   inj':= by simp[Function.Injective]
 }
 
-instance : Coe Variable Assignable where
-  coe := Assignable.var
-
-structure FunctionSymbol : Type where
-  name  : String
-  arity : ℕ
+inductive FunctionSymbol : Type where
+  | dot : ℕ → FunctionSymbol
+  | udef : String → ℕ → FunctionSymbol
 deriving Repr, DecidableEq, BEq
+
+def FunctionSymbol.arity : FunctionSymbol → ℕ
+  | .dot _ => 0
+  | .udef _ n => n
 
 inductive Fn : Type where
   | num :  ℚ → Fn
@@ -39,8 +67,8 @@ inductive Fn : Type where
 deriving Repr, DecidableEq, BEq
 
 abbrev Fn.arity (f : Fn) : ℕ := match f with
-  | .num _           => 0
-  | .sym {arity, ..} => arity
+  | .num _ => 0
+  | .sym s => s.arity
 
 structure PredicateSymbol : Type where
   name  : String
@@ -66,10 +94,14 @@ inductive Term : Type where
   | times        : Term       → Term               → Term
   | applyFn      : (f : Fn)   → TermVector f.arity → Term
   | differential : Term       → Term
-deriving Repr, DecidableEq
+deriving Repr, DecidableEq, Inhabited
 end
 
 def TermVector.singleton (t : Term) : TermVector 1 := TermVector.cons t TermVector.nil
+
+def TermVector.generate : (n : ℕ) → (f : ℕ → Term) → TermVector n
+  | 0, _ => .nil
+  | n + 1, f => .cons (f 0) (.generate n (f ∘ (· + 1)))
 
 def TermVector.toList {n : ℕ} (xs : TermVector n) : List Term := match xs with
   | nil => []
@@ -103,6 +135,12 @@ def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
 
 instance {n : ℕ} : Membership Term (TermVector n) where
   mem := fun vec elem => elem ∈ vec.toList
+
+def Term.dot (n : ℕ) : Term :=
+  Term.applyFn (.sym (.dot n)) TermVector.nil
+
+def Term.dots (n : ℕ) : TermVector n :=
+  TermVector.generate n Term.dot
 
 def Term.minus (t₁ : Term) (t₂ : Term) :=
   Term.plus t₁ (Term.neg t₂)
