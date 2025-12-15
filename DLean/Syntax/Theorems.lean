@@ -104,7 +104,7 @@ theorem TermVector.mem_toVector_iff {n : ℕ}
     split
     . contradiction
     . next t' ts =>
-      simp[Vector.append]
+      simp
       by_cases htt' : t = t'
       . exact Or.inl htt'
       .
@@ -124,7 +124,7 @@ theorem TermVector.mem_toVector_iff {n : ℕ}
       .
         simp at h
         apply TermVector.mem_of_mem_tail
-        apply Or.elim (Vector.mem_append.mp h)
+        apply Or.elim h
         . simp_all
         . simp_all[TermVector.mem_toVector_iff t ts]
 

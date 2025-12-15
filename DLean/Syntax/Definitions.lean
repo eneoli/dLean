@@ -61,18 +61,8 @@ def FunctionSymbol.arity : FunctionSymbol → ℕ
   | .dot _ => 0
   | .udef _ n => n
 
-structure Number : Type where
-  n : ℕ
-  e : ℕ
-  sign : Bool
-deriving Repr, DecidableEq, BEq
-
-def Number.value (num : Number) : ℝ :=
-  let {n, e, sign} := num
-  if sign then n * 10 ^ (0 - e) else n * 10 ^ e
-
 inductive Fn : Type where
-  | num :  Number → Fn
+  | num :  ℚ → Fn
   | sym : FunctionSymbol → Fn
 deriving Repr, DecidableEq, BEq
 
@@ -118,9 +108,9 @@ def TermVector.toList {n : ℕ} (xs : TermVector n) : List Term := match xs with
   | cons x xs => x :: TermVector.toList xs
 
 def TermVector.toVector {n : ℕ} (xs : TermVector n) : Vector Term n := match xs with
-  | nil => Vector.emptyWithCapacity 0
+  | nil => #v[]
   | cons x xs =>
-      Vector.cast (by simp +arith) <| Vector.append (Vector.singleton x) (TermVector.toVector xs)
+      Vector.cast (Nat.one_add _) <| #v[x] ++ (TermVector.toVector xs)
 
 def TermVector.fromVector {n : ℕ} (a : Vector Term n) : TermVector n := by
   apply @a.elimAsArray Term
