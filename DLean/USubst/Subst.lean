@@ -21,7 +21,7 @@ def SubstEntry.symbol : SubstEntry → Symbol
 def SubstEntry.freeVars : SubstEntry → FCSet Assignable
   | .fn f rhs => rhs (Term.dots f.arity) |> Term.freeVars |> .Finite
   | .pred p rhs => rhs (Term.dots p.arity) |> Formula.freeVars'
-  | .prog _ α => α.freeVars'
+  | .prog _ _ => ∅
 
 def Subst.Nodup (σ : List SubstEntry) : Prop :=
   (σ.map SubstEntry.symbol).Nodup
