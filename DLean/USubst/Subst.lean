@@ -425,6 +425,36 @@ theorem Subst.admissible_get_pred_subset {σ : Subst}
 termination_by
   σ.1
 
+theorem Subst.adjoint_nil (i : Interpretation)
+                          (v : State)
+                          {hsubst : Subst.Nodup []}
+  : Subst.adjoint ⟨[], hsubst⟩ i v = i := by
+  funext s
+  simp[Subst.adjoint]
+  match s with
+    | .Function f =>
+      simp[Subst.get, Symbol.default, Term.denote]
+      congr
+      -- funext
+      match hf : f with
+        | .dot n =>
+          simp_all[FunctionSymbol.arity]
+          funext args
+          have : args = fun x ↦ Term.denote i v TermVector.nil.toVector[x] :=  by grind
+          aesop
+        | .udef name arity =>
+          funext args
+          simp_all[Interpretation.assignDots]
+          have : args = fun x ↦
+                          Term.denote (i.assignDots args) v (Term.dots (FunctionSymbol.udef name arity).arity).toVector[↑x] := by
+            funext n
+            simp_all
+            sorry
+
+          sorry
+    | .Predicate p => sorry
+    | .Program a => simp[Subst.get, Symbol.default, Program.denote]
+
 theorem Subst.admissible_adjoint {v w : State}
                                  {σ : Subst}
                                  {i : Interpretation}
