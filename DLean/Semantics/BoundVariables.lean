@@ -20,7 +20,8 @@ def Formula.boundVars (Φ : Formula) : Set Assignable := match Φ with
 
 def Program.boundVars (α : Program) : Set Assignable := match α with
   | .const _      => .univ
-  | .assign x _   => {x}
+  | .assign x _
+  | .random x     => {x}
   | .test _       => ∅
   | .seq α β
   | .choice α β   => Program.boundVars α ∪ Program.boundVars β
@@ -50,7 +51,8 @@ def Formula.boundVars' (Φ : Formula) : FCSet Assignable := match Φ with
 
 def Program.boundVars' (α : Program) : FCSet Assignable := match α with
   | .const _      => .univ
-  | .assign x _   => {x}
+  | .assign x _
+  | .random x     => {x}
   | .test _       => ∅
   | .seq α β
   | .choice α β   => Program.boundVars' α ∪ Program.boundVars' β
@@ -99,6 +101,7 @@ theorem Program.bound_vars_decidable (α : Program)
   match α with
   | .const _
   | .assign _ _
+  | .random _
   | .test _     =>
     simp[Program.boundVars, Program.boundVars']
   | .seq α β

@@ -113,6 +113,7 @@ def Formula.freeVars (Φ : Formula) : Set Assignable := match Φ with
 def Program.freeVars (α : Program) : Set Assignable := match α with
   | .const _      => .univ
   | .assign _ t   => t.freeVars
+  | .random _     => ∅
   | .test Φ       => Formula.freeVars Φ
   | .seq α β
   | .choice α β   => Program.freeVars α ∪ Program.freeVars β
@@ -145,6 +146,7 @@ def Formula.freeVars' (Φ : Formula) : FCSet Assignable := match Φ with
 def Program.freeVars' (α : Program) : FCSet Assignable := match α with
   | .const _      => .univ
   | .assign _ t   => t.freeVars |> .Finite
+  | .random _     => ∅
   | .test Φ       => Formula.freeVars' Φ
   | .seq α β
   | .choice α β   => Program.freeVars' α ∪ Program.freeVars' β
@@ -199,6 +201,8 @@ theorem Program.free_vars_decidable (α : Program)
     | .const a
     | .assign x t =>
       simp[Program.freeVars, Program.freeVars', FCSet.toSet, FCSet.univ]
+    | .random x =>
+      simp[Program.freeVars, Program.freeVars']
     | .test Φ =>
       simp[Program.freeVars, Program.freeVars']
       apply Formula.free_vars_decidable

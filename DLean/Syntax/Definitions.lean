@@ -163,6 +163,7 @@ mutual
 inductive Program : Type where
   | const   : ProgramSymbol → Program
   | assign  : Assignable    → Term    → Program
+  | random  : Assignable    → Program
   | test    : Formula       → Program
   | ode     : OdeSystem     → Formula → Program
   | choice  : Program       → Program → Program
@@ -227,6 +228,7 @@ noncomputable def Formula.size (Φ : Formula) := match Φ with
 noncomputable def Program.size (α : Program) := match α with
   | Program.test Φ        => 1 + Φ.size
   | Program.assign x t    => 1 + sizeOf x + sizeOf t
+  | Program.random x      => 1 + sizeOf x
   | Program.choice α₁ α₂  => 1 + α₁.size + α₂.size
   | Program.seq α₁ α₂     => 1 + α₁.size + α₂.size
   | Program.loop α        => 1 + α.size

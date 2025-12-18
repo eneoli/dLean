@@ -4,6 +4,7 @@ import DLean.Util.FCSet
 
 def Program.mustBoundVars (α : Program) : Set Assignable := match α with
   | .assign _ _
+  | .random _
   | .test _
   | .ode _ _    => Program.boundVars α
   | .choice α β => Program.mustBoundVars α ∩ Program.mustBoundVars β
@@ -14,6 +15,7 @@ def Program.mustBoundVars (α : Program) : Set Assignable := match α with
 /-- Decidable version. -/
 def Program.mustBoundVars' (α : Program) : FCSet Assignable := match α with
   | .assign _ _
+  | .random _
   | .test _
   | .ode _ _    => Program.boundVars' α
   | .choice α β => Program.mustBoundVars' α ∩ Program.mustBoundVars' β
@@ -25,6 +27,7 @@ theorem Program.must_bound_vars_decidable (α : Program)
   : Program.mustBoundVars α = Program.mustBoundVars' α := by
   match α with
     | .assign x t
+    | .random x
     | .test Φ
     | .ode system Ψ =>
       simp[Program.mustBoundVars, Program.mustBoundVars']

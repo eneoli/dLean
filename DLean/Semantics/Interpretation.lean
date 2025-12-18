@@ -69,6 +69,7 @@ def Program.signature (α : Program) : Finset Symbol := match α with
   | Program.const a      => {Symbol.Program a}
   | Program.test Φ       => Φ.signature
   | Program.assign _ t   => t.signature
+  | Program.random _     => ∅
   | Program.seq α₁ α₂    => α₁.signature ∪ α₂.signature
   | Program.choice α₁ α₂ => α₁.signature ∪ α₂.signature
   | Program.loop α'      => α'.signature

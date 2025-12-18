@@ -56,6 +56,7 @@ scoped syntax:40 dL_ode,+ : dL_ode_system
 scoped syntax:max ident : dL_program
 scoped syntax:max " ( " dL_program " ) " : dL_program
 scoped syntax:40 dL_var " := " dL_term : dL_program
+scoped syntax:40 dL_var " :=*" : dL_program
 scoped syntax:40 dL_ode_system (" & " dL_formula)? : dL_program
 scoped syntax:30 "?" dL_formula:60 : dL_program
 scoped syntax:30 dL_program:30 "* " : dL_program
@@ -257,6 +258,10 @@ partial def elabProgram : Syntax → MetaM Q(Program)
     let term ← elabTerm t
     pure q(Program.assign $var $term)
 
+  | `(dL_program| $name:dL_var :=*) => do
+    let var ← elabVar name
+    pure q(Program.random $var)
+
   | `(dL_program| ?$Φ:dL_formula) => do
     let Φ ← elabFormula Φ
     pure q(Program.test $Φ)
@@ -449,6 +454,13 @@ def delabAssign : Delab := do
   let assignable := ⟨← delab expr.appFn!.appArg!⟩
   let t := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_program| $assignable:dL_var := $t)⟩
+
+@[app_delab Program.random]
+def delabRandom : Delab := do
+  let expr ← getExpr
+  guard <| expr.isAppOfArity' ``Program.random 1
+  let assignable := ⟨← delab expr.appArg!⟩
+  return ⟨←`(dL_program| $assignable:dL_var :=*)⟩
 
 @[app_delab Program.seq]
 def delabSequence : Delab := do
