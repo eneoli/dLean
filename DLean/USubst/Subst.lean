@@ -8,7 +8,7 @@ import DLean.Util.FCSet
 open Semantics
 
 inductive SubstEntry : Type where
-  | fn : (f : FunctionSymbol) → (TermVector f.arity → Term) → SubstEntry
+  | fn : (f : FunctionSymbol) → Term → SubstEntry
   | pred : (p : PredicateSymbol) → (TermVector p.arity → Formula) → SubstEntry
   | prog : (a : ProgramSymbol) → Program → SubstEntry
 
@@ -19,7 +19,7 @@ def SubstEntry.symbol : SubstEntry → Symbol
 
 /-- Decidable version. -/
 def SubstEntry.freeVars : SubstEntry → FCSet Assignable
-  | .fn f rhs => rhs (Term.dots f.arity) |> Term.freeVars |> .Finite
+  | .fn f rhs => rhs |> Term.freeVars |> .Finite
   | .pred p rhs => rhs (Term.dots p.arity) |> Formula.freeVars'
   | .prog _ _ => ∅
 
@@ -51,7 +51,7 @@ termination_by
   σ.1
 
 def Symbol.SubstType : Symbol → Type
-  | .Function f => TermVector f.arity → Term
+  | .Function f => Term
   | .Predicate p => TermVector p.arity → Formula
   | .Program _ => _root_.Program
 
@@ -62,7 +62,7 @@ def SubstEntry.rhs (e : SubstEntry) : e.symbol.SubstType :=
     | .prog _ rhs => rhs
 
 def Symbol.default : (symbol : Symbol) → symbol.SubstType
-  | .Function f => Term.applyFn (.sym f)
+  | .Function f => Term.applyFn (.sym f) (Term.dots f.arity)
   | .Predicate p => Formula.applyPred p
   | .Program a => Program.const a
 
@@ -77,12 +77,60 @@ def Subst.get (σ : Subst) (symbol : Symbol) : symbol.SubstType :=
 termination_by
   σ.1
 
+def Subst.size (σ : Subst) := match σ with
+  | ⟨[],_⟩ => (0,0)
+  | ⟨e::σ', h⟩ => let ⟨ar, len⟩ := Subst.size ⟨σ', Subst.tail_nodup h⟩
+                  (max e.symbol.arity ar, len + 1)
+termination_by σ.1
+
 section SubstApplication
 
 /-- Restricts σ on the symbols in S. -/
 -- @[reducible]
 abbrev Subst.admissible (σ : Subst) (U : FCSet Assignable) (S : Finset Symbol) :=
   (σ.freeVars S) ∩ U = ∅
+
+def TermVector.toSubstAux {n : ℕ} (ts : TermVector n) : List SubstEntry :=
+  match ts with
+  | .nil => []
+  | .cons t ts => (.fn (.dot (n-1)) t)::(TermVector.toSubstAux ts)
+
+lemma TermVector.toSubstLemma {n : ℕ} (ts : TermVector n) : Subst.Nodup ts.toSubstAux
+  ∧ ∀ x ∈ ts.toSubstAux, ∃ m < n, x.symbol = Symbol.Function (FunctionSymbol.dot m) := by
+  match ts with
+  | .nil => exact ⟨by simp[Subst.Nodup, toSubstAux], by simp[TermVector.toSubstAux]⟩
+  | @TermVector.cons n t ts =>
+      have ⟨hdup,h⟩ := TermVector.toSubstLemma ts
+      simp[toSubstAux]
+      refine ⟨?_, ⟨n, ⟨lt_add_one _, rfl⟩⟩, fun x hx => ?_⟩
+      . simp[Subst.Nodup]
+        refine ⟨fun x hx => ?_, hdup⟩
+        specialize h x hx
+        obtain ⟨_, hl, h⟩ := h
+        rw[h]
+        simp[SubstEntry.symbol]
+        exact Nat.ne_of_lt hl
+      . specialize h x hx
+        obtain ⟨m, hl, h⟩ := h
+        exact ⟨m, Nat.lt_add_right 1 hl, h⟩
+
+def TermVector.toSubst {n : ℕ} (ts : TermVector n) : Subst := ⟨ts.toSubstAux, ts.toSubstLemma.1⟩
+
+lemma TermVector.toSubst_size {n : ℕ} (ts : TermVector n) : ts.toSubst.size = (0,n) := by
+  match ts with
+    | .nil => simp only [toSubst, toSubstAux, Subst.size]
+    | .cons t ts =>
+      have := TermVector.toSubst_size ts
+      simp_all [toSubst, toSubstAux, Subst.size, SubstEntry.symbol,
+        Symbol.arity, FunctionSymbol.arity]
+
+instance Subst.membership (σ : Subst) (f : FunctionSymbol) :
+  Decidable ((.Function f) ∈ List.map SubstEntry.symbol σ.1) := by
+  sorry
+
+lemma Subst.symbol_size (σ : Subst) (f : FunctionSymbol) :
+  ((.Function f) ∈ List.map SubstEntry.symbol σ.1) → σ.size.1 ≥ f.arity ∧ σ.size.2 ≥ 1 := by
+  sorry
 
 mutual
 
@@ -91,6 +139,11 @@ def TermVector.applySubst {n : ℕ} (σ : Subst) (ts : TermVector n) : Option (T
     | .nil => pure .nil
     | .cons t ts => do
       return .cons (← Term.applySubst σ t) (← TermVector.applySubst σ ts)
+termination_by (σ.size, sizeOf ts)
+decreasing_by
+all_goals simp_wf
+all_goals grind only [= Prod.lex_def]
+
 
 def Term.applySubst (σ : Subst) (t : Term) : Option Term :=
   match t with
@@ -105,8 +158,21 @@ def Term.applySubst (σ : Subst) (t : Term) : Option Term :=
         let sargs ← TermVector.applySubst σ args
         return .applyFn (.num n) sargs
     | .applyFn (.sym f) args => do
-        let sargs ← TermVector.applySubst σ args
-        Subst.get σ f sargs
+        if ((.Function f) ∈ List.map SubstEntry.symbol σ.1)
+        then
+          let sargs ← TermVector.applySubst σ args
+          Term.applySubst (sargs.toSubst) (Subst.get σ f)
+        else
+          return t
+
+termination_by (σ.size, sizeOf t)
+decreasing_by
+all_goals simp_wf
+all_goals (try grind only [= Prod.lex_def])
+next hin =>
+  rw[TermVector.toSubst_size sargs]
+  apply Subst.symbol_size at hin
+  grind only [= Prod.lex_def]
 
 end
 
