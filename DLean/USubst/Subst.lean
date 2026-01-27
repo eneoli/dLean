@@ -19,7 +19,7 @@ def SubstEntry.symbol : SubstEntry → Symbol
 
 /-- Decidable version. -/
 def SubstEntry.freeVars : SubstEntry → FCSet Assignable
-  | .fn f rhs => rhs |> Term.freeVars |> .Finite
+  | .fn _ rhs => rhs |> Term.freeVars |> .Finite
   | .pred p rhs => rhs (Term.dots p.arity) |> Formula.freeVars'
   | .prog _ _ => ∅
 
@@ -51,7 +51,7 @@ termination_by
   σ.1
 
 def Symbol.SubstType : Symbol → Type
-  | .Function f => Term
+  | .Function _ => Term
   | .Predicate p => TermVector p.arity → Formula
   | .Program _ => _root_.Program
 
@@ -114,6 +114,7 @@ lemma TermVector.toSubstLemma {n : ℕ} (ts : TermVector n) : Subst.Nodup ts.toS
         obtain ⟨m, hl, h⟩ := h
         exact ⟨m, Nat.lt_add_right 1 hl, h⟩
 
+-- Assigns the n elements of a TermVector to the first n dots.
 def TermVector.toSubst {n : ℕ} (ts : TermVector n) : Subst := ⟨ts.toSubstAux, ts.toSubstLemma.1⟩
 
 lemma TermVector.toSubst_size {n : ℕ} (ts : TermVector n) : ts.toSubst.size = (0,n) := by
@@ -124,13 +125,63 @@ lemma TermVector.toSubst_size {n : ℕ} (ts : TermVector n) : ts.toSubst.size = 
       simp_all [toSubst, toSubstAux, Subst.size, SubstEntry.symbol,
         Symbol.arity, FunctionSymbol.arity]
 
-instance Subst.membership (σ : Subst) (f : FunctionSymbol) :
+def Subst.mem (σ : Subst) (s : Symbol) : Prop := match σ with
+    | ⟨[], _⟩ => False
+    | ⟨e::es, h⟩ => s = e.symbol ∨ Subst.mem (⟨es, Subst.tail_nodup h⟩ : Subst) s
+termination_by
+  σ.1
+
+instance : Membership Symbol Subst where
+  mem := Subst.mem
+
+instance (s : Symbol) (σ : Subst) : Decidable (s ∈ σ) := sorry
+
+instance Subst.membership_decidable (σ : Subst) (f : FunctionSymbol) :
   Decidable ((.Function f) ∈ List.map SubstEntry.symbol σ.1) := by
-  sorry
+  induction σ.1
+  . simp_all ; constructor ; trivial
+  .
+    next head tail ih =>
+    rw[List.map_cons]
+    by_cases f = head.symbol
+    .
+      apply Decidable.isTrue
+      simp_all
+    .
+      rw[List.mem_map] at ih
+      simp_all
+      assumption
+
 
 lemma Subst.symbol_size (σ : Subst) (f : FunctionSymbol) :
   ((.Function f) ∈ List.map SubstEntry.symbol σ.1) → σ.size.1 ≥ f.arity ∧ σ.size.2 ≥ 1 := by
-  sorry
+  intro h
+  match σ with
+    | ⟨[], _⟩ => simp_all
+    | ⟨e::es, hs⟩ =>
+      simp_all[Subst.size]
+      cases h
+      . grind
+      .
+        have := Subst.symbol_size ⟨es, Subst.tail_nodup hs⟩ f (by grind)
+        grind
+termination_by
+  sizeOf σ.1
+
+lemma Subst.symbol_size' (σ : Subst) (s : Symbol) :
+  (s ∈ σ) → σ.size.1 ≥ s.arity ∧ σ.size.2 ≥ 1 := by
+  intro h
+  match σ with
+    | ⟨[], _⟩ => simp_all[Subst.mem, Membership.mem]
+    | ⟨e::es, hs⟩ =>
+      simp_all[Subst.size, Subst.mem, Membership.mem]
+      cases h
+      . grind
+      .
+        have := Subst.symbol_size' ⟨es, Subst.tail_nodup hs⟩ s (by simp_all[Membership.mem])
+        grind
+termination_by
+  sizeOf σ.1
 
 mutual
 
@@ -147,7 +198,7 @@ all_goals grind only [= Prod.lex_def]
 
 def Term.applySubst (σ : Subst) (t : Term) : Option Term :=
   match t with
-    | .var _  => return t
+    | .var x  => return .var x
     | .neg t' => do return .neg (← Term.applySubst σ t')
     | .plus t₁ t₂ => do return .plus (← Term.applySubst σ t₁) (← Term.applySubst σ t₂)
     | .times t₁ t₂ => do return .times (← Term.applySubst σ t₁) (← Term.applySubst σ t₂)
@@ -158,8 +209,7 @@ def Term.applySubst (σ : Subst) (t : Term) : Option Term :=
         let sargs ← TermVector.applySubst σ args
         return .applyFn (.num n) sargs
     | .applyFn (.sym f) args => do
-        if ((.Function f) ∈ List.map SubstEntry.symbol σ.1)
-        then
+        if (.Function f) ∈ σ then
           let sargs ← TermVector.applySubst σ args
           Term.applySubst (sargs.toSubst) (Subst.get σ f)
         else
@@ -171,10 +221,56 @@ all_goals simp_wf
 all_goals (try grind only [= Prod.lex_def])
 next hin =>
   rw[TermVector.toSubst_size sargs]
-  apply Subst.symbol_size at hin
+  apply Subst.symbol_size' at hin
   grind only [= Prod.lex_def]
 
 end
+
+-- wrong
+theorem foo (x : Assignable)
+            (σ : Subst)
+            (f : FunctionSymbol)
+  : Option.some (Term.var x) = Term.applySubst σ (Subst.get σ (.Function f))
+  → Subst.get σ (.Function f) = (Term.var x) := by
+  intro h
+  cases _ : Subst.get σ (.Function f)
+  all_goals try
+    simp_all[Term.applySubst, Option.bind]
+    repeat (split at h ; contradiction ; simp_all)
+
+  .
+    next f' args he =>
+    match f' with
+      | .num _ =>
+        simp_all[Term.applySubst, Option.bind]
+        split at h
+        . contradiction
+        . simp_all
+      | .sym s =>
+        simp_all[Term.applySubst, Option.bind]
+        split at h
+        .
+          split at h
+          . contradiction
+          next a b c d e g =>
+          simp_all
+          cases hs : s
+          .
+            next n =>
+            simp_all
+            cases hs
+
+            sorry
+
+          .
+            -- next a b c d e f =>
+            simp_all
+            cases hs
+
+
+            sorry
+        . simp_all
+
 
 mutual
 
@@ -249,8 +345,7 @@ noncomputable def Subst.adjoint (σ : Subst)
   fun s =>
     match s with
       | .Function f =>
-        let dots := Term.dots f.arity
-        let t := σ.get (.Function f) dots
+        let t := σ.get (.Function f)
         ⟨
           fun args ↦
             let idots := i.assignDots args
@@ -295,12 +390,12 @@ theorem Subst.free_vars_tail {σ : Subst}
       by_cases h : ((SubstEntry.symbol e) ∈ S)
       all_goals simp[Subst.freeVars, h]
 
-lemma Subst.get_fn_head {σ : Subst}
-                        {f : FunctionSymbol}
-                        {rhs : TermVector f.arity → Term}
-                        {h : Subst.Nodup (.fn f rhs :: σ.1)}
-                        : Subst.get ⟨.fn f rhs :: σ.1, h⟩ (Symbol.Function f) = rhs := by
-  simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
+-- lemma Subst.get_fn_head {σ : Subst}
+--                         {f : FunctionSymbol}
+--                         {rhs : TermVector f.arity → Term}
+--                         {h : Subst.Nodup (.fn f rhs :: σ.1)}
+--                         : Subst.get ⟨.fn f rhs :: σ.1, h⟩ (Symbol.Function f) = rhs := by
+--   simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
 
 lemma Subst.get_pred_head {σ : Subst}
                           {p : PredicateSymbol}
@@ -319,7 +414,7 @@ lemma Subst.get_tail {σ : Subst}
 
 theorem Subst.free_vars_subset_fun {σ : Subst}
                                    {f : FunctionSymbol}
-                                   : ((σ.get f (Term.dots f.arity)).freeVars : Set Assignable)
+                                   : ((σ.get f).freeVars : Set Assignable)
                                    ⊆ σ.freeVars .none := by
   match h : σ with
     | ⟨.nil, _⟩ => simp[Subst.get, Symbol.default, Term.freeVars]
@@ -435,7 +530,7 @@ theorem Subst.admissible_get_fn_subset {σ : Subst}
                                        (f : FunctionSymbol)
                                        (hf : .Function f ∈ S)
                                        (hA : Subst.admissible σ U S)
-  : ((Subst.get σ f (Term.dots f.arity)).freeVars : Set _) ⊆ (U : Set Assignable)ᶜ := by
+  : ((Subst.get σ f).freeVars : Set _) ⊆ (U : Set Assignable)ᶜ := by
   match σ with
     | ⟨.nil, _⟩ => simp_all[Subst.get, Subst.freeVars, Symbol.default, Term.freeVars]
     | ⟨e :: σ', hsubst⟩ =>
@@ -445,8 +540,13 @@ theorem Subst.admissible_get_fn_subset {σ : Subst}
           | .fn f' rhs =>
             have : f' = f := by simp_all[SubstEntry.symbol]
             cases this
-            rw[@Subst.get_fn_head ⟨σ', Subst.tail_nodup hsubst⟩ f rhs hsubst]
-            simp_all[Subst.freeVars, SubstEntry.freeVars, Subst.admissible]
+            simp_all[
+              Subst.get,
+              SubstEntry.rhs,
+              Subst.freeVars,
+              SubstEntry.freeVars,
+              Subst.admissible
+            ]
             apply Set.subset_compl_iff_disjoint_left.mpr
             simp[Disjoint]
             grind
@@ -491,35 +591,37 @@ theorem Subst.admissible_get_pred_subset {σ : Subst}
 termination_by
   σ.1
 
-theorem Subst.adjoint_nil (i : Interpretation)
-                          (v : State)
-                          {hsubst : Subst.Nodup []}
-  : Subst.adjoint ⟨[], hsubst⟩ i v = i := by
-  funext s
-  simp[Subst.adjoint]
-  match s with
-    | .Function f =>
-      simp[Subst.get, Symbol.default, Term.denote]
-      congr
-      -- funext
-      match hf : f with
-        | .dot n =>
-          simp_all[FunctionSymbol.arity]
-          funext args
-          have : args = fun x ↦ Term.denote i v TermVector.nil.toVector[x] :=  by grind
-          aesop
-        | .udef name arity =>
-          funext args
-          simp_all[Interpretation.assignDots]
-          have : args = fun x ↦
-                          Term.denote (i.assignDots args) v (Term.dots (FunctionSymbol.udef name arity).arity).toVector[↑x] := by
-            funext n
-            simp_all
-            sorry
+-- theorem Subst.adjoint_nil (i : Interpretation)
+--                           (v : State)
+--                           {hsubst : Subst.Nodup []}
+--   : Subst.adjoint ⟨[], hsubst⟩ i v = i := by
+--   funext s
+--   simp[Subst.adjoint]
+--   match s with
+--     | .Function f =>
+--       simp[Subst.get, Symbol.default, Term.denote]
+--       congr
+--       -- funext
+--       match hf : f with
+--         | .dot n =>
+--           simp_all[FunctionSymbol.arity]
+--           funext args
+--           have : args = fun x ↦ Term.denote i v TermVector.nil.toVector[x] :=  by grind
+--           aesop
+--         | .udef name arity =>
+--           funext args
+--           simp_all[Interpretation.assignDots]
+--           have : args = fun x ↦
+--                           Term.denote (i.assignDots args)
+--   v
+--  (Term.dots (FunctionSymbol.udef name arity).arity).toVector[↑x] := by
+--             funext n
+--             simp_all
+--             sorry
 
-          sorry
-    | .Predicate p => sorry
-    | .Program a => simp[Subst.get, Symbol.default, Program.denote]
+--           sorry
+--     | .Predicate p => sorry
+--     | .Program a => simp[Subst.get, Symbol.default, Program.denote]
 
 theorem Subst.admissible_adjoint {v w : State}
                                  {σ : Subst}
@@ -774,13 +876,5 @@ decreasing_by
   simp[ode_evolution_formula_size_bound, *]
 
 end
-
--- theorem Subst.term {v : State}
---                    {i : Interpretation}
---                    {σ : Subst}
---                    {t : Term}
---                    : Term.denote i v (t.applySubst σ)
---                    = Term.denote (Subst.adjoint σ i v) v t := by
---   sorry
 
 end Theorems

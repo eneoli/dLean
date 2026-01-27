@@ -114,6 +114,38 @@ theorem TermVector.apply_subst_nil
   = ts := by
   sorry
 
+theorem Subst.adjoint_noeffect_nomem (i : Interpretation)
+                                     (v : State)
+                                     (σ : Subst)
+                                     (f : FunctionSymbol)
+                                     (args : TermVector f.arity)
+                                     (t : Term)
+  : .Function f ∉ σ
+  → Term.denote (Subst.adjoint σ i v) v (Term.applyFn (.sym f) args)
+  = Term.denote i v (Term.applyFn (.sym f) args) := by
+  sorry
+
+theorem Subst.preserve_semantics_fn (σ : Subst)
+            {n : ℕ}
+            (args args' : TermVector n)
+            (t t' : Term)
+            (f : FunctionSymbol)
+  : Option.some t' = Term.applySubst (TermVector.toSubst args') (Subst.get σ (Symbol.Function f))
+  → Term.denote i v t'
+  = Term.denote (i.assignDots fun x ↦ Term.denote (σ.adjoint i v) v args.toVector[↑x])
+                v
+                (σ.get (Symbol.Function f)) := by
+  intro h
+  match hc : t' with
+    | .var x =>
+      sorry
+    | .neg t₁ =>
+
+      sorry
+    | _ => sorry
+
+#check Option.some_eq_dite_none_left
+
 theorem Subst.preserve_semantics.term (σ : Subst)
                                       (t : Term)
                                       (t' : Term)
@@ -131,7 +163,6 @@ theorem Subst.preserve_semantics.term (σ : Subst)
         simp_all[Term.denote]
     | .plus t₁ t₂
     | .times t₁ t₂ =>
-      -- TODO: tactic that follows the flow or custom tactic?
       simp[Term.applySubst, Option.bind] at hs
       split at hs
       . contradiction
@@ -153,6 +184,29 @@ theorem Subst.preserve_semantics.term (σ : Subst)
           simp_all[Term.denote]
         | .sym s =>
           simp[Term.applySubst, Option.bind] at hs
+          split at hs
+          .
+            -- we do apply the subst
+            split at hs
+            . contradiction
+            next a b c d =>
+            simp_all
+
+            simp[Term.denote, Subst.adjoint]
+
+            apply Subst.preserve_semantics_fn
+            . assumption
+            . exact hs
+          .
+            -- we don't apply subst
+            simp_all
+            apply Eq.symm
+            apply Subst.adjoint_noeffect_nomem
+            . assumption
+            . assumption
+
+
+          -- trash from last proof attempt
           split at hs
           . contradiction
           next args heq =>
