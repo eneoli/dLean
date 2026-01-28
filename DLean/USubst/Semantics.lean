@@ -125,6 +125,7 @@ theorem Subst.adjoint_noeffect_nomem (i : Interpretation)
   = Term.denote i v (Term.applyFn (.sym f) args) := by
   sorry
 
+-- replaced by `test` below
 theorem Subst.preserve_semantics_fn (σ : Subst)
             {n : ℕ}
             (args args' : TermVector n)
@@ -143,6 +144,9 @@ theorem Subst.preserve_semantics_fn (σ : Subst)
 
       sorry
     | _ => sorry
+
+
+theorem test : Subst.adjoint (TermVector.toSubst args') i v = (i.assignDots fun x ↦ Term.denote i v args'.toVector[↑x]) := by sorry
 
 #check Option.some_eq_dite_none_left
 
@@ -186,24 +190,33 @@ theorem Subst.preserve_semantics.term (σ : Subst)
           simp[Term.applySubst, Option.bind] at hs
           split at hs
           .
+            contradiction
+          .
+            simp_all
             -- we do apply the subst
             split at hs
-            . contradiction
             next a b c d =>
-            simp_all
 
-            simp[Term.denote, Subst.adjoint]
+              simp[Term.denote, Subst.adjoint]
+              -- remove adjoint by Subst.preserve_semantics.termVector (TBD)
+              -- apply test theorem
 
-            apply Subst.preserve_semantics_fn
-            . assumption
-            . exact hs
-          .
-            -- we don't apply subst
-            simp_all
-            apply Eq.symm
-            apply Subst.adjoint_noeffect_nomem
-            . assumption
-            . assumption
+              apply Subst.preserve_semantics_fn
+              . assumption
+              . exact hs
+            next a _ _ =>
+              -- we don't apply subst
+              simp_all
+              apply Eq.symm
+              simp[Term.denote]
+              -- remove adjoint by Subst.preserve_semantics.termVector (TBD)
+              have : Term.denote i v a.toVector[↑x] = Term.denote (σ.adjoint i v) v args.toVector[↑x] := by sorry
+
+              -- remove remaining adjoint because `σ.adjoint i v f = i f` if `f ∉ σ`
+
+              apply Subst.adjoint_noeffect_nomem
+              . assumption
+              . assumption
 
 
           -- trash from last proof attempt

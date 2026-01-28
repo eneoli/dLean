@@ -209,11 +209,11 @@ def Term.applySubst (σ : Subst) (t : Term) : Option Term :=
         let sargs ← TermVector.applySubst σ args
         return .applyFn (.num n) sargs
     | .applyFn (.sym f) args => do
+        let sargs ← TermVector.applySubst σ args
         if (.Function f) ∈ σ then
-          let sargs ← TermVector.applySubst σ args
           Term.applySubst (sargs.toSubst) (Subst.get σ f)
         else
-          return t
+          return .applyFn (.sym f) sargs
 
 termination_by (σ.size, sizeOf t)
 decreasing_by
@@ -227,49 +227,6 @@ next hin =>
 end
 
 -- wrong
-theorem foo (x : Assignable)
-            (σ : Subst)
-            (f : FunctionSymbol)
-  : Option.some (Term.var x) = Term.applySubst σ (Subst.get σ (.Function f))
-  → Subst.get σ (.Function f) = (Term.var x) := by
-  intro h
-  cases _ : Subst.get σ (.Function f)
-  all_goals try
-    simp_all[Term.applySubst, Option.bind]
-    repeat (split at h ; contradiction ; simp_all)
-
-  .
-    next f' args he =>
-    match f' with
-      | .num _ =>
-        simp_all[Term.applySubst, Option.bind]
-        split at h
-        . contradiction
-        . simp_all
-      | .sym s =>
-        simp_all[Term.applySubst, Option.bind]
-        split at h
-        .
-          split at h
-          . contradiction
-          next a b c d e g =>
-          simp_all
-          cases hs : s
-          .
-            next n =>
-            simp_all
-            cases hs
-
-            sorry
-
-          .
-            -- next a b c d e f =>
-            simp_all
-            cases hs
-
-
-            sorry
-        . simp_all
 
 
 mutual
