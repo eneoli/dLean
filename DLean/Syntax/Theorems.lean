@@ -128,6 +128,16 @@ theorem TermVector.mem_toVector_iff {n : ℕ}
         . simp_all
         . simp_all[TermVector.mem_toVector_iff t ts]
 
+theorem TermVector.toVector_get_plus_1 (t : Term)
+                                       {n : ℕ}
+                                       (ts : TermVector n)
+                                       (z : Fin n)
+
+  : let z' : Fin (n + 1) := ⟨z + 1, by omega⟩
+    (TermVector.cons t ts).toVector[z'] = ts.toVector[z] := by
+    simp_all
+    simp_all[TermVector.toVector]
+
 end TermVector
 
 section OdeSystem

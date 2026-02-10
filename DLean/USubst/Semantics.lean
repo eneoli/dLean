@@ -126,29 +126,130 @@ theorem Subst.adjoint_noeffect_nomem (i : Interpretation)
   sorry
 
 -- replaced by `test` below
-theorem Subst.preserve_semantics_fn (σ : Subst)
-            {n : ℕ}
-            (args args' : TermVector n)
-            (t t' : Term)
-            (f : FunctionSymbol)
-  : Option.some t' = Term.applySubst (TermVector.toSubst args') (Subst.get σ (Symbol.Function f))
-  → Term.denote i v t'
-  = Term.denote (i.assignDots fun x ↦ Term.denote (σ.adjoint i v) v args.toVector[↑x])
-                v
-                (σ.get (Symbol.Function f)) := by
-  intro h
-  match hc : t' with
-    | .var x =>
-      sorry
-    | .neg t₁ =>
+-- theorem Subst.preserve_semantics_fn (σ : Subst)
+--             {n : ℕ}
+--             (args args' : TermVector n)
+--             (t t' : Term)
+--             (f : FunctionSymbol)
+--   : Option.some t' = Term.applySubst (TermVector.toSubst args') (Subst.get σ (Symbol.Function f))
+--   → Term.denote i v t'
+--   = Term.denote (i.assignDots fun x ↦ Term.denote (σ.adjoint i v) v args.toVector[↑x])
+--                 v
+--                 (σ.get (Symbol.Function f)) := by
+--   intro h
+--   match hc : t' with
+--     | .var x =>
+--       sorry
+--     | .neg t₁ =>
 
-      sorry
-    | _ => sorry
+--       sorry
+--     | _ => sorry
+
+theorem Subst.adjoint_noeffect_nomem_fun {f : FunctionSymbol}
+                                         {σ : Subst}
+  : (.Function f) ∉ σ
+  → (σ.adjoint i v (Symbol.Function f)) = i f := by
+    sorry
+
+theorem test {n : ℕ} {args : TermVector n}
+  : Subst.adjoint (TermVector.toSubst args) i v
+  = (i.assignDots fun x ↦ Term.denote i v args.toVector[↑x]) := by
+    match args with
+      | .nil =>
+        funext s
+        match s with
+          | .Function f =>
+            simp[
+              TermVector.toSubst,
+              TermVector.toSubstAux,
+              Subst.adjoint,
+              Subst.get,
+              Symbol.default,
+            ]
+
+            apply Subtype.eq
+
+            funext args
+            simp_all[Term.denote]
 
 
-theorem test : Subst.adjoint (TermVector.toSubst args') i v = (i.assignDots fun x ↦ Term.denote i v args'.toVector[↑x]) := by sorry
+
+
+            sorry
+          | .Predicate p =>
+            simp[
+              TermVector.toSubst,
+              TermVector.toSubstAux,
+              Subst.adjoint,
+              Subst.get,
+              Symbol.default,
+            ]
+
+            funext args
+            simp_all[Formula.denote]
+            sorry
+          | .Program a =>
+            simp[
+              TermVector.toSubst,
+              TermVector.toSubstAux,
+              Subst.adjoint,
+              Subst.get,
+              Symbol.default,
+              Program.denote
+            ]
+      | .cons a as =>
+        sorry
 
 #check Option.some_eq_dite_none_left
+
+theorem Subst.apply_subst_term_vector_to_term (σ : Subst)
+                                              (n : ℕ)
+                                              (a args : TermVector n)
+                                              (x : Fin n)
+  : TermVector.applySubst σ args = some a
+  → Term.applySubst σ args.toVector[x] = some a.toVector[x] := by
+    intro h
+    cases args with
+      | nil => grind
+      | cons y ys =>
+        simp_all[TermVector.applySubst, Option.bind]
+        split at h
+        . contradiction
+        simp_all
+        split at h
+        . contradiction
+        simp_all
+
+        match x with
+          | 0 =>
+            rw[← h]
+            simp_all[TermVector.toVector]
+          | Fin.mk (z + 1) _ =>
+            next n _ _ a _ _ _ as _ _ =>
+            let z : Fin n := ⟨z, by omega⟩
+            have := TermVector.toVector_get_plus_1 y ys z
+            simp_all
+            rw[this]
+            rw[← h]
+
+            have := TermVector.toVector_get_plus_1 a as z
+            simp at this
+            rw[this]
+            apply Subst.apply_subst_term_vector_to_term
+            assumption
+
+mutual
+
+-- theorem Subst.preserve_semantics.termVector (σ : Subst)
+--                                             {n : ℕ}
+--                                             (ts : TermVector n)
+--                                             (ts' : TermVector n)
+--                                             (x : Fin n)
+--                                             (hs : ts' = TermVector.applySubst σ ts)
+--   : Term.denote i v ts'.toVector[x] = Term.denote (Subst.adjoint σ i v) v ts.toVector[x] := by
+--     apply Subst.preserve_semantics.term
+--     simp_all[TermVector.applySubst]
+--     sorry
 
 theorem Subst.preserve_semantics.term (σ : Subst)
                                       (t : Term)
@@ -197,99 +298,46 @@ theorem Subst.preserve_semantics.term (σ : Subst)
             split at hs
             next a b c d =>
 
-              simp[Term.denote, Subst.adjoint]
+              simp[Term.denote]
               -- remove adjoint by Subst.preserve_semantics.termVector (TBD)
-              -- apply test theorem
+              have : (fun (x : Fin s.arity) => Term.denote (σ.adjoint i v) v args.toVector[↑(x : Nat)])
+                   = (fun (x : Fin s.arity) => Term.denote i v b.toVector[↑x]) := by
+                    funext x
+                    apply Eq.symm
+                    apply Subst.preserve_semantics.term
+                    apply Eq.symm
+                    apply Subst.apply_subst_term_vector_to_term
+                    assumption
 
-              apply Subst.preserve_semantics_fn
-              . assumption
-              . exact hs
+              rw[this]
+
+              -- apply test theorem
+              sorry
+
+              -- apply Subst.preserve_semantics_fn
+              -- . assumption
+              -- . exact hs
             next a _ _ =>
               -- we don't apply subst
               simp_all
-              apply Eq.symm
-              simp[Term.denote]
+
               -- remove adjoint by Subst.preserve_semantics.termVector (TBD)
-              have : Term.denote i v a.toVector[↑x] = Term.denote (σ.adjoint i v) v args.toVector[↑x] := by sorry
+              have : (fun (x : Fin s.arity) => Term.denote (σ.adjoint i v) v args.toVector[↑(x : Nat)])
+                   = (fun (x : Fin s.arity) => Term.denote i v a.toVector[↑x]) := by
+                    funext x
+                    apply Eq.symm
+                    apply Subst.preserve_semantics.term
+                    apply Eq.symm
+                    apply Subst.apply_subst_term_vector_to_term
+                    assumption
+
+              simp[Term.denote]
+              rw[this]
 
               -- remove remaining adjoint because `σ.adjoint i v f = i f` if `f ∉ σ`
-
-              apply Subst.adjoint_noeffect_nomem
-              . assumption
-              . assumption
-
-
-          -- trash from last proof attempt
-          split at hs
-          . contradiction
-          next args heq =>
-          match σ with
-            | ⟨.nil, _⟩ =>
-              match hs : s with
-                | .dot n => simp_all[Subst.get, Subst.adjoint, Term.denote]
-                | .udef name arity =>
-                  simp_all
-                  simp[Subst.get, Symbol.default]
-                  rw[Subst.adjoint_nil]
-            | ⟨e::es, hsubst⟩ =>
-              let σ' : Subst := ⟨es, Subst.tail_nodup hsubst⟩
-
-              match e with
-                | .fn f' rhs =>
-                  match s with
-                    | .dot n =>
-                      by_cases hc : (.dot n) = f'
-                      .
-                        cases hc
-                        simp at hs
-                        rw[hs]
-                        have := @Subst.get_fn_head ⟨es, Subst.tail_nodup hsubst⟩ (.dot n) rhs (by simp[*])
-                        rw[this]
-                        simp[Term.denote]
-                        simp[Subst.adjoint]
-                        rw[this]
-                      .
-                        have := @Subst.get_tail
-                              ⟨es, Subst.tail_nodup hsubst⟩
-                              (.Function (.dot n))
-                              (.fn f' rhs)
-                              (by simp_all)
-                              (by simp[*, SubstEntry.symbol])
-                        apply Subst.preserve_semantics.term
-                        simp_all[Term.applySubst]
-                    | .udef _ _ => sorry
-                | .pred p rhs =>
-                  rw[@Subst.adjoint_term_noeffect.pred i p rhs es hsubst]
-                  apply Subst.preserve_semantics.term
-                  have := @Subst.get_tail
-                          ⟨es, Subst.tail_nodup hsubst⟩
-                          (.Function s)
-                          (.pred p rhs)
-                          (by simp_all)
-                          (by simp[SubstEntry.symbol])
-                  match hs : s with
-                    | .dot n =>
-                      simp_all
-                      rfl
-                    | .udef name arity =>
-                      rw[TermVector.apply_subst_noeffect.pred] at heq
-                      simp_all[Term.applySubst, Option.bind]
-                | .prog a rhs =>
-                  rw[@Subst.adjoint_term_noeffect.prog i a rhs es hsubst]
-                  apply Subst.preserve_semantics.term
-                  have := @Subst.get_tail
-                          ⟨es, Subst.tail_nodup hsubst⟩
-                          (.Function s)
-                          (.prog a rhs)
-                          (by simp_all)
-                          (by simp[SubstEntry.symbol])
-                  match hs : s with
-                    | .dot n =>
-                      simp_all
-                      rfl
-                    | .udef name arity =>
-                      rw[TermVector.apply_subst_noeffect.prog] at heq
-                      simp_all[Term.applySubst, Option.bind]
+              have := @Subst.adjoint_noeffect_nomem_fun i v s σ (by assumption)
+              rw[this]
+              simp
     | .differential t =>
       simp[Term.applySubst, Option.bind] at hs
       split at hs
@@ -318,3 +366,5 @@ termination_by
 decreasing_by
   all_goals try decreasing_trivial
   all_goals try omega
+
+end
