@@ -312,7 +312,10 @@ theorem Subst.preserve_semantics.term (σ : Subst)
               rw[this]
 
               -- apply test theorem
-              sorry
+              apply Subst.preserve_semantics.term at hs
+              rw[hs]
+              rw[test]
+              simp only [Fin.getElem_fin, adjoint]
 
               -- apply Subst.preserve_semantics_fn
               -- . assumption
