@@ -226,9 +226,6 @@ next hin =>
 
 end
 
--- wrong
-
-
 mutual
 
 def Formula.applySubst (σ : Subst) (Φ : Formula) : Option Formula := match Φ with
