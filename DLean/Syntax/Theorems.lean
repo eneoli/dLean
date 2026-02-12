@@ -138,6 +138,21 @@ theorem TermVector.toVector_get_plus_1 (t : Term)
     simp_all
     simp_all[TermVector.toVector]
 
+theorem TermVector.generate_toVector (n : ℕ) (i : Fin n) (f : ℕ → Term)
+  : (TermVector.generate n f).toVector[i] = f i := by
+  cases n with
+    | zero => grind
+    | succ n =>
+      simp_all[TermVector.generate]
+      match i with
+        | 0 => simp_all[TermVector.toVector]
+        | Fin.mk (i + 1) _ =>
+          simp_all[TermVector.toVector]
+          have : f (i + 1) = (f ∘ fun x ↦ x + 1) i := by grind
+          rw[this]
+          have := TermVector.generate_toVector n ⟨i, by grind⟩ (f ∘ fun x ↦ x + 1)
+          grind
+
 end TermVector
 
 section OdeSystem

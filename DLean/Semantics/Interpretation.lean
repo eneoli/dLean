@@ -200,18 +200,7 @@ theorem Interpretation.contDiff_fun {i : Interpretation}
 theorem Interpretation.dots_eq (n : ℕ)
                                (i : Fin n)
   : (Term.dots n).toVector[i] = .dot i := by
-  induction n
-  . grind
-  .
-    next ih =>
-    simp_all[Term.dots, TermVector.toVector, TermVector.generate]
-    match i with
-      | ⟨0, _⟩ => aesop
-      | ⟨i + 1, _⟩ =>
-        simp_all[TermVector.generate]
-
-
-        sorry
+  apply TermVector.generate_toVector
 
 @[simp]
 theorem Interpretation.assign_dots_zero {i : Interpretation}

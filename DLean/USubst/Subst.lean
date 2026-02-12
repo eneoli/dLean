@@ -90,40 +90,66 @@ section SubstApplication
 abbrev Subst.admissible (σ : Subst) (U : FCSet Assignable) (S : Finset Symbol) :=
   (σ.freeVars S) ∩ U = ∅
 
-def TermVector.toSubstAux {n : ℕ} (ts : TermVector n) : List SubstEntry :=
+def TermVector.toSubstAux {n : ℕ} (ts : TermVector n) (k : ℕ) : List SubstEntry :=
   match ts with
   | .nil => []
-  | .cons t ts => (.fn (.dot (n-1)) t)::(TermVector.toSubstAux ts)
+  | .cons t ts => (.fn (.dot k) t)::(TermVector.toSubstAux ts (k + 1))
 
-lemma TermVector.toSubstLemma {n : ℕ} (ts : TermVector n) : Subst.Nodup ts.toSubstAux
-  ∧ ∀ x ∈ ts.toSubstAux, ∃ m < n, x.symbol = Symbol.Function (FunctionSymbol.dot m) := by
-  match ts with
-  | .nil => exact ⟨by simp[Subst.Nodup, toSubstAux], by simp[TermVector.toSubstAux]⟩
-  | @TermVector.cons n t ts =>
-      have ⟨hdup,h⟩ := TermVector.toSubstLemma ts
-      simp[toSubstAux]
-      refine ⟨?_, ⟨n, ⟨lt_add_one _, rfl⟩⟩, fun x hx => ?_⟩
-      . simp[Subst.Nodup]
-        refine ⟨fun x hx => ?_, hdup⟩
-        specialize h x hx
-        obtain ⟨_, hl, h⟩ := h
-        rw[h]
-        simp[SubstEntry.symbol]
-        exact Nat.ne_of_lt hl
-      . specialize h x hx
-        obtain ⟨m, hl, h⟩ := h
-        exact ⟨m, Nat.lt_add_right 1 hl, h⟩
+lemma TermVector.toSubstLemma
+  {n : ℕ} (ts : TermVector n) (k : ℕ) :
+  Subst.Nodup (ts.toSubstAux k)
+  ∧ ∀ x ∈ ts.toSubstAux k,
+      ∃ m, k ≤ m ∧ m < k + n ∧ x.symbol = Symbol.Function (FunctionSymbol.dot m) := by
+match ts with
+| .nil =>
+    exact ⟨by simp [TermVector.toSubstAux, Subst.Nodup],
+           by simp [TermVector.toSubstAux]⟩
+| @TermVector.cons n t ts =>
+    have ⟨hdup, h⟩ := TermVector.toSubstLemma ts (k + 1)
+    simp [TermVector.toSubstAux]
+    constructor
+    · simp [Subst.Nodup]
+      refine ⟨?_, hdup⟩
+      intros x hx
+      specialize h x hx
+      obtain ⟨m, hm₁, hm₂, hs⟩ := h
+      rw [hs]
+      simp [SubstEntry.symbol]
+      grind
+
+    and_intros
+    .
+      apply Exists.intro k
+      and_intros
+      . omega
+      . omega
+      . simp_all[SubstEntry.symbol]
+    · intro x hx
+      · specialize h x hx
+        obtain ⟨m, hm₁, hm₂, hs⟩ := h
+        exact ⟨m, by grind, by grind, hs⟩
+
+
 
 -- Assigns the n elements of a TermVector to the first n dots.
-def TermVector.toSubst {n : ℕ} (ts : TermVector n) : Subst := ⟨ts.toSubstAux, ts.toSubstLemma.1⟩
+def TermVector.toSubst {n : ℕ} (ts : TermVector n) : Subst :=
+  ⟨ts.toSubstAux 0, (ts.toSubstLemma 0).1⟩
+
+lemma TermVector.toSubstAux_size {n : ℕ}
+                                 (ts : TermVector n)
+                                 (k : ℕ)
+                                 (hs : Subst.Nodup (ts.toSubstAux k))
+  : Subst.size ⟨ts.toSubstAux k, hs⟩ = (0, n) := by
+    cases ts with
+      | nil => simp only [toSubstAux, Subst.size]
+      | cons t ts =>
+        have := TermVector.toSubstAux_size ts
+        simp_all [toSubstAux, Subst.size, SubstEntry.symbol,
+          Symbol.arity, FunctionSymbol.arity]
 
 lemma TermVector.toSubst_size {n : ℕ} (ts : TermVector n) : ts.toSubst.size = (0,n) := by
-  match ts with
-    | .nil => simp only [toSubst, toSubstAux, Subst.size]
-    | .cons t ts =>
-      have := TermVector.toSubst_size ts
-      simp_all [toSubst, toSubstAux, Subst.size, SubstEntry.symbol,
-        Symbol.arity, FunctionSymbol.arity]
+  simp[TermVector.toSubst]
+  apply TermVector.toSubstAux_size
 
 def Subst.mem (σ : Subst) (s : Symbol) : Prop := match σ with
     | ⟨[], _⟩ => False
@@ -134,7 +160,25 @@ termination_by
 instance : Membership Symbol Subst where
   mem := Subst.mem
 
-instance (s : Symbol) (σ : Subst) : Decidable (s ∈ σ) := sorry
+
+instance Subst.mem_dec (s : Symbol) (σ : Subst) : Decidable (s ∈ σ) := by
+  match σ with
+    | ⟨.nil, _⟩ =>
+      simp_all[Membership.mem]
+      constructor
+      simp_all[Subst.mem]
+    | ⟨.cons head tail, h⟩ =>
+      simp_all[Membership.mem, Subst.mem]
+      by_cases s = head.symbol
+      .
+        apply Decidable.isTrue
+        simp_all
+      .
+        let := Subst.mem_dec s ⟨tail, Subst.tail_nodup h⟩
+        simp_all
+        assumption
+termination_by
+  sizeOf σ.1
 
 instance Subst.membership_decidable (σ : Subst) (f : FunctionSymbol) :
   Decidable ((.Function f) ∈ List.map SubstEntry.symbol σ.1) := by
