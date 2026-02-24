@@ -426,16 +426,40 @@ theorem mirFallenKeineNamenMehrEin (name : String) (arity : ℕ) {n : ℕ} (args
     simp_all [Membership.mem, TermVector.toSubst]
     apply mirFallenKeineNamenMehrEin'
 
+theorem helpMe' {n : ℕ} {args : TermVector n} {m : ℕ} (k : ℕ)
+  (hs : Subst.Nodup (args.toSubstAux k))
+  : Subst.mem ⟨args.toSubstAux k, hs⟩ (Symbol.Function (FunctionSymbol.dot m))
+  → m < k + n := by
+  intro h
+  cases args with
+    | nil =>
+      simp_all[TermVector.toSubstAux, Subst.mem]
+    | cons a as =>
+      simp_all [Subst.mem, TermVector.toSubstAux, SubstEntry.symbol]
+      cases h
+      . grind
+      .
+        next n h =>
+        have := @helpMe' n as m (k + 1) (by grind) (by grind)
+        grind
+
+theorem helpMe {n : ℕ} {args : TermVector n} {m : ℕ}
+  : Symbol.Function (FunctionSymbol.dot m) ∈ args.toSubst
+  → m < n := by
+  intro h
+  simp_all[TermVector.toSubst, Membership.mem]
+  have := @helpMe' n args m 0 (by grind) (by grind)
+  grind
 
 mutual
 
-theorem hoo {n m : ℕ} (σ : Subst) (args : TermVector n) (ts ts' : TermVector m)
+theorem hoo {n m : ℕ} (args : TermVector n) (ts ts' : TermVector m)
    : TermVector.applySubst args.toSubst ts = some ts'
    → ts'.freeVars ⊆ ts.freeVars ∪ args.freeVars := by
     intros h₁
     cases ts with
       | nil => simp
-      | cons t ts =>
+      | cons t tt =>
         simp[TermVector.applySubst, Option.bind] at h₁
         split at h₁
         . contradiction
@@ -447,12 +471,16 @@ theorem hoo {n m : ℕ} (σ : Subst) (args : TermVector n) (ts ts' : TermVector 
         rw[← h₁]
         simp
 
-        have := hoo σ args ts h i
-        have := boo σ args t d (by simp_all)
-
+        have := hoo args tt h i
+        have := boo args t d (by simp_all)
         grind
+-- termination_by
+  -- sizeOf ts
+-- decreasing_by
+  -- all_goals try decreasing_trivial
 
-theorem boo {n : ℕ} (σ : Subst) (args : TermVector n) (t t' : Term)
+
+theorem boo {n : ℕ} (args : TermVector n) (t t' : Term)
   : Term.applySubst args.toSubst t = some t'
   → t'.freeVars ⊆ t.freeVars ∪ args.freeVars := by
   intro h
@@ -467,7 +495,7 @@ theorem boo {n : ℕ} (σ : Subst) (args : TermVector n) (t t' : Term)
       simp at h
       rw[← h]
       simp[Term.freeVars]
-      have := boo σ args t a' (by grind)
+      have := boo args t a' (by grind)
       simp_all
     | .plus t₁ t₂
     | .times t₁ t₂ =>
@@ -478,8 +506,8 @@ theorem boo {n : ℕ} (σ : Subst) (args : TermVector n) (t t' : Term)
       split at h
       . contradiction
       next b _ _ _ c _ =>
-      have := boo σ args t₁ b (by grind)
-      have := boo σ args t₂ c (by grind)
+      have := boo args t₁ b (by grind)
+      have := boo args t₂ c (by grind)
       simp[Term.freeVars]
       all_goals
       simp at h
@@ -498,22 +526,11 @@ theorem boo {n : ℕ} (σ : Subst) (args : TermVector n) (t t' : Term)
       rw[← h]
       simp only [Term.freeVars]
 
-      -- have : t = c := sorry
+      have := boo args t c (by grind)
 
-      have := boo σ args t c (by grind)
-
-
-      -- c.freeVars ∪
-      -- Finset.map Assignable.diff_emb c.freeVars ⊆
-      -- t.freeVar ∪
-      -- Finset.map Assignable.diff_emb t.freeVars ∪
-      -- args.freeVars
-
-      -- have : args.freeVars ⊆ t.freeVars := sorry
-
-      sorry
-
-
+      -- Termination problem
+      have := bar (σ := args.toSubst) t c (by grind) (by simp_all)
+      grind
     | .applyFn f args' =>
       simp_all only [Term.freeVars]
       -- apply Subst.admissible_symbol_union.mp at h
@@ -538,17 +555,30 @@ theorem boo {n : ℕ} (σ : Subst) (args : TermVector n) (t t' : Term)
               | .dot m =>
               next b c d e f =>
                 -- because Symbol.Function (FunctionSymbol.dot m) ∈ args.toSubst
-                have : m < n := sorry
+                have : m < n := by
+                  apply helpMe (args := args)
+                  . grind
 
-                have := hoo (σ := σ) (args := args) args' d (by grind)
-                have := boo (σ := args.toSubst) (args := d) (args.toSubst.get (Symbol.Function (FunctionSymbol.dot m))) t' (by grind)
+                have := hoo (args := args) args' d (by grind)
 
-                have ha : args.toSubst.get (Symbol.Function (FunctionSymbol.dot m))
-                        = args.toVector[m] := sorry
-                rw[ha] at this
+                have : args.toSubst.get (Symbol.Function (FunctionSymbol.dot m))
+                     = args.toVector[m] := by
+                    simp[TermVector.toSubst]
+                    apply foo.dot₁
+                    . grind
+                    . grind
 
-                have : args.toVector[m].freeVars ⊆ args.freeVars := sorry
+                rw[this] at h
 
+                -- termination problem
+                have := boo (args := d) (args.toVector[m]) t' (by grind)
+
+                have : args.toVector[m].freeVars ⊆ args.freeVars := by
+                  apply Term.freeVars_subset_TermVector_freeVars
+                  apply (TermVector.mem_toVector_iff (args.toVector[m]) args).mpr
+                  grind
+
+                -- sorry
                 grind
               | .udef name arity => grind[mirFallenKeineNamenMehrEin]
           .
@@ -556,10 +586,16 @@ theorem boo {n : ℕ} (σ : Subst) (args : TermVector n) (t t' : Term)
             simp at h
             rw[← h]
             simp[Term.freeVars]
-            exact hoo σ args args' d e
-end
+            exact hoo args args' d e
+-- termination_by
+  -- sizeOf t
+-- decreasing_by
+  -- all_goals try decreasing_trivial
 
-mutual
+
+-- end
+
+-- mutual
 
 theorem foo (σ : Subst) {n : ℕ} (ts a : TermVector n)
   : TermVector.applySubst σ ts = some a
@@ -650,7 +686,7 @@ theorem bar (σ : Subst) (t a : Term)
 
                 -- this makes trouble
                 have : a.freeVars ⊆ (σ.get (Symbol.Function s)).freeVars ∪ a'.freeVars := by
-                  apply boo (σ := σ) (args := a')
+                  apply boo (args := a')
                   grind
 
                 -- we should have `Term.freeVars (σ.get (Symbol.Function s))` to
