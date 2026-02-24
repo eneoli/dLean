@@ -453,6 +453,90 @@ theorem helpMe {n : ℕ} {args : TermVector n} {m : ℕ}
 
 mutual
 
+theorem thisWillNeverEnd {n : ℕ} (ts ts' : TermVector n)
+  : TermVector.applySubst ⟨.nil, by grind[Subst.Nodup]⟩ ts = some ts'
+  → ts = ts' := by
+  intro h
+  cases ts with
+    | nil => simp_all
+    | cons t ts =>
+      simp_all[TermVector.applySubst, Option.bind]
+      split at h
+      . contradiction
+      simp at h
+      split at h
+      . contradiction
+      simp at h
+      rw[← h]
+
+      next _ _ _ _ h₁ _ _ _ h₂ =>
+
+      have := thisDoesNeverEnd _ _ h₁
+      have := thisWillNeverEnd _ _ h₂
+      grind
+
+theorem thisDoesNeverEnd (t t' : Term)
+  : Term.applySubst ⟨.nil, by grind[Subst.Nodup]⟩ t = some t'
+  → t = t' := by
+  intro h
+  match t with
+    | .var x => simp_all[Term.applySubst]
+    | .neg t =>
+      simp_all[Term.applySubst, Option.bind]
+      split at h
+      . contradiction
+      next a' _ =>
+      have := thisDoesNeverEnd t a'
+      simp_all
+    | .plus t₁ t₂
+    | .times t₁ t₂ =>
+      simp[Term.applySubst, Option.bind] at h
+      split at h
+      . contradiction
+      simp_all only
+      split at h
+      . contradiction
+      next b _ _ _ c _ =>
+      simp at h
+      have := thisDoesNeverEnd t₁ b
+      have := thisDoesNeverEnd t₂ c
+      grind
+    | .differential t =>
+      simp[Term.applySubst, Option.bind] at h
+      split at h
+      . contradiction
+      split at h
+      . contradiction
+      next _ _ _ _ c _ =>
+      simp at h
+      have := thisDoesNeverEnd t c
+      grind
+    | .applyFn f args' =>
+      match hf : f with
+        | .num n =>
+            simp_all[Term.applySubst, Option.bind]
+            split at h
+            . contradiction
+            simp_all
+        | .sym s =>
+          cases hf
+          simp_all[Term.applySubst, Option.bind]
+          split at h
+          . contradiction
+          split at h
+          . simp_all[Membership.mem, Subst.mem]
+          .
+            simp at h
+            rw[← h]
+            congr
+            simp_all[Membership.mem, Subst.mem]
+            apply thisWillNeverEnd
+            grind
+
+end
+
+mutual
+
 theorem hoo {n m : ℕ} (args : TermVector n) (ts ts' : TermVector m)
    : TermVector.applySubst args.toSubst ts = some ts'
    → ts'.freeVars ⊆ ts.freeVars ∪ args.freeVars := by
@@ -474,6 +558,7 @@ theorem hoo {n m : ℕ} (args : TermVector n) (ts ts' : TermVector m)
         have := hoo args tt h i
         have := boo args t d (by simp_all)
         grind
+
 -- termination_by
   -- sizeOf ts
 -- decreasing_by
@@ -529,11 +614,11 @@ theorem boo {n : ℕ} (args : TermVector n) (t t' : Term)
       have := boo args t c (by grind)
 
       -- Termination problem
-      have := bar (σ := args.toSubst) t c (by grind) (by simp_all)
-      grind
+      -- have := bar (σ := args.toSubst) t c (by grind) (by simp_all)
+      sorry
+      -- grind
     | .applyFn f args' =>
       simp_all only [Term.freeVars]
-      -- apply Subst.admissible_symbol_union.mp at h
       match hf : f with
         | .num n =>
             simp_all[Term.applySubst, Option.bind]
@@ -555,11 +640,9 @@ theorem boo {n : ℕ} (args : TermVector n) (t t' : Term)
               | .dot m =>
               next b c d e f =>
                 -- because Symbol.Function (FunctionSymbol.dot m) ∈ args.toSubst
-                have : m < n := by
-                  apply helpMe (args := args)
-                  . grind
-
-                have := hoo (args := args) args' d (by grind)
+                have : m < n := by apply helpMe (args := args) (by grind)
+                have : d = TermVector.nil := by simp_all
+                cases this
 
                 have : args.toSubst.get (Symbol.Function (FunctionSymbol.dot m))
                      = args.toVector[m] := by
@@ -567,18 +650,18 @@ theorem boo {n : ℕ} (args : TermVector n) (t t' : Term)
                     apply foo.dot₁
                     . grind
                     . grind
-
                 rw[this] at h
 
-                -- termination problem
-                have := boo (args := d) (args.toVector[m]) t' (by grind)
+                have : args.toVector[m] = t' := by
+                  apply thisDoesNeverEnd
+                  simp_all[TermVector.toSubst, TermVector.toSubstAux]
+                rw[← this]
 
                 have : args.toVector[m].freeVars ⊆ args.freeVars := by
                   apply Term.freeVars_subset_TermVector_freeVars
                   apply (TermVector.mem_toVector_iff (args.toVector[m]) args).mpr
                   grind
 
-                -- sorry
                 grind
               | .udef name arity => grind[mirFallenKeineNamenMehrEin]
           .
@@ -791,7 +874,7 @@ theorem Subst.preserve_semantics.term (σ : Subst)
               rw[this]
 
               -- apply test theorem
-              -- termination proof gets stuck here
+              -- termination proof gets stuck here (solved)
               apply Subst.preserve_semantics.term b.toSubst at hs
               rw[hs]
               rw[test]
