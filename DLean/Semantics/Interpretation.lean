@@ -102,7 +102,7 @@ def Interpretation.assignDots {n : ℕ}
           if h : n' < n then
             ⟨fun _ => args ⟨n', h⟩, contDiff_const⟩
           else
-            i (.Function (.dot n))
+            i (.Function (.dot n'))
         | f => i f
       | s => i s
 
@@ -195,5 +195,24 @@ theorem Interpretation.contDiff_fun {i : Interpretation}
                                     {f : FunctionSymbol}
                                     : ContDiff ℝ ∞ (i (Symbol.Function f)).1 :=
   (i (Symbol.Function f)).2
+
+@[simp]
+theorem Interpretation.dots_eq (n : ℕ)
+                               (i : Fin n)
+  : (Term.dots n).toVector[i] = .dot i := by
+  apply TermVector.generate_toVector
+
+@[simp]
+theorem Interpretation.assign_dots_zero {i : Interpretation}
+                                        {args : Fin 0 → ℝ}
+  : Interpretation.assignDots i args = i := by
+  funext s
+  simp[Interpretation.assignDots]
+  split
+  .
+    split
+    . rfl
+    . rfl
+  . rfl
 
 end Theorems
