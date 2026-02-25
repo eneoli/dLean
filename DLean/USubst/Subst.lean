@@ -86,7 +86,6 @@ termination_by σ.1
 section SubstApplication
 
 /-- Restricts σ on the symbols in S. -/
--- @[reducible]
 abbrev Subst.admissible (σ : Subst) (U : FCSet Assignable) (S : Finset Symbol) :=
   (σ.freeVars S) ∩ U = ∅
 
@@ -196,23 +195,7 @@ instance Subst.membership_decidable (σ : Subst) (f : FunctionSymbol) :
       simp_all
       assumption
 
-
-lemma Subst.symbol_size (σ : Subst) (f : FunctionSymbol) :
-  ((.Function f) ∈ List.map SubstEntry.symbol σ.1) → σ.size.1 ≥ f.arity ∧ σ.size.2 ≥ 1 := by
-  intro h
-  match σ with
-    | ⟨[], _⟩ => simp_all
-    | ⟨e::es, hs⟩ =>
-      simp_all[Subst.size]
-      cases h
-      . grind
-      .
-        have := Subst.symbol_size ⟨es, Subst.tail_nodup hs⟩ f (by grind)
-        grind
-termination_by
-  sizeOf σ.1
-
-lemma Subst.symbol_size' (σ : Subst) (s : Symbol) :
+lemma Subst.symbol_size (σ : Subst) (s : Symbol) :
   (s ∈ σ) → σ.size.1 ≥ s.arity ∧ σ.size.2 ≥ 1 := by
   intro h
   match σ with
@@ -222,7 +205,7 @@ lemma Subst.symbol_size' (σ : Subst) (s : Symbol) :
       cases h
       . grind
       .
-        have := Subst.symbol_size' ⟨es, Subst.tail_nodup hs⟩ s (by simp_all[Membership.mem])
+        have := Subst.symbol_size ⟨es, Subst.tail_nodup hs⟩ s (by simp_all[Membership.mem])
         grind
 termination_by
   sizeOf σ.1
@@ -265,7 +248,7 @@ all_goals simp_wf
 all_goals (try grind only [= Prod.lex_def])
 next hin =>
   rw[TermVector.toSubst_size sargs]
-  apply Subst.symbol_size' at hin
+  apply Subst.symbol_size at hin
   grind only [= Prod.lex_def]
 
 end
@@ -388,12 +371,13 @@ theorem Subst.free_vars_tail {σ : Subst}
       by_cases h : ((SubstEntry.symbol e) ∈ S)
       all_goals simp[Subst.freeVars, h]
 
--- lemma Subst.get_fn_head {σ : Subst}
---                         {f : FunctionSymbol}
---                         {rhs : TermVector f.arity → Term}
---                         {h : Subst.Nodup (.fn f rhs :: σ.1)}
---                         : Subst.get ⟨.fn f rhs :: σ.1, h⟩ (Symbol.Function f) = rhs := by
---   simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
+-- Unused
+lemma Subst.get_fn_head {σ : Subst}
+                        {f : FunctionSymbol}
+                        {rhs : Term}
+                        {h : Subst.Nodup (.fn f rhs :: σ.1)}
+                        : Subst.get ⟨.fn f rhs :: σ.1, h⟩ (Symbol.Function f) = rhs := by
+  simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
 
 lemma Subst.get_pred_head {σ : Subst}
                           {p : PredicateSymbol}

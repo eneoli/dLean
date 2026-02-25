@@ -115,14 +115,6 @@ open scoped ContDiff
 -- We therefore fix a finite set of variables that is allowed to change.
 -- This set has to be fixed as otherwise we cannot compare/"wiggle" states.
 
--- TODO maybe like this?
-#check WellFounded
-macro_rules | `(tactic| decreasing_trivial) => `(tactic|
-  have ha : ∀ {n : ℕ} (v : TermVector n) (x : Fin n), sizeOf (v.toVector[x]) < sizeOf v := sorry ;
-  have hb : sizeOf fargs < sizeOf (applyFn (Fn.sym f) fargs) := sorry
-  decreasing_trivial
-  )
-
 theorem Term.contDiff {n : ℕ}
                        (i : Interpretation)
                        (v : State)
