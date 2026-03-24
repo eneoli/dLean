@@ -538,8 +538,6 @@ termination_by
 decreasing_by
   all_goals try decreasing_tactic
 
-
-
 theorem Term.freeVars_applySubst_toSubst_subset
   {n : ℕ}
   (args : TermVector n)
@@ -653,7 +651,6 @@ theorem Term.freeVars_applySubst_toSubst_subset
             exact TermVector.freeVars_applySubst_toSubst_subset args args' d (by rfl) e
 termination_by
   (args.toSubst.size, sizeOf t)
-
 
 theorem TermVector.freeVars_applySubst_admissible_subset
   (σ : Subst)
@@ -889,7 +886,7 @@ theorem Subst.preserve_semantics.term
               apply Subst.preserve_semantics.term b.toSubst at hs
               rw[hs]
               rw[subst_adjoint_of_term_vector_to_subst]
-              simp only [Fin.getElem_fin, adjoint]
+              simp only [adjoint]
 
             next a _ _ =>
               -- we don't apply subst
@@ -922,7 +919,7 @@ theorem Subst.preserve_semantics.term
       . contradiction
       next _ _ hg _ _ a _ =>
       simp at hs
-      rw[hs]
+      cases hs
       simp[Term.denote]
 
       have : ∀ x ∈ (t.freeVars \ a.freeVars),
@@ -930,7 +927,7 @@ theorem Subst.preserve_semantics.term
         intro x hx
         apply mul_eq_zero_of_right
 
-        have : x ∉ a.freeVars := by grind
+        -- have : x ∉ a.freeVars := by grind
 
         have : ∀ (y : ℝ), Term.denote i (v.update x y) a
                         = Term.denote i v a := by
@@ -966,7 +963,6 @@ theorem Subst.preserve_semantics.term
       funext x
       congr
       funext y
-      cases hs
       have := by
         apply @Subst.admissible_adjoint.term v (v.update x y) (v.update x y) σ i t FCSet.univ
         . simp_all[Subst.admissible]
