@@ -991,3 +991,25 @@ decreasing_by
     have := Subst.symbol_size σ s (by assumption)
     have := @TermVector.toSubst_size s.arity
     grind
+
+mutual
+
+theorem Subst.preserve_semantics.formula
+  (σ : Subst)
+  (i : Interpretation)
+  (v : State)
+  (Φ Φ' : Formula)
+  (hs : Φ' = Formula.applySubst σ Φ)
+  : v ∈ Formula.denote i Φ' ↔ v ∈ Formula.denote (Subst.adjoint σ i v) Φ := by
+    sorry
+
+theorem Subst.preserve_semantics.program
+  (σ : Subst)
+  (i : Interpretation)
+  (v w : State)
+  (α α' : Program)
+  (hs : α' = Program.applySubst σ α)
+  : ⟨v, w⟩ ∈ Program.denote i α' ↔ ⟨v, w⟩ ∈ Program.denote (Subst.adjoint σ i v) α := by
+    sorry
+
+end
