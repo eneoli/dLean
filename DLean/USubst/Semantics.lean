@@ -1001,170 +1001,170 @@ theorem Subst.preserve_semantics.formula
   (Φ Φ' : Formula)
   (hs : Φ' = Formula.applySubst σ Φ)
   : v ∈ Formula.denote i Φ' ↔ v ∈ Formula.denote (Subst.adjoint σ i v) Φ := by
-    -- match Φ with
-    --   | .True
-    --   | .False =>
-    --     simp_all[Formula.denote, Formula.applySubst]
-    --   | .eq t₁ t₂
-    --   | .gte t₁ t₂ =>
-    --     simp_all[Formula.denote, Formula.applySubst, Option.bind]
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     split at hs
-    --     . contradiction
-    --     simp_all[Formula.denote]
-    --     have := Subst.preserve_semantics.term σ i v t₁
-    --     have := Subst.preserve_semantics.term σ i v t₂
-    --     grind
-    --   | .not Φ =>
-    --     simp_all[Formula.denote, Formula.applySubst, Option.bind]
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     rename Formula => Φ'
-    --     have := Subst.preserve_semantics.formula σ i v Φ Φ'
-    --     simp_all[Formula.denote]
-    --   | .and Φ₁ Φ₂ =>
-    --     simp_all[Formula.denote, Formula.applySubst, Option.bind]
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     next Φ₁' _ _ _ Φ₂' _ =>
-    --     have := Subst.preserve_semantics.formula σ i v Φ₁ Φ₁'
-    --     have := Subst.preserve_semantics.formula σ i v Φ₂ Φ₂'
-    --     simp_all[Formula.denote]
-    --   | .forall x Φ =>
-    --     simp_all[Formula.denote, Formula.applySubst, Option.bind]
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     split at hs
-    --     . contradiction
-    --     rename Formula => Φ'
-    --     simp_all[Formula.denote]
-    --     apply Iff.intro
-    --     .
-    --       intros h r
-    --       have := (Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)).mp (h r)
-    --       have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
-    --                                                (v := v) (w := v.update x r)
-    --                                                (by simp_all[Subst.admissible])
-    --                                                (by simp_all[State.isEqOn, Set.EqOn])
-    --       rw[this]
-    --       grind
-    --     .
-    --       intros h r
-    --       have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
-    --                                                (v := v) (w := v.update x r)
-    --                                                (by simp_all[Subst.admissible])
-    --                                                (by simp_all[State.isEqOn, Set.EqOn])
-    --       rw[this] at h
-    --       have := (Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)).mpr (h r)
-    --       grind
-    --   | .exists x Φ =>
-    --     simp_all[Formula.denote, Formula.applySubst, Option.bind]
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     split at hs
-    --     . contradiction
-    --     rename Formula => Φ'
-    --     simp_all[Formula.denote]
-    --     apply Iff.intro
-    --     .
-    --       intros h
-    --       obtain ⟨r, hr⟩ := h
-    --       apply Exists.intro r
+    match Φ with
+      | .True
+      | .False =>
+        simp_all[Formula.denote, Formula.applySubst]
+      | .eq t₁ t₂
+      | .gte t₁ t₂ =>
+        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        simp_all[Formula.denote]
+        have := Subst.preserve_semantics.term σ i v t₁
+        have := Subst.preserve_semantics.term σ i v t₂
+        grind
+      | .not Φ =>
+        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        split at hs
+        . contradiction
+        simp_all
+        rename Formula => Φ'
+        have := Subst.preserve_semantics.formula σ i v Φ Φ'
+        simp_all[Formula.denote]
+      | .and Φ₁ Φ₂ =>
+        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        simp_all
+        next Φ₁' _ _ _ Φ₂' _ =>
+        have := Subst.preserve_semantics.formula σ i v Φ₁ Φ₁'
+        have := Subst.preserve_semantics.formula σ i v Φ₂ Φ₂'
+        simp_all[Formula.denote]
+      | .forall x Φ =>
+        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        rename Formula => Φ'
+        simp_all[Formula.denote]
+        apply Iff.intro
+        .
+          intros h r
+          have := (Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)).mp (h r)
+          have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
+                                                   (v := v) (w := v.update x r)
+                                                   (by simp_all[Subst.admissible])
+                                                   (by simp_all[State.isEqOn, Set.EqOn])
+          rw[this]
+          grind
+        .
+          intros h r
+          have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
+                                                   (v := v) (w := v.update x r)
+                                                   (by simp_all[Subst.admissible])
+                                                   (by simp_all[State.isEqOn, Set.EqOn])
+          rw[this] at h
+          have := (Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)).mpr (h r)
+          grind
+      | .exists x Φ =>
+        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        rename Formula => Φ'
+        simp_all[Formula.denote]
+        apply Iff.intro
+        .
+          intros h
+          obtain ⟨r, hr⟩ := h
+          apply Exists.intro r
 
-    --       have := Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)
-    --       have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
-    --                                                (v := v) (w := v.update x r)
-    --                                                (by simp_all[Subst.admissible])
-    --                                                (by simp_all[State.isEqOn, Set.EqOn])
-    --       grind
-    --     .
-    --       intros h
-    --       obtain ⟨r, hr⟩ := h
-    --       apply Exists.intro r
+          have := Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)
+          have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
+                                                   (v := v) (w := v.update x r)
+                                                   (by simp_all[Subst.admissible])
+                                                   (by simp_all[State.isEqOn, Set.EqOn])
+          grind
+        .
+          intros h
+          obtain ⟨r, hr⟩ := h
+          apply Exists.intro r
 
-    --       have := Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)
-    --       have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
-    --                                                (v := v) (w := v.update x r)
-    --                                                (by simp_all[Subst.admissible])
-    --                                                (by simp_all[State.isEqOn, Set.EqOn])
-    --       grind
-    --   | .box α Φ =>
-    --     simp_all[Formula.denote, Formula.applySubst, Option.bind]
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     split at hs
-    --     . contradiction
-    --     rename Program => α'
-    --     rename Formula => Φ'
-    --     simp_all[Formula.denote]
-    --     apply Iff.intro
-    --     all_goals
-    --     -- guard <| σ.admissible σα.boundVars' Φ.signature
-    --     intros h₁ w h₂
-    --     have := Program.bound_effect h₂
-    --     have := Subst.preserve_semantics.program σ i v w α α'
-    --     have := Subst.admissible_adjoint.formula (U := α'.boundVars')
-    --                                              (Φ := Φ) (i := i)
-    --                                              (σ := σ) (v := v) (w := w)
-    --                                              (by simp_all[Subst.admissible])
-    --                                              (by grind[Program.bound_effect'])
-    --     have := Subst.preserve_semantics.formula σ i w Φ Φ'
-    --     grind
-    --   | .diamond α Φ =>
-    --     simp_all[Formula.denote, Formula.applySubst, Option.bind]
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     split at hs
-    --     . contradiction
-    --     rename Program => α'
-    --     rename Formula => Φ'
-    --     simp_all[Formula.denote]
-    --     apply Iff.intro
-    --     all_goals
-    --     intros h
-    --     obtain ⟨w, hw⟩ := h
-    --     apply Exists.intro w
-    --     have := Subst.preserve_semantics.program σ i v w α α'
-    --     have := Subst.admissible_adjoint.formula (U := α'.boundVars')
-    --                                            (Φ := Φ) (i := i)
-    --                                            (σ := σ) (v := v) (w := w)
-    --                                            (by simp_all[Subst.admissible])
-    --                                            (by grind[Program.bound_effect'])
-    --     have := Subst.preserve_semantics.formula σ i w Φ Φ'
-    --     grind
-    --   | .ref α β =>
-    --     simp_all[Formula.denote, Formula.applySubst, Option.bind]
-    --     split at hs
-    --     . contradiction
-    --     simp_all
-    --     split at hs
-    --     . contradiction
-    --     simp_all[Formula.denote]
-    --     next _ _ α' _ _ _ β' _ =>
-    --     apply Iff.intro
-    --     all_goals
-    --     intros h₁ w h₂
-    --     have := Subst.preserve_semantics.program σ i v w α α'
-    --     have := Subst.preserve_semantics.program σ i v w β β'
-    --     grind
-    --   | .applyPred p args =>
+          have := Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)
+          have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
+                                                   (v := v) (w := v.update x r)
+                                                   (by simp_all[Subst.admissible])
+                                                   (by simp_all[State.isEqOn, Set.EqOn])
+          grind
+      | .box α Φ =>
+        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        rename Program => α'
+        rename Formula => Φ'
+        simp_all[Formula.denote]
+        apply Iff.intro
+        all_goals
+        -- guard <| σ.admissible σα.boundVars' Φ.signature
+        intros h₁ w h₂
+        have := Program.bound_effect h₂
+        have := Subst.preserve_semantics.program σ i v w α α'
+        have := Subst.admissible_adjoint.formula (U := α'.boundVars')
+                                                 (Φ := Φ) (i := i)
+                                                 (σ := σ) (v := v) (w := w)
+                                                 (by simp_all[Subst.admissible])
+                                                 (by grind[Program.bound_effect'])
+        have := Subst.preserve_semantics.formula σ i w Φ Φ'
+        grind
+      | .diamond α Φ =>
+        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        rename Program => α'
+        rename Formula => Φ'
+        simp_all[Formula.denote]
+        apply Iff.intro
+        all_goals
+        intros h
+        obtain ⟨w, hw⟩ := h
+        apply Exists.intro w
+        have := Subst.preserve_semantics.program σ i v w α α'
+        have := Subst.admissible_adjoint.formula (U := α'.boundVars')
+                                               (Φ := Φ) (i := i)
+                                               (σ := σ) (v := v) (w := w)
+                                               (by simp_all[Subst.admissible])
+                                               (by grind[Program.bound_effect'])
+        have := Subst.preserve_semantics.formula σ i w Φ Φ'
+        grind
+      | .ref α β =>
+        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        simp_all[Formula.denote]
+        next _ _ α' _ _ _ β' _ =>
+        apply Iff.intro
+        all_goals
+        intros h₁ w h₂
+        have := Subst.preserve_semantics.program σ i v w α α'
+        have := Subst.preserve_semantics.program σ i v w β β'
+        grind
+      | .applyPred p args =>
         sorry
 
 theorem Subst.preserve_semantics.program
