@@ -345,116 +345,6 @@ theorem Subst.apply_subst_term_vector_to_term
             apply Subst.apply_subst_term_vector_to_term
             assumption
 
-section Enguerrand
-/-! Enguerrand's proof start
-Some proofs should be moved to other files like `Subst.lean` as they generalise previous results.
--/
-
-/-- Generalise `Subst.admissible_symbol_subset`, see below -/
-theorem Subst.freeVars_symbol_subset (σ : Subst)
-                                       {S₁ : Finset Symbol}
-                                       {S₂ : Finset Symbol}
-                                       (hs : S₁ ⊆ S₂)
-  : (Subst.freeVars σ S₁).toSet ⊆ (Subst.freeVars σ S₂).toSet := by
-  intro h
-  match σ with
-    | ⟨.nil, _⟩ =>
-      simp[Subst.freeVars]
-    | ⟨e::σ', hsubst⟩ =>
-      have : (Subst.freeVars ⟨σ', Subst.tail_nodup hsubst⟩ S₁).toSet ⊆
-        (Subst.freeVars ⟨σ', Subst.tail_nodup hsubst⟩ S₂).toSet := by
-        apply Subst.freeVars_symbol_subset _ hs
-      unfold Subst.freeVars
-      simp only
-      split
-      .
-        have : e.symbol ∈ S₂ := by grind only [= Finset.subset_iff]
-        simp_all only [FCSet.to_set_union, Set.mem_union, ↓reduceIte]
-        grind only [= Finset.subset_iff, = Set.subset_def]
-      .
-        intro
-        split
-        . grind only [= Set.mem_union, = Set.subset_def, FCSet.to_set_union]
-        . grind only [= Set.subset_def]
-
-termination_by
-  σ.1
-
-lemma Subst.admissible_symbol_subset' {σ : Subst}
-                                       {U : FCSet Assignable}
-                                       {S₁ : Finset Symbol}
-                                       {S₂ : Finset Symbol}
-                                       (hs : S₂ ⊆ S₁)
-  : Subst.admissible σ U S₁ → Subst.admissible σ U S₂ := by
-  have := Subst.freeVars_symbol_subset σ hs
-  simp only [FCSet.to_set_eq, FCSet.to_set_inter, FCSet.to_set_empty]
-  grind only [= Set.mem_empty_iff_false, = Set.subset_def, = Set.mem_inter_iff]
-
-theorem Subst.freeVars_symbol_subset_none {σ : Subst}
-                                          {S : Finset Symbol}
-  : (Subst.freeVars σ S).toSet ⊆ (Subst.freeVars σ none).toSet := by
-  match σ with
-    | ⟨.nil, _⟩ =>
-      simp[Subst.freeVars]
-    | ⟨e::σ', hsubst⟩ =>
-      have := @Subst.freeVars_symbol_subset_none ⟨σ', Subst.tail_nodup hsubst⟩ S
-      unfold Subst.freeVars
-      simp only [FCSet.to_set_union]
-      split
-      . simp only [FCSet.to_set_union]
-        exact Set.union_subset_union_right _ this
-      . exact Set.subset_union_of_subset_right this _
-
-termination_by
-  σ.1
-
-/-- Can be generalised to equality, in which case it generalise `Subst.admissible_symbol_union` -/
-theorem Subst.freeVars_symbol_union (σ : Subst)
-                                    {S₁ : Finset Symbol}
-                                    {S₂ : Finset Symbol}
-  : (Subst.freeVars σ S₁).toSet ∪ (Subst.freeVars σ S₂).toSet ⊆
-    (Subst.freeVars σ (some (S₁ ∪ S₂))).toSet := by
-  have h₁ : (σ.freeVars S₁).toSet ⊆ (σ.freeVars (some (S₁ ∪ S₂))).toSet :=
-    Subst.freeVars_symbol_subset _ Finset.subset_union_left
-  have h₂ : (σ.freeVars S₂).toSet ⊆ (σ.freeVars (some (S₁ ∪ S₂))).toSet :=
-    Subst.freeVars_symbol_subset _ Finset.subset_union_right
-  exact Set.union_subset h₁ h₂
-
-
-/-- Generalise `Subst.free_vars_subset_fun`, see below -/
-theorem Subst.freeVars_subset_fun {σ : Subst}
-                                   {f : FunctionSymbol}
-                                   : ((σ.get f).freeVars : Set Assignable)
-                                   ⊆ σ.freeVars (some (Function.signature (Fn.sym f))) := by
-  match h : σ with
-    | ⟨.nil, _⟩ => simp[Subst.get, Symbol.default, Term.freeVars]
-    | ⟨.cons x xs, hnodup⟩ =>
-      let σ' : Subst := ⟨xs, Subst.tail_nodup hnodup⟩
-      simp[Subst.get]
-      by_cases h : x.symbol = Symbol.Function f
-      .
-        have := @Subst.free_vars_head σ' x hnodup
-        match hx : x with
-          | .pred _ _ => simp[SubstEntry.symbol] at h
-          | .prog _ _ => simp[SubstEntry.symbol] at h
-          | .fn f' rhs =>
-            simp_all[SubstEntry.symbol]
-            cases h
-            simp_all[σ', Subst.freeVars, SubstEntry.freeVars, SubstEntry.rhs, Function.signature]
-      .
-        have := @Subst.free_vars_tail σ' x hnodup
-        have := @Subst.freeVars_subset_fun σ' f
-        grind only [= Set.subset_def, = Finset.mem_coe]
-termination_by
-  σ.1
-
-lemma Subst.free_vars_subset_fun' {σ : Subst}
-                                   {f : FunctionSymbol}
-                                   : ((σ.get f).freeVars : Set Assignable)
-                                   ⊆ σ.freeVars .none := by
-  trans
-  . exact Subst.freeVars_subset_fun
-  . exact Subst.freeVars_symbol_subset_none
 
 lemma toSubstAux.freeVars_inc {n : ℕ} (args : TermVector n) (S : Option (Finset Symbol)) :
   ∀ k, (Subst.freeVars ⟨args.toSubstAux k, (args.toSubstLemma k).1⟩ S).toSet ⊆ args.freeVars := by
@@ -475,7 +365,6 @@ lemma toSubstAux.freeVars_inc {n : ℕ} (args : TermVector n) (S : Option (Finse
         . simp only [FCSet.to_set_union, Set.to_set_finite]
           exact Set.union_subset_union_right _ this
         . exact Set.subset_union_of_subset_right this _
-
 
 theorem toSubst.freeVars_inc {n : ℕ} (args : TermVector n) (S : Option (Finset Symbol)) :
   (args.toSubst.freeVars S).toSet ⊆ args.freeVars := by
@@ -569,7 +458,7 @@ theorem Term.freeVars_applySubst_subset (σ : Subst) (t a : Term)
           have := Term.freeVars_applySubst_subset a'.toSubst (σ.get (Symbol.Function s)) a h₁
           have := @toSubst.freeVars_inc _ a' (some (Term.signature (σ.get (Symbol.Function s))))
           have := @Subst.freeVars_symbol_union σ (Function.signature (Fn.sym s)) args.signature
-          have := @Subst.freeVars_subset_fun σ s
+          have := @Subst.free_vars_subset_fun σ s
           grind only [= Set.mem_union, = Set.subset_def, FCSet.to_set_eq]
         .
           simp at h₁
@@ -604,7 +493,6 @@ next hin =>
   grind only [= Prod.lex_def]
 end
 
-/-- Old `Term.freeVars_applySubst_admissible_subset` (old old `bar`) -/
 theorem Term.freeVars_applySubst_admissible_univ_subset (σ : Subst) (t a : Term)
   : Term.applySubst σ t = some a
   → σ.admissible FCSet.univ t.signature
@@ -614,7 +502,6 @@ theorem Term.freeVars_applySubst_admissible_univ_subset (σ : Subst) (t a : Term
   simp_all only [FCSet.to_set_eq, FCSet.to_set_inter, FCSet.to_set_univ, Set.inter_univ,
     FCSet.to_set_empty, Set.union_empty, Finset.coe_subset]
 
-end Enguerrand
 
 theorem Subst.preserve_semantics.term
   (σ : Subst)
@@ -713,7 +600,7 @@ theorem Subst.preserve_semantics.term
       simp at hs
       split at hs
       . contradiction
-      next _ _ hg _ _ a _ =>
+      next _ _ hg _ _ a heq =>
       simp at hs
       rw[hs]
       simp[Term.denote]
@@ -742,7 +629,7 @@ theorem Subst.preserve_semantics.term
       -- and hence substitution can *only reduce* free variables, e.g. {f(⋅) → 2}
       have : a.freeVars ⊆ t.freeVars := by
         have ih := Term.freeVars_applySubst_admissible_univ_subset
-              (σ := σ) t a (by grind) (by simp_all[Subst.admissible])
+              (σ := σ) t a heq (by simp_all[Subst.admissible])
         intro x hx
         have := ih hx
         grind
@@ -762,7 +649,7 @@ theorem Subst.preserve_semantics.term
       cases hs
       have := by
         apply @Subst.admissible_adjoint.term v (v.update x y) (v.update x y) σ i t FCSet.univ
-        . simp_all[Subst.admissible]
+        . simp_all only [Subst.admissible, Option.guard_eq_some']
         . simp_all[State.isEqOn]
       rw[this]
 
