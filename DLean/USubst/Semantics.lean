@@ -346,482 +346,162 @@ theorem Subst.apply_subst_term_vector_to_term
             assumption
 
 
-theorem subst_admissible_univ_free_vars {σ : Subst} {s : FunctionSymbol}
-  : Subst.admissible σ FCSet.univ (Function.signature (.sym s))
-  → (Subst.get σ (Symbol.Function s)).freeVars = ∅ := by
-  intro h
-  have := @Subst.admissible_get_fn_subset σ FCSet.univ {Symbol.Function s} s (by grind) h
-  simp_all
-
-/-- Helper -/
-theorem term_vector_to_subst_nomem_fn'
-  (name : String)
-  (arity : ℕ)
-  {n : ℕ}
-  (args : TermVector n)
-  (k : ℕ)
-  (hs : Subst.Nodup (args.toSubstAux k))
-  : ¬ Subst.mem (⟨args.toSubstAux k, hs⟩ : Subst)
-      (Symbol.Function (FunctionSymbol.udef name arity)) := by
-  cases args with
-    | nil =>
-      simp_all [Subst.mem, TermVector.toSubstAux]
-    | cons a as =>
-      simp_all [Subst.mem, TermVector.toSubstAux]
-      and_intros
-      . grind[SubstEntry.symbol]
-      .
-        have := term_vector_to_subst_nomem_fn' name arity as
-        simp_all
-
-theorem term_vector_to_subst_nomem_fn (name : String) (arity : ℕ) {n : ℕ} (args : TermVector n)
-  : Symbol.Function (FunctionSymbol.udef name arity) ∉ args.toSubst := by
-    simp_all [Membership.mem, TermVector.toSubst]
-    apply term_vector_to_subst_nomem_fn'
-
-/-- Helper -/
-theorem dot_mem_subst_idx'
-  {n : ℕ}
-  (args : TermVector n)
-  (m k : ℕ)
-  (hs : Subst.Nodup (args.toSubstAux k))
-  : Subst.mem ⟨args.toSubstAux k, hs⟩ (Symbol.Function (FunctionSymbol.dot m))
-  → m < k + n := by
-  intro h
-  cases args with
-    | nil =>
-      simp_all[TermVector.toSubstAux, Subst.mem]
-    | cons a as =>
-      simp_all [Subst.mem, TermVector.toSubstAux, SubstEntry.symbol]
-      cases h
-      . grind
-      .
-        have := dot_mem_subst_idx' as m (k + 1) (by grind) (by grind)
-        grind
-
-theorem dot_mem_subst_idx {n : ℕ} {args : TermVector n} {m : ℕ}
-  : Symbol.Function (FunctionSymbol.dot m) ∈ args.toSubst
-  → m < n := by
-  intro h
-  simp_all[TermVector.toSubst, Membership.mem]
-  have := dot_mem_subst_idx' args m 0 (by grind) (by grind)
-  grind
-
-mutual
-
-theorem TermVector.applySubst_empty_eq {n : ℕ} (ts ts' : TermVector n)
-  : TermVector.applySubst ⟨.nil, by grind[Subst.Nodup]⟩ ts = some ts'
-  → ts = ts' := by
-  intro h
-  cases ts with
-    | nil => simp_all
-    | cons t ts =>
-      simp_all[TermVector.applySubst, Option.bind]
-      split at h
-      . contradiction
-      simp at h
-      split at h
-      . contradiction
-      simp at h
-      rw[← h]
-
-      next _ _ _ _ h₁ _ _ _ h₂ =>
-
-      have := Term.applySubst_empty_eq _ _ h₁
-      have := TermVector.applySubst_empty_eq _ _ h₂
-      grind
-
-theorem Term.applySubst_empty_eq (t t' : Term)
-  : Term.applySubst ⟨.nil, by grind[Subst.Nodup]⟩ t = some t'
-  → t = t' := by
-  intro h
-  match t with
-    | .var x => simp_all[Term.applySubst]
-    | .neg t =>
-      simp_all[Term.applySubst, Option.bind]
-      split at h
-      . contradiction
-      next a' _ =>
-      have := Term.applySubst_empty_eq t a'
-      simp_all
-    | .plus t₁ t₂
-    | .times t₁ t₂ =>
-      simp[Term.applySubst, Option.bind] at h
-      split at h
-      . contradiction
-      simp_all only
-      split at h
-      . contradiction
-      next b _ _ _ c _ =>
-      simp at h
-      have := Term.applySubst_empty_eq t₁ b
-      have := Term.applySubst_empty_eq t₂ c
-      grind
-    | .differential t =>
-      simp[Term.applySubst, Option.bind] at h
-      split at h
-      . contradiction
-      split at h
-      . contradiction
-      next _ _ _ _ c _ =>
-      simp at h
-      have := Term.applySubst_empty_eq t c
-      grind
-    | .applyFn f args' =>
-      match hf : f with
-        | .num n =>
-            simp_all[Term.applySubst, Option.bind]
-            split at h
-            . contradiction
-            simp_all
-        | .sym s =>
-          cases hf
-          simp_all[Term.applySubst, Option.bind]
-          split at h
-          . contradiction
-          split at h
-          . simp_all[Membership.mem, Subst.mem]
-          .
-            simp at h
-            rw[← h]
-            congr
-            simp_all[Membership.mem, Subst.mem]
-            apply TermVector.applySubst_empty_eq
-            grind
-
-end
-
-mutual
-
-theorem TermVector.freeVars_applySubst_toSubst_subset
-  {n m m' : ℕ}
-  (args : TermVector n)
-  (ts : TermVector m)
-  (ts' : TermVector m')
-  (hm : m = m')
-  : TermVector.applySubst args.toSubst ts = some (cast (by grind) ts')
-  → ts'.freeVars ⊆ ts.freeVars ∪ args.freeVars := by
-    intros h₁
-    match ts with
-      | .nil =>
-        have : m' = 0 := by grind
-        cases this
-
-        have : ts' = TermVector.nil := by simp_all
-        cases this
-
-        simp_all [TermVector.freeVars_nil, TermVector.applySubst]
-      | .cons t tt =>
-        simp[TermVector.applySubst, Option.bind] at h₁
-        split at h₁
-        . contradiction
-        simp at h₁
-        split at h₁
-        . contradiction
-        simp at h₁
-        next j _ _ d _ _ _ h _ =>
-        have := TermVector.freeVars_applySubst_toSubst_subset args tt h (by grind) (by grind)
-        have := Term.freeVars_applySubst_toSubst_subset args t d (by simp_all)
-
-        cases ts'
-        . contradiction
-        simp only [TermVector.freeVars_cons]
-
-        rename (ℕ) => n'
-        have : j = n' := by omega
-        cases this
-
-        grind
-
-termination_by
-  (args.toSubst.size, sizeOf ts)
-decreasing_by
-  all_goals try decreasing_tactic
-
-
-
-theorem Term.freeVars_applySubst_toSubst_subset
-  {n : ℕ}
-  (args : TermVector n)
-  (t t' : Term)
-  : Term.applySubst args.toSubst t = some t'
-  → t'.freeVars ⊆ t.freeVars ∪ args.freeVars := by
-  intro h
-
-  match t with
-    | .var x => simp_all[Term.applySubst]
-    | .neg t =>
-      simp_all[Term.applySubst, Option.bind]
-      split at h
-      . contradiction
-      next a' _ =>
-      simp at h
-      rw[← h]
-      simp[Term.freeVars]
-      have := Term.freeVars_applySubst_toSubst_subset args t a' (by grind)
-      simp_all
-    | .plus t₁ t₂
-    | .times t₁ t₂ =>
-      simp[Term.applySubst, Option.bind] at h
-      split at h
-      . contradiction
-      simp_all only
-      split at h
-      . contradiction
-      next b _ _ _ c _ =>
-      have := Term.freeVars_applySubst_toSubst_subset args t₁ b (by grind)
-      have := Term.freeVars_applySubst_toSubst_subset args t₂ c (by grind)
-      simp[Term.freeVars]
-      all_goals
-      simp at h
-      rw[← h]
-      simp[Term.freeVars]
-      grind
-      | .differential t =>
-      simp_all only [Term.freeVars]
-      simp[Term.applySubst, Option.bind] at h
-      split at h
-      . contradiction
-      split at h
-      . contradiction
-      next _ _ _ _ c _ =>
-      simp at h
-      rw[← h]
-      simp only [Term.freeVars]
-
-      have := Term.freeVars_applySubst_toSubst_subset args t c (by grind)
-
-      have := Term.freeVars_applySubst_admissible_subset
-                (σ := args.toSubst) t c (by grind) (by simp_all)
-      have : c.freeVars ⊆ t.freeVars := by
-        intros x hx
-        have := this hx
-        grind
-      grind
-    | .applyFn f args' =>
-      simp_all only [Term.freeVars]
-      match hf : f with
-        | .num n =>
-            simp_all[Term.applySubst, Option.bind]
-            split at h
-            . contradiction
-            simp_all
-            rw[← h]
-            simp[Term.freeVars]
-        | .sym s =>
-          cases hf
-          simp_all[Term.applySubst, Option.bind]
-          split at h
-          . contradiction
-          split at h
-          .
-            simp at h
-
-            match s with
-              | .dot m =>
-              next _ _ d _ _ =>
-                -- because Symbol.Function (FunctionSymbol.dot m) ∈ args.toSubst
-                have : m < n := by apply dot_mem_subst_idx (args := args) (by grind)
-                have : d = TermVector.nil := by simp_all
-                cases this
-
-                have : args.toSubst.get (Symbol.Function (FunctionSymbol.dot m))
-                     = args.toVector[m] := by
-                    simp[TermVector.toSubst]
-                    apply term_vector_to_subst_get.dot.mem
-                    . grind
-                    . grind
-                rw[this] at h
-
-                have : args.toVector[m] = t' := by
-                  apply Term.applySubst_empty_eq
-                  simp_all[TermVector.toSubst, TermVector.toSubstAux]
-                rw[← this]
-
-                have : args.toVector[m].freeVars ⊆ args.freeVars := by
-                  apply Term.freeVars_subset_TermVector_freeVars
-                  apply (TermVector.mem_toVector_iff (args.toVector[m]) args).mpr
-                  grind
-
-                grind
-              | .udef name arity => grind[term_vector_to_subst_nomem_fn]
-          .
-            next _ _ d e _ =>
-            simp at h
-            rw[← h]
-            simp[Term.freeVars]
-            exact TermVector.freeVars_applySubst_toSubst_subset args args' d (by rfl) e
-termination_by
-  (args.toSubst.size, sizeOf t)
-
-
-theorem TermVector.freeVars_applySubst_admissible_subset
-  (σ : Subst)
-  {n m : ℕ}
-  (ts : TermVector n)
-  (a : TermVector m)
-  (hnm : n = m)
-  : TermVector.applySubst σ ts = some (cast (by grind) a)
-  → σ.admissible FCSet.univ ts.signature
-  → (a.freeVars : Set Assignable) ⊆ (ts.freeVars : Set Assignable) := by
-  intros h₁ h₂
-  match ts with
+lemma toSubstAux.freeVars_inc {n : ℕ} (args : TermVector n) (S : Option (Finset Symbol)) :
+  ∀ k, (Subst.freeVars ⟨args.toSubstAux k, (args.toSubstLemma k).1⟩ S).toSet ⊆ args.freeVars := by
+  match args with
     | .nil =>
+      simp[TermVector.toSubstAux, Subst.freeVars]
+    | .cons e args' =>
+      simp[TermVector.toSubstAux]
+      unfold Subst.freeVars
+      simp only
+      intro k
+      have := toSubstAux.freeVars_inc args' S (k+1)
+      simp only [SubstEntry.freeVars]
+      split
+      . simp only [FCSet.to_set_union, Set.to_set_finite]
+        exact Set.union_subset_union_right _ this
+      . split
+        . simp only [FCSet.to_set_union, Set.to_set_finite]
+          exact Set.union_subset_union_right _ this
+        . exact Set.subset_union_of_subset_right this _
 
-      have : m = 0 := by grind
-      cases this
+theorem toSubst.freeVars_inc {n : ℕ} (args : TermVector n) (S : Option (Finset Symbol)) :
+  (args.toSubst.freeVars S).toSet ⊆ args.freeVars := by
+  exact toSubstAux.freeVars_inc _ _ 0
 
-      have : a = TermVector.nil := by simp_all
-      cases this
+mutual
 
-      simp_all [TermVector.freeVars_nil, TermVector.applySubst]
-    | .cons t tt =>
+theorem TermVector.freeVars_applySubst_subset {n : ℕ} (σ : Subst) (ts as : TermVector n)
+  : TermVector.applySubst σ ts = some as
+  → ↑as.freeVars ⊆ ↑ts.freeVars ∪ (σ.freeVars (some ts.signature)).toSet := by
+  intro h₁
+  match n with
+  | 0 =>
+    simp only [TermVector.zero_size_eq_nil, TermVector.freeVars_nil, Finset.coe_empty,
+      TermVector.signature_nil, Set.empty_union, Set.empty_subset]
+  | n+1 =>
+    match ts with
+    | .cons t ts' =>
       simp[TermVector.applySubst, Option.bind] at h₁
       split at h₁
       . contradiction
-      simp at h₁
+      simp only at h₁
       split at h₁
       . contradiction
       simp at h₁
-
-      simp only [TermVector.signature_cons] at h₂
-      apply Subst.admissible_symbol_union.mp at h₂
-
-      cases a
-      . contradiction
-
-      next b _ _ e _ _ _ h _ n x l =>
-      have := TermVector.freeVars_applySubst_admissible_subset
-                σ tt h (by rfl) (by grind) (by simp_all)
-      have := Term.freeVars_applySubst_admissible_subset σ t e (by simp_all) (by simp_all)
-
-      have : n =  b := by omega
-      cases this
-
-      have : e = x := by grind
-      have : h = l := by grind
-
-      simp_all[TermVector.freeVars_cons]
-      grind
-termination_by
-  (σ.size, sizeOf ts)
+      next a heqa _ _ as' heqas' =>
+      rw[←h₁]
+      clear h₁
+      simp only [TermVector.freeVars_cons, Finset.coe_union, TermVector.signature_cons]
+      have := @σ.freeVars_symbol_union t.signature ts'.signature
+      have := Term.freeVars_applySubst_subset σ t a heqa
+      have := TermVector.freeVars_applySubst_subset σ ts' as' heqas'
+      grind only [= Set.mem_union, = Set.subset_def]
+termination_by (σ.size, sizeOf ts)
 decreasing_by
-  all_goals simp[Prod.lex_def]
-  . omega
+all_goals simp_wf
+all_goals grind only [= Prod.lex_def]
 
-theorem Term.freeVars_applySubst_admissible_subset
-  (σ : Subst)
-  (t a : Term)
+theorem Term.freeVars_applySubst_subset (σ : Subst) (t a : Term)
   : Term.applySubst σ t = some a
-  → σ.admissible FCSet.univ t.signature
-  → (a.freeVars : Set Assignable) ⊆ (t.freeVars : Set Assignable) := by
-    intros h₁ h₂
-    match t with
-      | .var x => simp_all[Term.applySubst]
-      | .neg t =>
-        simp_all[Term.applySubst, Option.bind]
-        split at h₁
-        . contradiction
-        next a' _ =>
-        have := Term.freeVars_applySubst_admissible_subset
-                  σ t a' (by grind) (by simp_all[Term.signature])
-        simp_all
-        rw[← h₁]
-        simp only[Term.freeVars]
-        assumption
-      | .plus t₁ t₂
-      | .times t₁ t₂ =>
-        simp[Term.applySubst, Option.bind] at h₁
-        split at h₁
-        . contradiction
-        simp_all only
-        split at h₁
-        . contradiction
-        next b _ _ _ c _ =>
-        simp_all only [Term.signature]
-        apply Subst.admissible_symbol_union.mp at h₂
-        have := Term.freeVars_applySubst_admissible_subset
-                  σ t₁ b (by grind) (by grind[Term.signature])
-        have := Term.freeVars_applySubst_admissible_subset
-          σ t₂ c (by grind) (by grind[Term.signature])
-        simp[Term.freeVars]
-        all_goals
-        simp at h₁
-        rw[← h₁]
-        simp[Term.freeVars]
-        grind
-      | .applyFn (.num n) args =>
-        simp_all[Term.applySubst, Option.bind]
-        split at h₁
-        . contradiction
-        simp_all
-      | .applyFn (.sym s) args =>
-        simp_all only [Term.freeVars, Term.signature]
-        apply Subst.admissible_symbol_union.mp at h₂
-        simp[Term.applySubst, Option.bind] at h₁
-        split at h₁
-        . contradiction
-        next a' _ =>
+  → ↑a.freeVars ⊆ ↑t.freeVars ∪ (σ.freeVars (some t.signature)).toSet := by
+  intro h₁
+  match t with
+  | .var v => simp_all[Term.applySubst]
+  | .neg t =>
+    simp_all[Term.applySubst, Option.bind]
+    split at h₁
+    . contradiction
+    next a' heq =>
+    have := Term.freeVars_applySubst_subset σ t a' heq
+    simp_all
+    rw[← h₁]
+    simp only[Term.freeVars, Term.signature]
+    assumption
+  | .plus t₁ t₂
+  | .times t₁ t₂ =>
+    simp[Term.applySubst, Option.bind] at h₁
+    split at h₁
+    . contradiction
+    simp_all only
+    split at h₁
+    . contradiction
+    next b heqb _ _ c heqc =>
+    simp_all only [Term.signature]
+    have := Term.freeVars_applySubst_subset σ t₁ b heqb
+    have := Term.freeVars_applySubst_subset σ t₂ c heqc
+    simp[Term.freeVars]
+    all_goals
+    simp at h₁
+    rw[← h₁]
+    simp[Term.freeVars]
+    have := @Subst.freeVars_symbol_union σ t₁.signature t₂.signature
+    grind only [= Set.mem_union, = Set.subset_def]
+  | .applyFn f args =>
+    match f with
+    | .num n =>
+      simp[Term.applySubst, Option.bind] at h₁
+      split at h₁
+      . contradiction
+      simp_all
+    | .sym s =>
+      simp_all only [Term.freeVars, Term.signature]
+      simp[Term.applySubst, Option.bind] at h₁
+      split at h₁
+      . contradiction
+      next a' _ =>
         split at h₁
         .
           simp at h₁
-
-          have : a.freeVars ⊆ (σ.get (Symbol.Function s)).freeVars ∪ a'.freeVars := by
-            apply Term.freeVars_applySubst_toSubst_subset (args := a')
-            grind
-
-          have : (σ.get (Symbol.Function s)).freeVars = ∅ := by
-            apply subst_admissible_univ_free_vars
-            grind
-
-          have := TermVector.freeVars_applySubst_admissible_subset (σ := σ) args a' (by grind)
-
-          have : a'.freeVars ⊆ args.freeVars := by
-            apply TermVector.freeVars_applySubst_admissible_subset (σ:= σ)
-            . grind
-            . grind
-            . grind
-
-          grind
+          have := TermVector.freeVars_applySubst_subset σ args a' (by assumption)
+          have := Term.freeVars_applySubst_subset a'.toSubst (σ.get (Symbol.Function s)) a h₁
+          have := @toSubst.freeVars_inc _ a' (some (Term.signature (σ.get (Symbol.Function s))))
+          have := @Subst.freeVars_symbol_union σ (Function.signature (Fn.sym s)) args.signature
+          have := @Subst.free_vars_subset_fun σ s
+          grind only [= Set.mem_union, = Set.subset_def, FCSet.to_set_eq]
         .
           simp at h₁
           rw[← h₁]
           simp[Term.freeVars]
-          have := TermVector.freeVars_applySubst_admissible_subset
-                    σ args a' (by rfl) (by grind) (by grind)
-          intro x hx
-          have := this hx
-          grind
-      | .differential t =>
-        simp_all only [Term.signature, Term.freeVars]
-        simp[Term.applySubst, Option.bind] at h₁
-        split at h₁
-        . contradiction
-        split at h₁
-        . contradiction
-        next _ _ _ _ c _ =>
-        simp at h₁
-        rw[← h₁]
-        simp only [Term.freeVars]
-        have := Term.freeVars_applySubst_admissible_subset
-                  σ t c (by grind) (by simp_all[Subst.admissible])
+          have := TermVector.freeVars_applySubst_subset σ args a' (by assumption)
+          have := @Subst.freeVars_symbol_union σ
+          grind only [= Set.mem_union, = Set.subset_def]
 
-        have ih := Term.freeVars_applySubst_admissible_subset
-              σ t c (by grind) (by simp_all[Subst.admissible])
-        have : FCSet.univ.toSetᶜ = (∅ : Set Assignable) := by grind
-        simp at ih
-        grind
-termination_by
-  (σ.size, sizeOf t)
+  | .differential t =>
+    simp[Term.applySubst, Option.bind] at h₁
+    split at h₁
+    . contradiction
+    simp at h₁
+    split at h₁
+    . contradiction
+    next _ _ hg _ _ a' heq =>
+      simp at h₁ hg
+      rw[←h₁]
+      clear h₁
+      have := Term.freeVars_applySubst_subset σ _ _ heq
+      simp only [Term.freeVars, Finset.coe_union, Finset.coe_map, Term.signature]
+      grind only [= Set.mem_image, = Set.mem_empty_iff_false, = Set.mem_union, = Set.subset_def]
+
+termination_by (σ.size, sizeOf t)
 decreasing_by
-  all_goals simp[Prod.lex_def]
-  all_goals try omega
-  .
-    have := Subst.symbol_size σ s (by assumption)
-    have := @TermVector.toSubst_size s.arity
-    grind
-
+all_goals simp_wf
+all_goals (try grind only [= Prod.lex_def])
+next hin =>
+  rw[TermVector.toSubst_size]
+  apply Subst.symbol_size at hin
+  grind only [= Prod.lex_def]
 end
+
+theorem Term.freeVars_applySubst_admissible_univ_subset (σ : Subst) (t a : Term)
+  : Term.applySubst σ t = some a
+  → σ.admissible FCSet.univ t.signature
+  → (a.freeVars : Set Assignable ) ⊆ (t.freeVars : Set Assignable) := by
+  intros h _
+  have := Term.freeVars_applySubst_subset σ t a h
+  simp_all only [FCSet.to_set_eq, FCSet.to_set_inter, FCSet.to_set_univ, Set.inter_univ,
+    FCSet.to_set_empty, Set.union_empty, Finset.coe_subset]
+
 
 theorem Subst.preserve_semantics.term
   (σ : Subst)
@@ -920,7 +600,7 @@ theorem Subst.preserve_semantics.term
       simp at hs
       split at hs
       . contradiction
-      next _ _ hg _ _ a _ =>
+      next _ _ hg _ _ a heq =>
       simp at hs
       rw[hs]
       simp[Term.denote]
@@ -948,8 +628,8 @@ theorem Subst.preserve_semantics.term
       -- because hg : guard (σ.admissible FCSet.univ t.signature)
       -- and hence substitution can *only reduce* free variables, e.g. {f(⋅) → 2}
       have : a.freeVars ⊆ t.freeVars := by
-        have ih := Term.freeVars_applySubst_admissible_subset
-              (σ := σ) t a (by grind) (by simp_all[Subst.admissible])
+        have ih := Term.freeVars_applySubst_admissible_univ_subset
+              (σ := σ) t a heq (by simp_all[Subst.admissible])
         intro x hx
         have := ih hx
         grind
@@ -969,7 +649,7 @@ theorem Subst.preserve_semantics.term
       cases hs
       have := by
         apply @Subst.admissible_adjoint.term v (v.update x y) (v.update x y) σ i t FCSet.univ
-        . simp_all[Subst.admissible]
+        . simp_all only [Subst.admissible, Option.guard_eq_some']
         . simp_all[State.isEqOn]
       rw[this]
 
