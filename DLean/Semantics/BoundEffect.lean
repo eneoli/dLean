@@ -60,3 +60,18 @@ theorem Program.bound_effect' {α : Program}
   have := Program.bound_effect h
   simp_all[State.isEqOn, State.isEqExcept, Set.EqOn]
   grind[Program.bound_vars_decidable]
+
+@[grind]
+theorem Program.bound_effect_closure'
+    {α : Program}
+    {u : State}
+    {w : State}
+    {i : Interpretation}
+    : LoopClosure (Program.denote i α) u w
+    → State.isEqOn u w α.boundVars'ᶜ := by
+    intros h
+    induction h with
+      | rfl => simp_all
+      | trans v w h₁ h₂ ih =>
+        have := Program.bound_effect' h₂
+        simp_all[State.isEqOn, Set.EqOn]

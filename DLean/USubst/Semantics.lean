@@ -1273,8 +1273,34 @@ theorem Subst.preserve_semantics.program
                 apply LoopClosure.trans (v := v)
                 . grind
                 .
-                  sorry
-        . sorry
-      | _ => sorry
+                  next u _ _ _ _ _ _ _ _ _ _ _ =>
+                  have := (Subst.preserve_semantics.program σ i v w α α' (by grind)).mp h₂
+                  have := Subst.admissible_adjoint.program (U := α'.boundVars') (α := α) (i := i)
+                                                           (σ := σ) (v := u) (w := v)
+                            (by simp_all[Subst.admissible])
+                            (by grind)
+
+                  simp_all[Membership.mem, Set.Mem]
+        .
+          intros h
+          induction h with
+            | rfl => grind[LoopClosure]
+            | trans v w h₁ h₂ ih =>
+              have := ih (by apply Subst.preserve_semantics.program)
+              apply LoopClosure.trans (v := v)
+              . grind
+              .
+                next u _ _ _ _ _ _ _ _ _ _ _ =>
+                have := Subst.admissible_adjoint.program (U := α'.boundVars') (α := α) (i := i)
+                                                         (σ := σ) (v := u) (w := v)
+                         (by simp_all[Subst.admissible])
+                         (by grind)
+
+                have := (Subst.preserve_semantics.program σ i v w α α' (by grind)).mpr
+                  (by rw[← this] ; exact h₂)
+
+                simp_all[Membership.mem, Set.Mem]
+      | .ode system Ψ =>
+        sorry
 
 end
