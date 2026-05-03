@@ -61,7 +61,8 @@ theorem Program.bound_effect' {α : Program}
   simp_all[State.isEqOn, State.isEqExcept, Set.EqOn]
   grind[Program.bound_vars_decidable]
 
-@[grind]
+/-- Computable version -/
+@[grind .]
 theorem Program.bound_effect_closure'
     {α : Program}
     {u : State}

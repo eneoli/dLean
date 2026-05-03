@@ -104,7 +104,7 @@ theorem Term.coincidence (t : Term)
                 apply Term.coincidence _ _ _ (v.update a y) (w.update a y)
                 apply And.intro
                 . simp_all[(State.eq_on_except_eq_on_if_update _ _).mp,
-                           Set.EqOn.mono (s₂:= t.freeVars.toSet), Term.freeVars]
+                           Set.EqOn.mono (s₂:= (t.freeVars : Set Assignable)), Term.freeVars]
                 . simp_all[Term.signature]
 
         simp_all[Term.freeVars]

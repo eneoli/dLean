@@ -71,7 +71,7 @@ def parseVariable (str : String) : MetaM Q(Variable) := do
   if post.length > 0 then
     throwError "Variables can only contain alphanumeric chars."
   else
-    let variableName : Q(String) := mkStrLit pre.asString
+    let variableName : Q(String) := mkStrLit (String.ofList pre)
     pure q(Variable.mk $variableName)
 
 partial def elabVar : Syntax → MetaM Q(Assignable)

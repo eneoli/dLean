@@ -47,7 +47,7 @@ instance {α : Type} [DecidableEq α] : SDiff (FCSet α) where
 --     | .Finite A, .Infinite B => .Finite (A ∩ B)
 
 def FCSet.toSet {α : Type} : FCSet α → Set α
-  | .Finite A => A.toSet
+  | .Finite A => A
   | .Infinite B => Bᶜ
 
 instance {α : Type} : Coe (FCSet α) (Set α) where
@@ -58,24 +58,23 @@ instance {α : Type} : Membership α (FCSet α) where
 
 section Theorems
 
-@[simp, grind]
+@[simp, grind .]
 theorem FCSet.to_set_empty {α : Type}
   : (∅ : FCSet α) = (∅ : Set α) := by
     simp[FCSet.toSet]
 
-@[simp, grind]
+@[simp, grind .]
 theorem FCSet.to_set_singleton {α : Type}
-                               [DecidableEq α]
                                {x : α}
   : ({x} : FCSet α) = ({x} : Set α) := by
     simp[FCSet.toSet]
 
-@[simp, grind]
+@[simp, grind .]
 theorem FCSet.to_set_univ {α : Type}
   : (.univ : FCSet α) = (.univ : Set α) := by
     simp[FCSet.toSet]
 
-@[simp, grind]
+@[simp, grind .]
 theorem FCSet.to_set_union {α : Type}
                            [DecidableEq α]
                            {A : FCSet α}
@@ -85,7 +84,7 @@ theorem FCSet.to_set_union {α : Type}
     all_goals simp[FCSet.toSet]
     all_goals grind
 
-@[simp, grind]
+@[simp, grind .]
 theorem FCSet.to_set_inter {α : Type}
                            [DecidableEq α]
                            {A : FCSet α}
@@ -95,7 +94,7 @@ theorem FCSet.to_set_inter {α : Type}
     all_goals simp[FCSet.toSet]
     all_goals grind
 
-@[simp, grind]
+@[simp, grind .]
 theorem FCSet.to_set_diff {α : Type}
                           [DecidableEq α]
                           {A : FCSet α}
@@ -105,13 +104,13 @@ theorem FCSet.to_set_diff {α : Type}
     all_goals simp[FCSet.toSet]
     all_goals grind
 
-@[simp, grind]
+@[simp, grind .]
 theorem Set.to_set_finite {α : Type}
                           {A : Finset α}
   : ((FCSet.Finite A) : Set α) = (A : Set α) := by
     simp[FCSet.toSet]
 
-@[simp, grind]
+@[simp, grind .]
 theorem FCSet.to_set_eq {α : Type}
                         [inst : _root_.Infinite α]
                         {A : FCSet α}
