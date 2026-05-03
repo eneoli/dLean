@@ -25,7 +25,8 @@ theorem unionListOfFinsets.subset_cons {α : Type}
   induction fs generalizing f
   . simp
   . next head tail ih =>
-    exact Finset.union_subset_left (ih (f ∪ head))
+    simp_all
+    grind
 
 theorem unionListOfFinsets.mem_head_cons {α : Type}
                                          [DecidableEq α]
@@ -45,7 +46,7 @@ theorem unionListOfFinsets.mem_tail_cons {α : Type}
                                          → x ∈ unionListOfFinsets (f::fs) := by
   simp[unionListOfFinsets]
   apply List.foldl_monotone finset_monotone_union
-  exact (by simp : ∅ ⊆ f)
+  simp_all
 
 @[simp]
 theorem unionListOfFinsets.union_not_mem_head {α : Type}
@@ -105,9 +106,9 @@ theorem unionListOfFinsets.union_iff {α : Type}
                                      : unionListOfFinsets (head :: tail)
                                      = head ∪ unionListOfFinsets tail := by
   induction tail
-  . simp[unionListOfFinsets]
+  . grind[unionListOfFinsets]
   .
-    simp[unionListOfFinsets]
-    exact List.foldl_assoc
+    simp_all[unionListOfFinsets, List.foldl_assoc]
+    grind
 
 end Theorems

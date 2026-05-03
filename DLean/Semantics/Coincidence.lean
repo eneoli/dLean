@@ -248,13 +248,11 @@ theorem Formula.coincidence (Φ : Formula)
       rw[Set.union_assoc, Set.diff_union_self] at h''
 
       have hweq : w' = w'' := by
-        rw[<-Set.eqOn_univ]
+        funext x
         have hb := Program.bound_effect hin
         have hb' := Program.bound_effect hin'
-        clear * - h h' h'' hb hb'
         unfold State.isEqExcept Set.EqOn at *
-        grind only [= Set.mem_union, = Set.mem_compl_iff, = Set.mem_inter_iff,
-          = Set.mem_diff]
+        grind
       rw[hweq]
       assumption
 termination_by Φ.size
