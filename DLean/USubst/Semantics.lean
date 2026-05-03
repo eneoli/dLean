@@ -8,7 +8,7 @@ open Semantics
 theorem Subst.adjoint_term_noeffect.pred
   (i : Interpretation)
   (p : PredicateSymbol)
-  {rhs : TermVector p.arity → Formula}
+  {rhs : Formula}
   {es : List SubstEntry}
   (hsubst : Subst.Nodup (SubstEntry.pred p rhs :: es))
   (t : Term)
@@ -37,7 +37,7 @@ theorem Subst.adjoint_term_noeffect.pred
                         (.pred p rhs)
                         (by simp_all)
                         (by simp[SubstEntry.symbol])
-              simp_all[Term.denote, Subst.adjoint]
+              simp_all[Term.denote, Subst.adjoint, FunctionSymbol.arity]
             | .udef name arity =>
               simp[Term.denote, Subst.adjoint]
               congr 1
@@ -83,7 +83,7 @@ theorem Subst.adjoint_noeffect_nomem_fun
     match hs : σ with
       | ⟨.nil, _⟩ =>
         simp_all[Subst.adjoint, Subst.get, Symbol.default, Term.denote]
-        apply Subtype.eq
+        apply Subtype.ext
         funext args
         simp_all[Interpretation.assignDots]
         split
@@ -124,6 +124,34 @@ theorem Subst.adjoint_noeffect_nomem_fun
 termination_by
   σ.1
 
+theorem Subst.adjoint_noeffect_nomem_pred
+  (i : Interpretation)
+  (v : State)
+  (p : PredicateSymbol)
+  {σ : Subst}
+  : (.Predicate p) ∉ σ
+  → (σ.adjoint i v (Symbol.Predicate p)) = i p := by
+    intro h
+    match hs : σ with
+      | ⟨.nil, _⟩ =>
+        simp_all[Subst.adjoint, Subst.get, Symbol.default, Formula.denote]
+
+        have : ∀ (x : Fin p.arity), (Term.dots p.arity).toVector[(↑x : ℕ)]
+             = Term.dot x := by
+                apply Interpretation.dots_eq
+
+        simp_all[Term.dot, Term.denote, Interpretation.assignDots]
+      | ⟨x::xs, h⟩ =>
+        have := by
+          apply @Subst.adjoint_noeffect_nomem_pred i v p ⟨xs, Subst.tail_nodup h⟩
+          simp_all[Membership.mem, Subst.mem]
+        simp_all[Subst.adjoint, Subst.get]
+        split
+        . simp_all[Membership.mem, Subst.mem]
+        . simp_all
+termination_by
+  σ.1
+
 theorem term_vector_to_subst_get.fn
   {n : ℕ}
   {args : TermVector n}
@@ -153,7 +181,7 @@ theorem term_vector_to_subst_get.pred
   {p : PredicateSymbol}
   (hs : Subst.Nodup (args.toSubstAux k))
   : Subst.get ⟨args.toSubstAux k, hs⟩ (.Predicate p)
-  = Formula.applyPred p := by
+  = Formula.applyPred p (Term.dots p.arity) := by
     cases args with
       | nil =>
         simp_all [TermVector.toSubstAux, Symbol.default, Subst.get]
@@ -232,62 +260,58 @@ theorem term_vector_to_subst_get.dot.nomem
       .
         apply term_vector_to_subst_get.dot.nomem m as (k + 1) (by omega)
 
-
 theorem subst_adjoint_of_term_vector_to_subst
   (i : Interpretation)
   (v : State)
   {n : ℕ}
   {args : TermVector n}
   : Subst.adjoint (TermVector.toSubst args) i v
-  = (i.assignDots fun x ↦ Term.denote i v args.toVector[↑x]) := by
+  = (i.assignDots fun x ↦ Term.denote i v args.toVector[x]) := by
     funext s
     match s with
-      | .Function f =>
-        simp[Subst.adjoint]
+      | .Function (.dot m) =>
+        by_cases m < n
+        .
+          have : args.toSubst.get (Symbol.Function (FunctionSymbol.dot m))
+               = args.toVector[m] := by
+                apply term_vector_to_subst_get.dot.mem args 0 m (by omega) (by omega)
 
-        match f with
-          | .dot m =>
-            by_cases m < n
-            .
-              have : args.toSubst.get (Symbol.Function (FunctionSymbol.dot m))
-                   = args.toVector[m] := by
-                    apply term_vector_to_subst_get.dot.mem args 0 m (by omega) (by omega)
-              simp only [this]
+          apply Subtype.ext
+          funext args'
+          simp_all[Interpretation.assignDots, FunctionSymbol.arity, Subst.adjoint]
+        .
+          have : args.toSubst.get (Symbol.Function (FunctionSymbol.dot m))
+               = Term.dot m := by
+                simp[TermVector.toSubst]
+                apply term_vector_to_subst_get.dot.nomem m args 0 (by omega)
 
-              apply Subtype.eq
-              funext args'
-              simp_all
-              simp_all[Interpretation.assignDots]
-            .
-              have : args.toSubst.get (Symbol.Function (FunctionSymbol.dot m))
-                   = Term.dot m := by
-                    simp[TermVector.toSubst]
-                    apply term_vector_to_subst_get.dot.nomem m args 0 (by omega)
-              simp only [this]
-
-              simp_all
-              simp_all[Interpretation.assignDots]
-              split
-              . grind
-              .
-                simp_all[Term.dot, Term.denote, FunctionSymbol.arity, TermVector.toVector]
-                apply Subtype.eq
-                funext args
-                simp_all
-
-                have : args = fun x ↦ [][↑x] := by grind
-                simp[this]
-          | .udef f' a =>
-            simp only [TermVector.toSubst, term_vector_to_subst_get.fn, Symbol.default]
-
-            apply Subtype.eq
+          simp_all[Interpretation.assignDots]
+          split
+          . grind
+          .
+            apply Subtype.ext
             funext args
-            simp_all[Term.denote, FunctionSymbol.arity]
-            have : ∀ (x : Fin a), (Term.dots a).toVector[(↑x : ℕ)]
-             = Term.dot x := by
-                apply Interpretation.dots_eq
-            simp only [this]
-            simp_all[Term.dot, Term.denote, TermVector.toVector, Interpretation.assignDots]
+
+            have : args = fun x ↦ [][↑x] := by grind
+
+            simp_all[Term.dot, Term.denote, FunctionSymbol.arity, Subst.adjoint]
+            congr!
+      | .Function (.udef f' a) =>
+        simp only [
+          Subst.adjoint,
+          TermVector.toSubst,
+          term_vector_to_subst_get.fn,
+          Symbol.default
+        ]
+
+        apply Subtype.ext
+        simp[Term.denote]
+
+        have : ∀ x : Fin a, (Term.dots a).toVector[(↑x : ℕ)]
+             = Term.dot ↑x := by apply Interpretation.dots_eq
+
+        simp_all[Term.dot, Term.denote, Interpretation.assignDots, FunctionSymbol.arity]
+
       | .Predicate p =>
         simp[Subst.adjoint]
 
@@ -297,8 +321,7 @@ theorem subst_adjoint_of_term_vector_to_subst
         simp_all[Formula.denote]
 
         have : ∀ (x : Fin p.arity), (Term.dots p.arity).toVector[(↑x : ℕ)]
-             = Term.dot x := by
-                apply Interpretation.dots_eq
+             = Term.dot x := by apply Interpretation.dots_eq
 
         simp only [this]
 
@@ -992,6 +1015,68 @@ decreasing_by
     have := @TermVector.toSubst_size s.arity
     grind
 
+
+lemma ode_mapM_assignables_eq
+  {σ : Subst}
+  {system : OdeSystem}
+  {ssystem : OdeSystem}
+  (h : system.mapM (fun x => do return ODE.mk x.var (← Term.applySubst σ x.term))
+       = some ssystem)
+  : OdeSystem.assignables ssystem = OdeSystem.assignables system := by
+  unfold OdeSystem.assignables at *;
+  induction system generalizing ssystem <;> simp_all +decide [ List.mapM_cons ];
+  cases h' : Term.applySubst σ ‹ODE›.term <;> simp_all +decide [ Option.bind_eq_some_iff ];
+  aesop
+
+lemma ode_evolution_formula_applySubst
+  {σ : Subst}
+  {system ssystem : OdeSystem}
+  {Ψ Ψ' : Formula}
+  : Formula.applySubst σ Ψ = some Ψ'
+  → system.mapM (fun x => do return ODE.mk x.var (← Term.applySubst σ x.term)) = some ssystem
+  → Formula.applySubst σ (odeEvolutionFormula system Ψ)
+  = some (odeEvolutionFormula ssystem Ψ') := by
+
+  intros h₁ h₂
+  induction system generalizing ssystem Ψ Ψ' with
+    | nil => simp_all[odeEvolutionFormula]
+    | cons head tail ih =>
+      cases _ : Term.applySubst σ head.term
+      . simp_all
+      .
+        simp_all[Option.bind_eq_some_iff]
+        simp_all[odeEvolutionFormula, Term.applySubst, Formula.applySubst]
+        aesop
+
+lemma ode_evolution_formula_admissible
+  (σ : Subst)
+  (system : OdeSystem)
+  (Ψ : Formula)
+  (U : FCSet Assignable)
+  (hΨ : σ.admissible U Ψ.signature)
+  (hterms : ∀ x ∈ system, σ.admissible U x.term.signature)
+  : σ.admissible U (odeEvolutionFormula system Ψ).signature := by
+  by_contra h;
+  have h_ode : ∀ (system : OdeSystem) (Ψ : Formula), (odeEvolutionFormula system Ψ).signature = system.foldr (fun x s => x.term.signature ∪ s) Ψ.signature := by
+    intros system Ψ; induction system generalizing Ψ <;> simp +decide [ * ] ;
+    · rfl;
+    · rename_i x xs ih; simp +decide [ *, odeEvolutionFormula ] ;
+      convert congr_arg₂ ( · ∪ · ) ( show ( Formula.eq ( Term.var x.var.diff ) x.term ).signature = x.term.signature from ?_ ) ( ih Ψ ) using 1;
+      exact Finset.union_eq_right.mpr ( by simp +decide [ Term.signature ] );
+  refine h ?_;
+  rw [h_ode];
+  have h_foldr : ∀ (system : List (ODE)), (∀ x ∈ system, σ.admissible U x.term.signature) → σ.admissible U (List.foldr (fun x s => x.term.signature ∪ s) Ψ.signature system) := by
+    intro system hterms; induction system <;> simp[*] ;
+    rename_i k hk ih;
+    have h_foldr : σ.admissible U (k.term.signature ∪ List.foldr (fun x s => x.term.signature ∪ s) Ψ.signature hk) := by
+      exact Subst.admissible_symbol_union.mpr ⟨ hterms k ( by simp +decide ), ih fun x hx => hterms x ( by simp +decide [ hx ] ) ⟩;
+    convert h_foldr using 1;
+    unfold Subst.admissible; aesop;
+  exact h_foldr system hterms
+
+set_option maxHeartbeats 0 in
+/- Good things take time (dunno if that is one of them) --/
+
 mutual
 
 theorem Subst.preserve_semantics.formula
@@ -1165,7 +1250,46 @@ theorem Subst.preserve_semantics.formula
         have := Subst.preserve_semantics.program σ i v w β β'
         grind
       | .applyPred p args =>
-        sorry
+        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        split at hs
+        . contradiction
+        simp_all
+
+        next _ args' _ =>
+        have : (fun (x : Fin p.arity) => Term.denote (σ.adjoint i v) v args.toVector[↑(x : ℕ)])
+             = (fun (x : Fin p.arity) => Term.denote i v args'.toVector[↑x]) := by
+                  funext x
+                  apply Eq.symm
+                  apply Subst.preserve_semantics.term
+                  apply Eq.symm
+                  apply Subst.apply_subst_term_vector_to_term
+                  assumption
+
+        split at hs
+        .
+          -- we do apply the subst
+          apply Subst.preserve_semantics.formula (σ := args'.toSubst) (v := v) (i := i) at hs
+          rw[hs]
+          rw[subst_adjoint_of_term_vector_to_subst]
+          simp_all[Subst.adjoint]
+        .
+          -- we dont apply the subst
+          have := @Subst.adjoint_noeffect_nomem_pred i v p σ (by assumption)
+          simp_all[Formula.denote, Subst.adjoint]
+termination_by (σ.size, Φ.size)
+decreasing_by
+  all_goals simp[Prod.lex_def, Formula.size]
+  . omega
+  . omega
+  . omega
+  . omega
+  . omega
+  . omega
+  . omega
+  .
+    have := Subst.symbol_size σ p (by assumption)
+    have := @TermVector.toSubst_size p.arity
+    grind
 
 theorem Subst.preserve_semantics.program
   (σ : Subst)
@@ -1176,8 +1300,7 @@ theorem Subst.preserve_semantics.program
   : ⟨v, w⟩ ∈ Program.denote i α' ↔ ⟨v, w⟩ ∈ Program.denote (Subst.adjoint σ i v) α := by
     match α with
       | .const a =>
-        simp_all[Program.denote, Program.applySubst]
-        grind
+        simp_all[Program.denote, Program.applySubst, Subst.adjoint]
       | .assign x t =>
         simp_all[Program.denote, Program.applySubst, Option.bind]
         split at hs
@@ -1301,6 +1424,143 @@ theorem Subst.preserve_semantics.program
 
                 simp_all[Membership.mem, Set.Mem]
       | .ode system Ψ =>
-        sorry
+        simp[Program.applySubst, Option.bind] at hs
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        simp_all
+        split at hs
+        . contradiction
+        rename List ODE => ssystem
+        rename Formula => Ψ'
+        simp_all[Program.denote]
+
+        have hassign : OdeSystem.assignables ssystem = OdeSystem.assignables system :=
+          ode_mapM_assignables_eq (show _ = some ssystem from ‹_›)
+
+        rw[hassign]
+        apply Iff.intro
+        . rintro ⟨r, hr, φ, heq0, heqr, hflow⟩
+          apply Exists.intro r
+          and_intros
+          . grind
+          .
+            apply Exists.intro φ
+            and_intros
+            . grind
+            . grind
+            .
+              intros ζ  h₁ h₂
+              and_intros
+              .
+                have := hflow ζ h₁ h₂
+
+                have := ode_evolution_formula_applySubst
+                          (σ := σ) (system := system) (ssystem := ssystem)
+                          (Ψ := Ψ) (Ψ' := Ψ') (by grind) (by grind)
+
+                have := Subst.preserve_semantics.formula σ i (φ ζ)
+                          (odeEvolutionFormula system Ψ)
+                          (odeEvolutionFormula ssystem Ψ') (by grind)
+
+                have := this.mp (by grind)
+
+                have := ode_evolution_formula_admissible σ system Ψ
+                          (.Finite (system.assignables ∪ system.assignables.map Assignable.diff_emb))
+                          (by simp_all[Subst.admissible, OdeSystem.assignables])
+                          (by simp_all[Subst.admissible, OdeSystem.assignables])
+
+                have := Subst.admissible_adjoint.formula
+                          (v := v) (w := φ ζ) (σ := σ)
+                          (i := i) (Φ := odeEvolutionFormula system Ψ)
+                          (U := .Finite (system.assignables ∪ system.assignables.map Assignable.diff_emb))
+                          (by simp_all [Subst.admissible])
+                          (by simp_all[State.isEqOn, State.isEqExcept, Set.EqOn])
+
+                grind
+              . grind
+              . grind
+        . rintro ⟨r, hr, φ, heq0, heqr, hflow⟩
+          apply Exists.intro r
+          and_intros
+          . grind
+          .
+            apply Exists.intro φ
+            and_intros
+            . grind
+            . grind
+            .
+              intros ζ h₁ h₂
+              and_intros
+              .
+                have := hflow ζ h₁ h₂
+
+                have := ode_evolution_formula_applySubst
+                          (σ := σ) (system := system) (ssystem := ssystem)
+                          (Ψ := Ψ) (Ψ' := Ψ') (by grind) (by grind)
+
+                have := Subst.preserve_semantics.formula σ i (φ ζ)
+                          (odeEvolutionFormula system Ψ)
+                          (odeEvolutionFormula ssystem Ψ') (by grind)
+
+                have := ode_evolution_formula_admissible σ system Ψ
+                          (.Finite (system.assignables ∪ system.assignables.map Assignable.diff_emb))
+                          (by simp_all[Subst.admissible, OdeSystem.assignables])
+                          (by simp_all[Subst.admissible, OdeSystem.assignables])
+
+                have := Subst.admissible_adjoint.formula
+                          (v := v) (w := φ ζ) (σ := σ)
+                          (i := i) (Φ := odeEvolutionFormula system Ψ)
+                          (U := .Finite (system.assignables ∪ system.assignables.map Assignable.diff_emb))
+                          (by simp_all [Subst.admissible])
+                          (by simp_all [State.isEqOn, State.isEqExcept, Set.EqOn])
+
+                grind
+              . grind
+              . grind
+termination_by (σ.size, α.size)
+decreasing_by
+  all_goals simp[Prod.lex_def, Program.size]
+  all_goals grind[ode_evolution_formula_size_bound]
 
 end
+
+-- Uniform Substitution for Differential Dynamic Logic is sound!
+theorem US {σ : Subst} {Φ Φ' : Formula}
+  : Formula.applySubst σ Φ = Φ'
+  → (∀ (i : Interpretation) (v : State), v ∈ Formula.denote i Φ)
+  → (∀ (i : Interpretation) (v : State), v ∈ Formula.denote i Φ') := by
+  intros h₁ h₂ i v
+  have := h₂ i v
+  have := Subst.preserve_semantics.formula σ i v Φ Φ' (by grind)
+  simp_all
+
+theorem US_rule {σ : Subst}
+                (premises : List (Formula × Formula))
+                (Ψ Ψ' : Formula)
+                (hp : ∀ Φ ∈ premises, Formula.applySubst σ Φ.1 = Φ.2)
+                (hΨ : Formula.applySubst σ Ψ = Ψ')
+                (hσ : Subst.freeVars σ .none = ∅)
+  : (∀ (i : Interpretation), (∀ (v : State) (Φ : Formula × Formula), Φ ∈ premises → v ∈ Formula.denote i Φ.1) → (∀ (v : State), v ∈ Formula.denote i Ψ))
+  → (∀ (i : Interpretation), (∀ (v : State) (Φ : Formula × Formula), Φ ∈ premises → v ∈ Formula.denote i Φ.2) → (∀ (v : State), v ∈ Formula.denote i Ψ')) := by
+  intros h₁ i h₂ v
+
+  have := by
+    apply h₁ (Subst.adjoint σ i v) (?_) v
+    intros w Φ hp
+    have := Subst.preserve_semantics.formula σ i w Φ.1 Φ.2 (by grind)
+    have := Subst.free_vars_subset σ (Φ.1).signature
+    have := Subst.admissible_adjoint.formula
+              (Φ := Φ.1) (i := i) (σ := σ)
+              (v := v) (w := w) (U := .univ)
+              (by simp_all [Subst.admissible])
+              (by simp_all)
+    grind
+
+  have := Subst.preserve_semantics.formula σ i v Ψ Ψ' (by grind)
+  grind

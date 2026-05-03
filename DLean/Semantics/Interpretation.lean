@@ -77,6 +77,10 @@ def Program.signature (α : Program) : Finset Symbol := match α with
     systemSignatures ∪ Ψ.signature
 end
 
+def OdeSystem.signature (system : OdeSystem) : Finset Symbol := match system with
+  | .nil => ∅
+  | .cons x xs => x.term.signature ∪ OdeSystem.signature xs
+
 open scoped ContDiff
 
 def Interpretation.ReturnType : (symbol : Symbol) → Type
