@@ -19,6 +19,9 @@ linter.style.openClassical = true
 linter.style.show = true
 linter.hashCommand = true
 linter.haveLet = 2
+linter.flexible = false
+linter.style.emptyLine = false
+linter.style.longLine = false
 
 [[require]]
 name = "mathlib"

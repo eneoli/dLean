@@ -49,3 +49,30 @@ theorem Program.bound_effect {α : Program}
       apply State.eq_except_superset
       . exact State.eq_except_trans h h3
       . simp
+
+/-- Computable version -/
+theorem Program.bound_effect' {α : Program}
+                              {v : State}
+                              {w : State}
+                              {i : Interpretation}
+                              : (v, w) ∈ α.denote i → State.isEqOn v w α.boundVars'ᶜ := by
+  intros h
+  have := Program.bound_effect h
+  simp_all[State.isEqOn, State.isEqExcept, Set.EqOn]
+  grind[Program.bound_vars_decidable]
+
+/-- Computable version -/
+@[grind .]
+theorem Program.bound_effect_closure'
+    {α : Program}
+    {u : State}
+    {w : State}
+    {i : Interpretation}
+    : LoopClosure (Program.denote i α) u w
+    → State.isEqOn u w α.boundVars'ᶜ := by
+    intros h
+    induction h with
+      | rfl => simp_all
+      | trans v w h₁ h₂ ih =>
+        have := Program.bound_effect' h₂
+        simp_all[State.isEqOn, Set.EqOn]

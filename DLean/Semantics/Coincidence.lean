@@ -104,7 +104,7 @@ theorem Term.coincidence (t : Term)
                 apply Term.coincidence _ _ _ (v.update a y) (w.update a y)
                 apply And.intro
                 . simp_all[(State.eq_on_except_eq_on_if_update _ _).mp,
-                           Set.EqOn.mono (s₂:= t.freeVars.toSet), Term.freeVars]
+                           Set.EqOn.mono (s₂:= (t.freeVars : Set Assignable)), Term.freeVars]
                 . simp_all[Term.signature]
 
         simp_all[Term.freeVars]
@@ -248,13 +248,11 @@ theorem Formula.coincidence (Φ : Formula)
       rw[Set.union_assoc, Set.diff_union_self] at h''
 
       have hweq : w' = w'' := by
-        rw[<-Set.eqOn_univ]
+        funext x
         have hb := Program.bound_effect hin
         have hb' := Program.bound_effect hin'
-        clear * - h h' h'' hb hb'
         unfold State.isEqExcept Set.EqOn at *
-        grind only [= Set.mem_union, = Set.mem_compl_iff, = Set.mem_inter_iff,
-          = Set.mem_diff]
+        grind
       rw[hweq]
       assumption
 termination_by Φ.size

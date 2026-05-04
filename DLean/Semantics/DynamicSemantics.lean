@@ -238,7 +238,7 @@ lemma odeEvolutionFormula_freeVars_union_iff
       {Ψ : Formula}
       : (odeEvolutionFormula (head :: tail) Ψ).freeVars
       = {head.var.diff} ∪
-        head.term.freeVars.toSet ∪
+        ↑head.term.freeVars ∪
         (odeEvolutionFormula tail Ψ).freeVars := by
   induction tail
   all_goals simp_all[odeEvolutionFormula, Term.freeVars, Formula.freeVars]
@@ -248,7 +248,7 @@ lemma ode_system_freeVars_union_iff
       {tail : OdeSystem}
       {Ψ : Formula}
       : (Program.ode (head :: tail) Ψ).freeVars
-      = {head.var} ∪ head.term.freeVars.toSet ∪ (Program.ode tail Ψ).freeVars := by
+      = {head.var} ∪ ↑head.term.freeVars ∪ (Program.ode tail Ψ).freeVars := by
   simp[Program.freeVars]
   rw[OdeSystem.assignables_union_iff]
   grind only [= Set.mem_union, = Set.mem_insert_iff,
@@ -258,7 +258,7 @@ lemma ode_system_freeVars_head
       {head : ODE}
       {tail : OdeSystem}
       {Ψ : Formula}
-      : {head.var} ∪ head.term.freeVars.toSet ⊆ (Program.ode (head :: tail) Ψ).freeVars := by
+      : {head.var} ∪ ↑head.term.freeVars ⊆ (Program.ode (head :: tail) Ψ).freeVars := by
   simp[ode_system_freeVars_union_iff]
 
 lemma ode_system_freeVars_cons

@@ -44,7 +44,9 @@ theorem TermVector.freeVars_cons {n : ℕ}
 @[simp]
 theorem Term.dot_free_vars {n : ℕ}
                            : (Term.dot n).freeVars = ∅ := by
-  simp[Term.dot, Term.freeVars]
+  simp[Term.dot, Term.freeVars, TermVector.freeVars, unionListOfFinsets]
+  apply Finset.val_eq_zero.mp
+  rfl
 
 @[simp]
 theorem Term.dots_free_vars_comp {n : ℕ}

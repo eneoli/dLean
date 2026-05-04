@@ -155,6 +155,10 @@ abbrev OdeSystem := List ODE
 def OdeSystem.assignables (system : OdeSystem) : Finset Assignable :=
   (List.map ODE.var system).toFinset
 
+def OdeSystem.terms (system : OdeSystem) : Finset Term :=
+  (List.map ODE.term system).toFinset
+
+
 mutual
 inductive Program : Type where
   | const   : ProgramSymbol → Program

@@ -9,7 +9,7 @@ open Semantics
 
 inductive SubstEntry : Type where
   | fn : (f : FunctionSymbol) → Term → SubstEntry
-  | pred : (p : PredicateSymbol) → (TermVector p.arity → Formula) → SubstEntry
+  | pred : (p : PredicateSymbol) → Formula → SubstEntry
   | prog : (a : ProgramSymbol) → Program → SubstEntry
 
 def SubstEntry.symbol : SubstEntry → Symbol
@@ -20,7 +20,7 @@ def SubstEntry.symbol : SubstEntry → Symbol
 /-- Decidable version. -/
 def SubstEntry.freeVars : SubstEntry → FCSet Assignable
   | .fn _ rhs => rhs |> Term.freeVars |> .Finite
-  | .pred p rhs => rhs (Term.dots p.arity) |> Formula.freeVars'
+  | .pred _ rhs => rhs |> Formula.freeVars'
   | .prog _ _ => ∅
 
 def Subst.Nodup (σ : List SubstEntry) : Prop :=
@@ -52,7 +52,7 @@ termination_by
 
 def Symbol.SubstType : Symbol → Type
   | .Function _ => Term
-  | .Predicate p => TermVector p.arity → Formula
+  | .Predicate _ => Formula
   | .Program _ => _root_.Program
 
 def SubstEntry.rhs (e : SubstEntry) : e.symbol.SubstType :=
@@ -63,7 +63,7 @@ def SubstEntry.rhs (e : SubstEntry) : e.symbol.SubstType :=
 
 def Symbol.default : (symbol : Symbol) → symbol.SubstType
   | .Function f => Term.applyFn (.sym f) (Term.dots f.arity)
-  | .Predicate p => Formula.applyPred p
+  | .Predicate p => Formula.applyPred p (Term.dots p.arity)
   | .Program a => Program.const a
 
 def Subst.get (σ : Subst) (symbol : Symbol) : symbol.SubstType :=
@@ -282,7 +282,17 @@ def Formula.applySubst (σ : Subst) (Φ : Formula) : Option Formula := match Φ 
       return .ref (← α.applySubst σ) (← β.applySubst σ)
   | .applyPred p args => do
       let sargs ← TermVector.applySubst σ args
-      Subst.get σ p sargs
+      if (.Predicate p) ∈ σ then
+        Formula.applySubst (sargs.toSubst) (Subst.get σ p)
+      else
+        return .applyPred p sargs
+termination_by (σ.size, Φ.size)
+decreasing_by
+all_goals (try simp_all[Formula.size] ; grind)
+next hin =>
+  rw[TermVector.toSubst_size sargs]
+  apply Subst.symbol_size at hin
+  grind only [= Prod.lex_def]
 
 def Program.applySubst (σ : Subst) (α : Program) : Option Program := match α with
   | .assign x t   => return .assign x (← t.applySubst σ)
@@ -310,6 +320,9 @@ def Program.applySubst (σ : Subst) (α : Program) : Option Program := match α 
     guard <| σ.admissible σα.boundVars' α.signature
     return .loop σα
   | .const a      => return Subst.get σ a
+termination_by (σ.size, α.size)
+decreasing_by
+all_goals (simp_all[Program.size] ; grind)
 
 end
 
@@ -340,8 +353,7 @@ noncomputable def Subst.adjoint (σ : Subst)
             exact ContDiff.comp hg hf
         ⟩
       | .Predicate p =>
-        let dots := Term.dots p.arity
-        let Φ := σ.get (.Predicate p) dots
+        let Φ := σ.get (.Predicate p)
         fun args ↦
           let idots := i.assignDots args
           v ∈ Formula.denote idots Φ
@@ -381,7 +393,7 @@ lemma Subst.get_fn_head {σ : Subst}
 
 lemma Subst.get_pred_head {σ : Subst}
                           {p : PredicateSymbol}
-                          {rhs : TermVector p.arity → Formula}
+                          {rhs : Formula}
                           {h : Subst.Nodup (.pred p rhs :: σ.1)}
                           : Subst.get ⟨.pred p rhs :: σ.1, h⟩ (Symbol.Predicate p) = rhs := by
   simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
@@ -492,7 +504,7 @@ termination_by
 
 theorem Subst.free_vars_subset_pred {σ : Subst}
                                     {p : PredicateSymbol}
-                                    : ((σ.get p (Term.dots p.arity)).freeVars : Set Assignable)
+                                    : ((σ.get p).freeVars : Set Assignable)
                                     ⊆ σ.freeVars (some {.Predicate p}) := by
   match σ with
     | ⟨.nil, _⟩ => simp[Subst.get, Symbol.default, Formula.freeVars]
@@ -509,7 +521,7 @@ theorem Subst.free_vars_subset_pred {σ : Subst}
             simp_all[SubstEntry.symbol]
             cases h
             simp_all[σ', Subst.freeVars, SubstEntry.freeVars, SubstEntry.rhs]
-            rw[Formula.free_vars_decidable (rhs (Term.dots p.arity))]
+            rw[Formula.free_vars_decidable (rhs)]
             simp
       .
         have := @Subst.free_vars_tail σ' x hnodup
@@ -569,9 +581,9 @@ theorem Subst.admissible_get_pred_subset {σ : Subst}
                                          (p : PredicateSymbol)
                                          (hp : .Predicate p ∈ S)
                                          (hA : Subst.admissible σ U S)
-  : ((Subst.get σ p (Term.dots p.arity)).freeVars : Set _) ⊆ (U : Set Assignable)ᶜ := by
+  : ((Subst.get σ p).freeVars : Set _) ⊆ (U : Set Assignable)ᶜ := by
   simp[Subst.admissible] at hA
-  calc ↑(σ.get (.Predicate p) (Term.dots p.arity)).freeVars
+  calc ↑(σ.get (.Predicate p)).freeVars
     _ ⊆ (σ.freeVars (some {.Predicate p})).toSet :=
       Subst.free_vars_subset_pred
     _ ⊆ (σ.freeVars (some S)).toSet :=
