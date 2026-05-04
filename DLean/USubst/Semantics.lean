@@ -1237,7 +1237,7 @@ theorem US_rule {σ : Subst}
     apply h₁ (Subst.adjoint σ i v) (?_) v
     intros w Φ hp
     have := Subst.preserve_semantics.formula σ i w Φ.1 Φ.2 (by grind)
-    have := Subst.free_vars_subset σ (Φ.1).signature
+    have := Subst.freeVars_symbol_subset_none (σ := σ) (S := (Φ.1).signature)
     have := Subst.admissible_adjoint.formula
               (Φ := Φ.1) (i := i) (σ := σ)
               (v := v) (w := w) (U := .univ)

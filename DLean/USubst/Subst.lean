@@ -50,19 +50,6 @@ def Subst.freeVars (σ : Subst) (S : Option (Finset Symbol)) : FCSet Assignable 
 termination_by
   σ.1
 
-theorem Subst.free_vars_subset
-  (σ : Subst)
-  (S : Finset Symbol)
-  : (Subst.freeVars σ S : Set Assignable) ⊆ Subst.freeVars σ .none := by
-  match σ with
-    | ⟨.nil, _⟩ => simp_all[Subst.freeVars]
-    | ⟨.cons s σ', hs⟩ =>
-      have := Subst.free_vars_subset ⟨σ', Subst.tail_nodup hs⟩  S
-      simp_all[Subst.freeVars]
-      grind
-termination_by
-  σ.1
-
 def Symbol.SubstType : Symbol → Type
   | .Function _ => Term
   | .Predicate _ => Formula
