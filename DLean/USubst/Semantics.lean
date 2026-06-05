@@ -992,6 +992,10 @@ theorem Subst.preserve_semantics.program
         simp_all[Program.denote]
         have := Subst.preserve_semantics.term σ i v t t'
         grind
+      | .random x =>
+        simp[Program.applySubst] at hs
+        rw[hs]
+        simp only [Program.denote]
       | .test Φ =>
         simp_all[Program.denote, Program.applySubst, Option.bind]
         split at hs

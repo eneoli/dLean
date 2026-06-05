@@ -296,6 +296,7 @@ next hin =>
 
 def Program.applySubst (σ : Subst) (α : Program) : Option Program := match α with
   | .assign x t   => return .assign x (← t.applySubst σ)
+  | .random x     => return .random x
   | .test Φ       => return .test (← Φ.applySubst σ)
   | .ode system Ψ => do
     let vars := (system.map ODE.var).toFinset
@@ -845,6 +846,8 @@ theorem Subst.admissible_adjoint.program {v w : State}
         intros μ
         apply Subst.admissible_adjoint.term hA hS
       simp_all[Program.denote]
+    | .random x =>
+      simp only [Program.denote]
     | .test Φ =>
       simp[Program.denote]
       simp only [Program.signature] at hA

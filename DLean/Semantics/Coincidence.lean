@@ -293,6 +293,11 @@ theorem Program.coincidence (α  : Program)
       simp only [Program.mustBoundVars, Program.boundVars]
       simp only [Program.signature] at h2
       simp_all only [State.eq_on_extends_if_update]
+    | .random a =>
+      simp only [Program.denote, Program.mustBoundVars, Program.boundVars, Set.mem_setOf_eq]
+      simp only [Program.freeVars] at hs
+      refine (fun h1 h2 w ⟨r, h⟩ ↦ ⟨v'.update a r, ⟨r, rfl⟩, ?_⟩)
+      simp_all only [State.eq_on_extends_if_update]
     | .test Ψ =>
       simp[Program.denote, Program.mustBoundVars, Program.boundVars]
       simp[Program.freeVars] at hs

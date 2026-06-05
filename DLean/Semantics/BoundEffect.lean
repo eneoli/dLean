@@ -16,6 +16,8 @@ theorem Program.bound_effect {α : Program}
       simp [Program.boundVars, State.isEqExcept]
   | .assign a t =>
       simp_all[Program.boundVars, Program.denote, State.isEqExcept, Set.EqOn]
+  | .random a =>
+      simp_all[Program.boundVars, Program.denote, State.isEqExcept, Set.EqOn]
   | .test ψ =>
       simp_all[Program.boundVars, Program.denote, State.isEqExcept]
   | .choice α β =>

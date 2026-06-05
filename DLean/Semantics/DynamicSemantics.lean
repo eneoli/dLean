@@ -76,6 +76,7 @@ def Program.denote (i : Interpretation) (α : Program) : SetRel State State := m
   | Program.const a       => i (Symbol.Program a)
   | Program.test Φ        => {(s, s) | s ∈ Φ.denote i}
   | Program.assign x t    => {(s₁, s₂) | s₂ = s₁.update x (t.denote i s₁)}
+  | Program.random x      => {(s₁, s₂) | ∃r:ℝ, s₂ = s₁.update x r}
   | Program.choice α₁ α₂  => (α₁.denote i) ∪ (α₂.denote i)
   | Program.seq α₁ α₂     => (α₁.denote i).comp (α₂.denote i)
   | Program.loop α        => {⟨s₁, s₂⟩ | LoopClosure (α.denote i) s₁ s₂}
