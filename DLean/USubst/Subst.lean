@@ -212,33 +212,33 @@ termination_by
 
 mutual
 
-def TermVector.applySubst {n : ℕ} (σ : Subst) (ts : TermVector n) : Option (TermVector n) :=
+def TermVector.applySubst {n : ℕ} (σ : Subst) (U : FCSet Assignable) (ts : TermVector n) : Option (TermVector n) :=
   match ts with
     | .nil => pure .nil
     | .cons t ts => do
-      return .cons (← Term.applySubst σ t) (← TermVector.applySubst σ ts)
+      return .cons (← Term.applySubst σ U t) (← TermVector.applySubst σ U ts)
 termination_by (σ.size, sizeOf ts)
 decreasing_by
 all_goals simp_wf
 all_goals grind only [= Prod.lex_def]
 
 
-def Term.applySubst (σ : Subst) (t : Term) : Option Term :=
+def Term.applySubst (σ : Subst) (U : FCSet Assignable) (t : Term) : Option Term :=
   match t with
     | .var x  => return .var x
-    | .neg t' => do return .neg (← Term.applySubst σ t')
-    | .plus t₁ t₂ => do return .plus (← Term.applySubst σ t₁) (← Term.applySubst σ t₂)
-    | .times t₁ t₂ => do return .times (← Term.applySubst σ t₁) (← Term.applySubst σ t₂)
+    | .neg t' => do return .neg (← Term.applySubst σ U t')
+    | .plus t₁ t₂ => do return .plus (← Term.applySubst σ U t₁) (← Term.applySubst σ U t₂)
+    | .times t₁ t₂ => do return .times (← Term.applySubst σ U t₁) (← Term.applySubst σ U t₂)
     | .differential t => do
-        guard <| σ.admissible .univ t.signature
-        return .differential (← Term.applySubst σ t)
-    | .applyFn (.num n) args => do
-        let sargs ← TermVector.applySubst σ args
-        return .applyFn (.num n) sargs
+        return .differential (← Term.applySubst σ .univ t)
+    | .applyFn (.num _) _ => do
+        -- let sargs ← TermVector.applySubst σ U args
+        return t
     | .applyFn (.sym f) args => do
-        let sargs ← TermVector.applySubst σ args
+        let sargs ← TermVector.applySubst σ U args
         if (.Function f) ∈ σ then
-          Term.applySubst (sargs.toSubst) (Subst.get σ f)
+          guard <| .Finite (Subst.get σ f).freeVars ∩ U = ∅
+          Term.applySubst (sargs.toSubst) ∅ (Subst.get σ f)
         else
           return .applyFn (.sym f) sargs
 
@@ -258,8 +258,8 @@ mutual
 def Formula.applySubst (σ : Subst) (Φ : Formula) : Option Formula := match Φ with
   | .True
   | .False            => Φ
-  | .eq t₁ t₂         => do return .eq (← t₁.applySubst σ) (← t₂.applySubst σ)
-  | .gte t₁ t₂        => do return .gte (← t₁.applySubst σ) (← t₂.applySubst σ)
+  | .eq t₁ t₂         => do return .eq (← t₁.applySubst σ ∅) (← t₂.applySubst σ ∅)
+  | .gte t₁ t₂        => do return .gte (← t₁.applySubst σ ∅) (← t₂.applySubst σ ∅)
   | .not Φ'           => do return .not (← Φ'.applySubst σ)
   | .and Φ₁ Φ₂        => do return .and (← Φ₁.applySubst σ) (← Φ₂.applySubst σ)
   | .forall x Φ       => do
@@ -281,7 +281,7 @@ def Formula.applySubst (σ : Subst) (Φ : Formula) : Option Formula := match Φ 
   | .ref α β          => do
       return .ref (← α.applySubst σ) (← β.applySubst σ)
   | .applyPred p args => do
-      let sargs ← TermVector.applySubst σ args
+      let sargs ← TermVector.applySubst σ ∅ args
       if (.Predicate p) ∈ σ then
         Formula.applySubst (sargs.toSubst) (Subst.get σ p)
       else
@@ -295,7 +295,7 @@ next hin =>
   grind only [= Prod.lex_def]
 
 def Program.applySubst (σ : Subst) (α : Program) : Option Program := match α with
-  | .assign x t   => return .assign x (← t.applySubst σ)
+  | .assign x t   => return .assign x (← t.applySubst σ ∅)
   | .random x     => return .random x
   | .test Φ       => return .test (← Φ.applySubst σ)
   | .ode system Ψ => do
@@ -307,7 +307,7 @@ def Program.applySubst (σ : Subst) (α : Program) : Option Program := match α 
     guard <| σ.admissible (.Finite (vars ∪ vars')) Ψ.signature
     guard <| terms.all (σ.admissible (.Finite (vars ∪ vars')) ∘ Term.signature)
 
-    let ssystem ← system.mapM (fun {var, term} => do return ODE.mk var (← Term.applySubst σ term))
+    let ssystem ← system.mapM (fun {var, term} => do return ODE.mk var (← Term.applySubst σ ∅ term))
     return .ode ssystem σΨ
   | .choice α β   => return .choice (← α.applySubst σ) (← β.applySubst σ)
   | .seq α β      => do
