@@ -255,35 +255,32 @@ end
 
 mutual
 
-def Formula.applySubst (σ : Subst) (Φ : Formula) : Option Formula := match Φ with
+def Formula.applySubst (σ : Subst) (U : FCSet Assignable) (Φ : Formula) : Option Formula := match Φ with
   | .True
   | .False            => Φ
-  | .eq t₁ t₂         => do return .eq (← t₁.applySubst σ ∅) (← t₂.applySubst σ ∅)
-  | .gte t₁ t₂        => do return .gte (← t₁.applySubst σ ∅) (← t₂.applySubst σ ∅)
-  | .not Φ'           => do return .not (← Φ'.applySubst σ)
-  | .and Φ₁ Φ₂        => do return .and (← Φ₁.applySubst σ) (← Φ₂.applySubst σ)
+  | .eq t₁ t₂         => do return .eq (← t₁.applySubst σ U) (← t₂.applySubst σ U)
+  | .gte t₁ t₂        => do return .gte (← t₁.applySubst σ U) (← t₂.applySubst σ U)
+  | .not Φ'           => do return .not (← Φ'.applySubst σ U)
+  | .and Φ₁ Φ₂        => do return .and (← Φ₁.applySubst σ U) (← Φ₂.applySubst σ U)
   | .forall x Φ       => do
-      guard <| σ.admissible {.var x} Φ.signature
-      return .forall x (← Φ.applySubst σ)
+      return .forall x (← Φ.applySubst σ ({.var x} ∪ U))
   | .exists x Φ       => do
-      guard <| σ.admissible {.var x} Φ.signature
-      return .exists x (← Φ.applySubst σ)
+      return .exists x (← Φ.applySubst σ ({.var x} ∪ U))
   | .diamond α Φ      => do
-      let σα ← α.applySubst σ
-
-      guard <| σ.admissible σα.boundVars' Φ.signature
-      return .diamond σα (← Φ.applySubst σ)
+      let σα ← α.applySubst σ U
+      let V := σα.boundVars' ∪ U
+      return .diamond σα (← Φ.applySubst σ V)
   | .box α Φ          => do
-      let σα ← α.applySubst σ
-
-      guard <| σ.admissible σα.boundVars' Φ.signature
-      return .box (← α.applySubst σ) (← Φ.applySubst σ)
+      let σα ← α.applySubst σ U
+      let V := σα.boundVars' ∪ U
+      return .box σα (← Φ.applySubst σ V)
   | .ref α β          => do
-      return .ref (← α.applySubst σ) (← β.applySubst σ)
+      return .ref (← α.applySubst σ U) (← β.applySubst σ U)
   | .applyPred p args => do
-      let sargs ← TermVector.applySubst σ ∅ args
+      let sargs ← TermVector.applySubst σ U args
       if (.Predicate p) ∈ σ then
-        Formula.applySubst (sargs.toSubst) (Subst.get σ p)
+        guard <| (Subst.get σ p).freeVars' ∩ U = ∅
+        Formula.applySubst (sargs.toSubst) ∅ (Subst.get σ p)
       else
         return .applyPred p sargs
 termination_by (σ.size, Φ.size)
@@ -294,32 +291,28 @@ next hin =>
   apply Subst.symbol_size at hin
   grind only [= Prod.lex_def]
 
-def Program.applySubst (σ : Subst) (α : Program) : Option Program := match α with
-  | .assign x t   => return .assign x (← t.applySubst σ ∅)
+def Program.applySubst (σ : Subst) (U : FCSet Assignable) (α : Program) : Option Program := match α with
+  | .assign x t   => return .assign x (← t.applySubst σ U)
   | .random x     => return .random x
-  | .test Φ       => return .test (← Φ.applySubst σ)
+  | .test Φ       => return .test (← Φ.applySubst σ U)
   | .ode system Ψ => do
     let vars := (system.map ODE.var).toFinset
     let vars' := vars.map Assignable.diff_emb
-    let terms := system.map ODE.term
-    let σΨ ← Ψ.applySubst σ
+    let V := (.Finite (vars ∪ vars')) ∪ U
+    let σΨ ← Ψ.applySubst σ V
 
-    guard <| σ.admissible (.Finite (vars ∪ vars')) Ψ.signature
-    guard <| terms.all (σ.admissible (.Finite (vars ∪ vars')) ∘ Term.signature)
-
-    let ssystem ← system.mapM (fun {var, term} => do return ODE.mk var (← Term.applySubst σ ∅ term))
+    let ssystem ← system.mapM (fun {var, term} => do return ODE.mk var (← Term.applySubst σ V term))
     return .ode ssystem σΨ
-  | .choice α β   => return .choice (← α.applySubst σ) (← β.applySubst σ)
+  | .choice α β   => return .choice (← α.applySubst σ U) (← β.applySubst σ U)
   | .seq α β      => do
-    let σα ← α.applySubst σ
-
-    guard <| σ.admissible σα.boundVars' β.signature
-    return .seq σα (← β.applySubst σ)
+    let σα ← α.applySubst σ U
+    let V := σα.boundVars' ∪ U
+    return .seq σα (← β.applySubst σ V)
   | .loop α       => do
-    let σα ← α.applySubst σ
-
-    guard <| σ.admissible σα.boundVars' α.signature
-    return .loop σα
+    let σα ← α.applySubst σ U
+    let V := σα.boundVars' ∪ U
+    let σα' ← α.applySubst σ V
+    return .loop σα'
   | .const a      => return Subst.get σ a
 termination_by (σ.size, α.size)
 decreasing_by
@@ -884,4 +877,158 @@ decreasing_by
 
 end
 
+/- Proof that applySubst's output does not on the taboo, as long as it does not clash. -/
+mutual
+
+lemma TermVector.applySubst_unique {σ : Subst} {U V : FCSet Assignable} {n : ℕ} {ts ts₁ ts₂ : TermVector n} :
+  ts.applySubst σ U = ts₁ → ts.applySubst σ V = ts₂ → ts₁ = ts₂ := by
+  match n with
+  | 0 => match ts with
+    | .nil =>
+      simp_all[TermVector.applySubst]
+  | n+1 => match ts with
+    | .cons t ts' =>
+      simp_all[TermVector.applySubst, Option.bind_eq_some_iff]
+      intro _ h₁ _ h₁' _ _ h₂ _ h₂'
+      have := Term.applySubst_unique h₁ h₂
+      have := TermVector.applySubst_unique h₁' h₂'
+      grind only
+
+lemma Term.applySubst_unique {σ : Subst} {U V : FCSet Assignable} {t t₁ t₂ : Term} :
+  t.applySubst σ U = t₁ → t.applySubst σ V = t₂ → t₁ = t₂ := by
+  match t with
+  | .var _
+  | .applyFn (Fn.num _) _
+  | .differential _ =>
+    grind only [Term.applySubst]
+  | .neg _ =>
+    simp[Term.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ _ h₂
+    have := Term.applySubst_unique h₁ h₂
+    grind only
+  | .plus _ _
+  | .times _ _ =>
+    simp[Term.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ h₁' _ _ h₂ _ h₂'
+    have := Term.applySubst_unique h₁ h₂
+    have := Term.applySubst_unique h₁' h₂'
+    grind only
+  | .applyFn (Fn.sym _) _ =>
+    simp[Term.applySubst, Option.bind_eq_some_iff]
+    intro _ hθ₁ h₁ _ hθ₂ h₂
+    have := TermVector.applySubst_unique hθ₁ hθ₂
+    rw[this] at h₁
+    split at h₁
+    . simp_all[Option.bind]
+      split at h₁
+      . contradiction
+      split at h₂
+      . contradiction
+      simp_all
+    . simp_all
+end
+
+lemma ode_mapM_applySubst_unique {σ : Subst} {U V : FCSet Assignable} {sys sys₁ sys₂ : OdeSystem} :
+  sys.mapM (fun x => do return ODE.mk x.var (← Term.applySubst σ U x.term)) = some sys₁ →
+  sys.mapM (fun x => do return ODE.mk x.var (← Term.applySubst σ V x.term)) = some sys₂ →
+  sys₁ = sys₂ := by
+  match sys with
+  | .nil =>
+    simp_all
+  | .cons _ _ =>
+    simp_all[Option.bind_eq_some_iff]
+    intro _ h₁ _ h₁' _ _ h₂ _ h₂'
+    have := Term.applySubst_unique h₁ h₂
+    have := ode_mapM_applySubst_unique h₁' h₂'
+    grind only
+
+mutual
+lemma Formula.applySubst_unique {σ : Subst} {U V : FCSet Assignable} {φ ψ₁ ψ₂ : Formula} :
+  φ.applySubst σ U = ψ₁ → φ.applySubst σ V = ψ₂ → ψ₁ = ψ₂ := by
+  match φ with
+  | .True
+  | .False =>
+    grind only [Formula.applySubst]
+  | .gte _ _
+  | .eq _ _ =>
+    simp[Formula.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ h₁' _ _ h₂ _ h₂'
+    have := Term.applySubst_unique h₁ h₂
+    have := Term.applySubst_unique h₁' h₂'
+    grind only
+  | .not _
+  | .exists _ _
+  | .forall _ _ =>
+    simp[Formula.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ _ h₂
+    have := Formula.applySubst_unique h₁ h₂
+    grind only
+  | .and _ _ =>
+    simp[Formula.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ h₁' _ _ h₂ _ h₂'
+    have := Formula.applySubst_unique h₁ h₂
+    have := Formula.applySubst_unique h₁' h₂'
+    grind only
+  | .box _ _
+  | .diamond _ _ =>
+    simp[Formula.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ h₁' _ _ h₂ _ h₂'
+    have := Program.applySubst_unique h₁ h₂
+    have := Formula.applySubst_unique h₁' h₂'
+    grind only
+  | .ref _ _ =>
+    simp[Formula.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ h₁' _ _ h₂ _ h₂'
+    have := Program.applySubst_unique h₁ h₂
+    have := Program.applySubst_unique h₁' h₂'
+    grind only
+  | .applyPred _ _ =>
+    simp[Formula.applySubst, Option.bind_eq_some_iff]
+    intro _ hθ₁ h₁ _ hθ₂ h₂
+    have := TermVector.applySubst_unique hθ₁ hθ₂
+    rw[this] at h₁
+    split at h₁
+    . simp_all[Option.bind]
+      split at h₁
+      . contradiction
+      split at h₂
+      . contradiction
+      simp_all
+    . simp_all
+
+lemma Program.applySubst_unique {σ : Subst} {U V : FCSet Assignable} {α β₁ β₂ : Program} :
+  α.applySubst σ U = β₁ → α.applySubst σ V = β₂ → β₁ = β₂ := by
+  match α with
+  | .const _
+  | .random _ =>
+    grind only [Program.applySubst]
+  | .test _ =>
+    simp[Program.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ _ h₂
+    have := Formula.applySubst_unique h₁ h₂
+    grind only
+  | .assign _ _ =>
+    simp[Program.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ _ h₂
+    have := Term.applySubst_unique h₁ h₂
+    grind only
+  | .seq _ _
+  | .choice _ _ =>
+    simp[Program.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ h₁' _ _ h₂ _ h₂'
+    have := Program.applySubst_unique h₁ h₂
+    have := Program.applySubst_unique h₁' h₂'
+    grind only
+  | .loop _ =>
+    simp[Program.applySubst, Option.bind_eq_some_iff]
+    intro _ _ _ h₁' _ _ _ _ h₂'
+    have := Program.applySubst_unique h₁' h₂'
+    grind only
+  | .ode _ _ =>
+    simp[Program.applySubst, Option.bind_eq_some_iff]
+    intro _ h₁ _ h₁' _ _ h₂ _ h₂'
+    have := Formula.applySubst_unique h₁ h₂
+    have := ode_mapM_applySubst_unique h₁' h₂'
+    grind only
+end
 end Theorems
