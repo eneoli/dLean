@@ -63,13 +63,19 @@ def FunctionSymbol.arity : FunctionSymbol → ℕ
   | .dot _ => 0
   | .udef _ n => n
 
+-- In the theory: "f(ȳ)"
+structure UnitFunctional : Type where
+  name : String
+deriving Repr, DecidableEq, BEq
+
 inductive Fn : Type where
   | num :  ℚ → Fn
   | sym : FunctionSymbol → Fn
+  | unit : UnitFunctional → Fn
 deriving Repr, DecidableEq, BEq
 
 abbrev Fn.arity (f : Fn) : ℕ := match f with
-  | .num _ => 0
+  | .num _ | .unit _ => 0
   | .sym s => s.arity
 
 structure PredicateSymbol : Type where

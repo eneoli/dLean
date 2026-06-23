@@ -12,11 +12,15 @@ open Semantics
 inductive Symbol where
   | Predicate : PredicateSymbol → Symbol
   | Function  : FunctionSymbol  → Symbol
+  | UnitFun   : UnitFunctional  → Symbol
   | Program   : ProgramSymbol   → Symbol
 deriving Repr, DecidableEq, BEq
 
 instance : Coe FunctionSymbol Symbol where
   coe := Symbol.Function
+
+instance : Coe UnitFunctional Symbol where
+  coe := Symbol.UnitFun
 
 instance : Coe PredicateSymbol Symbol where
   coe := Symbol.Predicate
@@ -27,13 +31,14 @@ instance : Coe ProgramSymbol Symbol where
 abbrev Symbol.arity : Symbol → ℕ
   | .Predicate p => p.arity
   | .Function f => f.arity
-  | .Program _ => 0
+  | .UnitFun _ | .Program _ => 0
 
 mutual
 
 def Function.signature : (f : Fn) → Finset Symbol
   | .num _ => ∅
   | .sym f => {Symbol.Function f}
+  | .unit f => {Symbol.UnitFun f}
 
 def Term.signature (t : Term) : Finset Symbol := match t with
   | Term.var _           => ∅
@@ -86,6 +91,7 @@ open scoped ContDiff
 
 def Interpretation.ReturnType : (symbol : Symbol) → Type
   | Symbol.Function  f => {g : (Fin f.arity → ℝ) → ℝ // ContDiff ℝ ∞ g}
+  | Symbol.UnitFun   _ => Σ x : Finset Assignable, {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}
   | Symbol.Predicate p => (Fin p.arity → ℝ) → Prop
   | Symbol.Program   _ => State × State → Prop
 
@@ -94,6 +100,7 @@ def Interpretation : Type := (s : Symbol) → Interpretation.ReturnType s
 def Interpretation.empty : Interpretation
   | Symbol.Predicate _ => fun _ => False
   | Symbol.Function  _ => ⟨fun _  => (0 : ℝ), contDiff_const⟩
+  | Symbol.UnitFun   _ => ⟨∅, fun _ => (0 : ℝ), contDiff_const⟩
   | Symbol.Program   _ => fun _ => False
 
 def Interpretation.assignDots {n : ℕ}

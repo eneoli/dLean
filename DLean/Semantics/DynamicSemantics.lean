@@ -17,14 +17,15 @@ noncomputable def Term.denote (i : Interpretation) (s : State) (t : Term) : ℝ 
     | Term.plus x y       => denote i s x + denote i s y
     | Term.times x y      => denote i s x * denote i s y
     | Term.applyFn f args =>
-      let argValues := Vector.map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
       match _ : f with
         | .num num   => num
         | .sym fnSym =>
+          let argValues := Vector.map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
           have : f.arity = fnSym.arity := by simp_all only [Fn.arity]
           (i (Symbol.Function fnSym)).1 (argValues[·])
+        | .unit fUnit => (i (.UnitFun fUnit)).2.1 (fun ⟨x,_⟩ ↦ s x)
     | Term.differential t =>
-      ∑ x ∈ t.freeVars, s (Assignable.diff x) *
+      ∑ x ∈ t.freeVarsSem i, s (Assignable.diff x) *
                         (
                           deriv (
                             fun y => denote i (
@@ -138,6 +139,13 @@ section Theorems
 
 open scoped ContDiff
 
+lemma assignDots_freeVarsSem {n : ℕ} (i : Interpretation) (t : Term) (dots : Fin n → ℝ) : t.freeVarsSem (i.assignDots dots) = t.freeVarsSem i := by
+  match t with
+  | .applyFn (.unit f) _ => simp[Term.freeVarsSem, Interpretation.assignDots]
+  | .var _ => simp[Term.freeVarsSem]
+  | .plus _ _ => simp[Term.freeVarsSem]; sorry
+  | _ => sorry
+
 -- We cannot parameterize the function over entire states as the (euclidian) norm could
 -- be possibly infinite. In theory there is something called L∞ norm but NormedAddCommGroup
 -- requires us to return a real number. Also I'm not sure if the set of assignables is *countable*
@@ -204,8 +212,16 @@ theorem Term.contDiff {n : ℕ}
         .
           apply contDiff_pi.mpr
           exact fun x ↦ @Term.contDiff n i v A fargs.toVector[x]
+      | .unit f =>
+        simp[Term.denote, Interpretation.assignDots]
+        apply contDiff_dep_app
+        . apply ContDiff.snd'
+          exact (i (Symbol.UnitFun f)).snd.2
+        . apply contDiff_pi.mpr
+          intro _
+          apply ContDiff.comp State.finUpdate_contDiff contDiff_snd
   | .differential t =>
-    simp[Term.denote]
+    simp[Term.denote, assignDots_freeVarsSem]
     apply ContDiff.sum
     intros a ha
     apply ContDiff.mul

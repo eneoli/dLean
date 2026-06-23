@@ -2,7 +2,7 @@ import DLean.Syntax.Definitions
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.DynamicSemantics
-import DLean.Semantics.Coincidence
+-- import DLean.Semantics.Coincidence
 import DLean.Util.FCSet
 
 open Semantics
@@ -51,7 +51,7 @@ termination_by
   σ.1
 
 def Symbol.SubstType : Symbol → Type
-  | .Function _ => Term
+  | .Function _ | .UnitFun _ => Term
   | .Predicate _ => Formula
   | .Program _ => _root_.Program
 
@@ -63,6 +63,7 @@ def SubstEntry.rhs (e : SubstEntry) : e.symbol.SubstType :=
 
 def Symbol.default : (symbol : Symbol) → symbol.SubstType
   | .Function f => Term.applyFn (.sym f) (Term.dots f.arity)
+  | .UnitFun f => Term.applyFn (.unit f) TermVector.nil
   | .Predicate p => Formula.applyPred p (Term.dots p.arity)
   | .Program a => Program.const a
 
@@ -241,6 +242,8 @@ def Term.applySubst (σ : Subst) (U : FCSet Assignable) (t : Term) : Option Term
           Term.applySubst (sargs.toSubst) ∅ (Subst.get σ f)
         else
           return .applyFn (.sym f) sargs
+    | .applyFn (.unit F) _ => do
+        return Subst.get σ F
 
 termination_by (σ.size, sizeOf t)
 decreasing_by
@@ -367,6 +370,17 @@ noncomputable def Subst.adjoint (σ : Subst)
         fun args ↦
           let idots := i.assignDots args
           v ∈ Formula.denote idots Φ
+      | .UnitFun F =>
+        let T := σ.get (.UnitFun F)
+        let fv := T.freeVarsSem i
+        ⟨fv, fun s' ↦ T.denote i (State.zero.finUpdate s'), by
+          have hg := @Term.contDiff 0 i State.zero fv T
+          simp at hg
+          have hf : ContDiff ℝ ∞ (fun x ↦ (⟨fun _ ↦ 0, x⟩ :
+            (Fin 0 → ℝ) × ({a // a ∈ fv} → ℝ))) :=
+              contDiff_prodMk_right (fun _ ↦ 0)
+          exact ContDiff.comp hg hf
+          ⟩
       | .Program a =>
           Program.denote i (σ.get a)
 

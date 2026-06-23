@@ -7,7 +7,7 @@ import DLean.Semantics.MustBoundVariables
 
 section Term
 
-mutual
+mutual -- makes Set version + FCSet decidable version
 
 def Term.freeVars : (t : Term) → Finset Assignable
   | Term.var  v         => {v}
@@ -16,12 +16,32 @@ def Term.freeVars : (t : Term) → Finset Assignable
   | Term.times t₁ t₂    => Term.freeVars t₁ ∪ Term.freeVars t₂
   | Term.differential t => let fvars := Term.freeVars t;
                            fvars ∪ Finset.map Assignable.diff_emb fvars
-  | Term.applyFn _ ts   => ts.freeVars
+  | Term.applyFn _ ts   => ts.freeVars -- now wrong. is .univ for .unit
 
 def TermVector.freeVars {n : ℕ}
                         (ts : TermVector n)
                         : Finset Assignable :=
   unionListOfFinsets (List.map (fun ⟨t, _⟩ => Term.freeVars t) ts.toList.attach)
+
+end
+
+mutual -- Semantic definition (for differential and adjoint)
+
+def Term.freeVarsSem (i : Interpretation) : (t : Term) → Finset Assignable
+  | Term.var  v         => {v}
+  | Term.neg  t'        => Term.freeVarsSem i t'
+  | Term.plus  t₁ t₂
+  | Term.times t₁ t₂    => Term.freeVarsSem i t₁ ∪ Term.freeVarsSem i t₂
+  | Term.differential t => let fvars := Term.freeVarsSem i t;
+                           fvars ∪ Finset.map Assignable.diff_emb fvars
+  | Term.applyFn (.unit f) _ => (i f).1
+  | Term.applyFn _ ts   => ts.freeVarsSem i
+
+def TermVector.freeVarsSem {n : ℕ}
+                        (i : Interpretation)
+                        (ts : TermVector n)
+                        : Finset Assignable :=
+  unionListOfFinsets (List.map (fun ⟨t, _⟩ => Term.freeVarsSem i t) ts.toList.attach)
 
 end
 
