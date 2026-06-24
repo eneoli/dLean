@@ -16,7 +16,7 @@ def Term.freeVars : (t : Term) → Finset Assignable
   | Term.times t₁ t₂    => Term.freeVars t₁ ∪ Term.freeVars t₂
   | Term.differential t => let fvars := Term.freeVars t;
                            fvars ∪ Finset.map Assignable.diff_emb fvars
-  | Term.applyFn _ ts   => ts.freeVars -- now wrong. is .univ for .unit
+  | Term.applyFn _ ts   => ts.freeVars -- now wrong. is f.tabooᶜ for .unit f
 
 def TermVector.freeVars {n : ℕ}
                         (ts : TermVector n)
@@ -34,7 +34,7 @@ def Term.freeVarsSem (i : Interpretation) : (t : Term) → Finset Assignable
   | Term.times t₁ t₂    => Term.freeVarsSem i t₁ ∪ Term.freeVarsSem i t₂
   | Term.differential t => let fvars := Term.freeVarsSem i t;
                            fvars ∪ Finset.map Assignable.diff_emb fvars
-  | Term.applyFn (.unit f) _ => (i f).1
+  | Term.applyFn (.unit f) _ => (i f).1 \ f.taboo.toFinset
   | Term.applyFn _ ts   => ts.freeVarsSem i
 
 def TermVector.freeVarsSem {n : ℕ}

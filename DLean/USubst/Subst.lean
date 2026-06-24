@@ -374,10 +374,10 @@ noncomputable def Subst.adjoint (σ : Subst)
         let T := σ.get (.UnitFun F)
         let fv := T.freeVarsSem i
         ⟨fv, fun s' ↦ T.denote i (State.zero.finUpdate s'), by
-          have hg := @Term.contDiff 0 i State.zero fv T
+          have hg := @Term.contDiff 0 i State.zero (fv \ F.taboo.toFinset) T
           simp at hg
           have hf : ContDiff ℝ ∞ (fun x ↦ (⟨fun _ ↦ 0, x⟩ :
-            (Fin 0 → ℝ) × ({a // a ∈ fv} → ℝ))) :=
+            (Fin 0 → ℝ) × ({a // a ∈ fv \ F.taboo.toFinset} → ℝ))) :=
               contDiff_prodMk_right (fun _ ↦ 0)
           exact ContDiff.comp hg hf
           ⟩

@@ -63,9 +63,10 @@ def FunctionSymbol.arity : FunctionSymbol → ℕ
   | .dot _ => 0
   | .udef _ n => n
 
--- In the theory: "f(ȳ)"
+-- In the theory: "f(ȳ \ sp)" i.e., talks about all but "sp"
 structure UnitFunctional : Type where
   name : String
+  taboo : List Assignable -- List over Finset for deriving Repr
 deriving Repr, DecidableEq, BEq
 
 inductive Fn : Type where
