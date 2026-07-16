@@ -57,9 +57,26 @@ lemma Formula.denote_geq {t₁ t₂} : s ∈ (Formula.gte t₁ t₂).denote i
                                   ↔ t₁.denote i s ≥ t₂.denote i s := by
   simp only [denote, Set.mem_setOf]
 
+lemma Formula.denote_gt {t₁ t₂} : s ∈ (Formula.gt t₁ t₂).denote i
+                                ↔ t₁.denote i s > t₂.denote i s := by
+  simp [gt, denote]
+  grind only
+
+lemma Formula.denote_gte {t₁ t₂} : s ∈ (Formula.gte t₁ t₂).denote i
+                                ↔ t₁.denote i s ≥ t₂.denote i s := by
+  simp [gt, denote]
+
 lemma Formula.denote_leq {t₁ t₂} : s ∈ (Formula.lte t₁ t₂).denote i
                                   ↔ t₁.denote i s ≤ t₂.denote i s := by
   simp only [lte, denote_geq]
+
+lemma Formula.denote_lt {t₁ t₂} : s ∈ (Formula.lt t₁ t₂).denote i
+                                  ↔ t₁.denote i s < t₂.denote i s := by
+  simp only [lt, denote_gt]
+
+lemma Formula.denote_lte {t₁ t₂} : s ∈ (Formula.lte t₁ t₂).denote i
+                                  ↔ t₁.denote i s ≤ t₂.denote i s := by
+  simp only [lte, denote_gte]
 
 -- Formula: to programs
 lemma Formula.denote_box {α Φ} : s ∈ (Formula.box α Φ).denote i
