@@ -2,6 +2,17 @@ import Mathlib.Data.Finset.Image
 import Mathlib.Logic.Embedding.Basic
 import DLean.Syntax.Definitions
 
+section Assignable
+
+@[simp, grind .]
+theorem Assignable.neq_diff : ∀ {x : Assignable}, ¬ x = Assignable.diff x := by
+  intros x
+  induction x
+  . grind
+  . grind
+
+end Assignable
+
 section TermVector
 
 @[simp]
