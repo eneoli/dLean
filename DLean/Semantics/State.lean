@@ -120,6 +120,28 @@ theorem State.eq_except_univ {v : State}
                              : State.isEqExcept v w .univ := by
   simp[State.isEqExcept]
 
+theorem State.update_self {v : State}
+                          {a : Assignable}
+                          {v₁ v₂ : ℝ}
+  : State.update (State.update v a v₁) a v₂ = State.update v a v₂ := by
+  simp[State.update]
+
+theorem State.update_other {v : State}
+                           {a₁ a₂ : Assignable}
+                           {v₁ v₂ : ℝ}
+  : a₁ ≠ a₂
+  → State.update (State.update v a₁ v₁) a₂ v₂ = State.update (State.update v a₂ v₂) a₁ v₁ := by
+  intros h
+  funext x
+  grind
+
+
+theorem AssignableOf.singleton {x : Assignable} (f : AssignableOf {x} → ℝ)
+  : ∃ r : ℝ, f = fun _ ↦ r := by
+    simp_all[AssignableOf]
+    apply Exists.intro (f ⟨x, by grind⟩)
+    grind
+
 @[simp]
 theorem State.finUpdate_empty {v : State}
                               {f : AssignableOf ∅ → ℝ}
@@ -143,7 +165,26 @@ theorem State.finUpdate_extend {v : State}
       funext
       grind[Function.update, State.finUpdate]
 
+theorem State.update_finUpdate {s : State} {x : Assignable} {v : ℝ}
+  : State.finUpdate s (fun _ : AssignableOf {x} ↦ v) = State.update s x v := by
+  funext y
+  simp[State.update, State.finUpdate]
+  grind
+
 open scoped ContDiff
+
+theorem State.update_contDiff (v : State)
+                              (x : Assignable)
+                              (y : Assignable)
+  : ContDiff ℝ ∞ (fun r ↦ (v.update x r) y) := by
+  simp[State.update, Function.update]
+  by_cases h : y = x
+  .
+    simp_all
+    apply contDiff_id
+  .
+    simp_all
+    apply contDiff_const
 
 theorem State.finUpdate_contDiff {v : State}
                                  {A : Finset Assignable}
