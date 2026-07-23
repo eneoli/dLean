@@ -164,6 +164,10 @@ theorem TermVector.generate_toVector (n : ℕ) (i : Fin n) (f : ℕ → Term)
           have := TermVector.generate_toVector n ⟨i, by grind⟩ (f ∘ fun x ↦ x + 1)
           grind
 
+@[simp, grind .]
+theorem term_vector_singleton {t : Term} : (TermVector.cons t TermVector.nil).toVector[0] = t := by cbv
+
+
 end TermVector
 
 section OdeSystem
