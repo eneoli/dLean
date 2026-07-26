@@ -54,7 +54,9 @@ instance {α : Type} : Coe (FCSet α) (Set α) where
   coe := FCSet.toSet
 
 instance {α : Type} : Membership α (FCSet α) where
-  mem A x := x ∈ (A : Set α)
+  mem
+    | .Finite A, x   =>   x ∈ A
+    | .Infinite A, x => ¬ x ∈ A
 
 section Theorems
 

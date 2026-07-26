@@ -1,5 +1,6 @@
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.Deriv.Add
+import Mathlib.Analysis.Calculus.Deriv.Mul
 import Mathlib.Analysis.Calculus.Deriv.Comp
 
 import DLean.Syntax.Syntax
@@ -52,13 +53,22 @@ theorem sum' : sound [Formula| (f(x) + g(x))’ = (f(x))’ + (g(x))’] := by
   . exact diffAux z
   . exact diffAux z
 
+/-- doc -/
+theorem prod' : sound [Formula| (f(x) * g(x))’ = (f(x))’ * g(x) + f(x) * (g(x))’] := by
+  intros i s
+  simpFormula
+  simp[Term.denote, Term.freeVars, TermVector.toVector, FunctionSymbol.arity, Vector.attach, getElem]
+  simp[Vector.get]
+  rw[deriv_fun_mul]
+  . grind
+  . apply diffAux
+  . apply diffAux
 
 /-- doc -/
-theorem comp' : sound [Formula| [y:=g(x);y’:=1]((f(g(x)))’ = (f(y))’*(g(x))’)] := by
+theorem comp' : sound [Formula| [y:=g(x)][y’:=1]((f(g(x)))’ = (f(y))’*(g(x))’)] := by
   intros i s
   simp only [Formula.denote, SetRel.mem_core, Set.mem_setOf_eq]
-  simp only [Program.denote, SetRel.mem_comp, Set.mem_setOf_eq,
-    exists_eq_left, forall_eq]
+  simp only [Program.denote, Set.mem_setOf_eq, forall_eq]
   simp[Term.denote, TermVector.toVector, Term.freeVars, FunctionSymbol.arity, Vector.attach, getElem]
   simp[Vector.get]
 

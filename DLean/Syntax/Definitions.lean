@@ -14,6 +14,8 @@ deriving Repr, DecidableEq, BEq, Inhabited
 
 instance : Coe Variable Assignable where
   coe := Assignable.var
+
+
 protected def Assignable.emb : Nat → Assignable
   | 0 => .var ⟨"a"⟩
   | n + 1 => .diff (.emb n)

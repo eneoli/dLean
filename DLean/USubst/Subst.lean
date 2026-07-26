@@ -86,7 +86,7 @@ termination_by σ.1
 section SubstApplication
 
 /-- Restricts σ on the symbols in S. -/
-abbrev Subst.admissible (σ : Subst) (U : FCSet Assignable) (S : Finset Symbol) :=
+abbrev Subst.admissible (σ : Subst) (U : FCSet Assignable) (S : Finset Symbol) : Prop :=
   (σ.freeVars S) ∩ U = ∅
 
 def TermVector.toSubstAux {n : ℕ} (ts : TermVector n) (k : ℕ) : List SubstEntry :=

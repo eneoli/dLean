@@ -39,6 +39,7 @@ decreasing_by
   simp[*]
   omega
 
+@[grind, aesop 10%]
 inductive LoopClosure (sem : Set (State × State)) : State → State → Prop where
   | rfl   : (v : State) → LoopClosure sem v v
   | trans : (u : State)
@@ -47,6 +48,35 @@ inductive LoopClosure (sem : Set (State × State)) : State → State → Prop wh
             → LoopClosure sem u v
             → sem ⟨v, w⟩
             → LoopClosure sem u w
+
+attribute [grind .] LoopClosure.rfl
+attribute [grind .] LoopClosure.trans
+
+/-- Constructs the closure from the left (opposed to `LoopClosure.trans` that
+    constructs the closure from the right) -/
+theorem LoopClosure.trans' {u v w : State} {sem : Set (State × State)} :
+    sem ⟨u, v⟩
+  → LoopClosure sem v w
+  → LoopClosure sem u w := by
+  intros h₁ h₂
+  induction h₂
+  .
+    constructor
+    . constructor
+    . assumption
+  . grind
+
+theorem LoopClosure.trans'_inv {u w : State} {sem : Set (State × State)} :
+    LoopClosure sem u w
+  → u ≠ w
+  → ∃ v, sem ⟨u, v⟩ ∧ LoopClosure sem v w := by
+  intros h₁ h₂
+  induction h₁ with
+    | rfl => contradiction
+    | trans v w h₃ h₄ ih =>
+      by_cases u = v
+      . grind
+      . grind
 
 def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) : Formula := match system with
   | [] => Ψ
