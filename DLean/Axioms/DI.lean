@@ -21,7 +21,7 @@ open Embedding
 
 open scoped ContDiff
 
-lemma term_vector_singleton {t : Term} : (TermVector.cons t TermVector.nil).toVector[0] = t := by cbv
+-- lemma term_vector_singleton {t : Term} : (TermVector.cons t TermVector.nil).toVector[0] = t := by cbv
 
 lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Assignable} {θ : Term} {Ψ : Formula} {η : Term}
         (hr : r > 0) (hfv : η.freeVars ⊆ {x})

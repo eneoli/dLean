@@ -64,7 +64,7 @@ lemma Formula.denote_gt {t₁ t₂} : s ∈ (Formula.gt t₁ t₂).denote i
 
 lemma Formula.denote_gte {t₁ t₂} : s ∈ (Formula.gte t₁ t₂).denote i
                                 ↔ t₁.denote i s ≥ t₂.denote i s := by
-  simp [gt, denote]
+  simp [denote]
 
 lemma Formula.denote_leq {t₁ t₂} : s ∈ (Formula.lte t₁ t₂).denote i
                                   ↔ t₁.denote i s ≤ t₂.denote i s := by

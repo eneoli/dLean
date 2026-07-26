@@ -24,7 +24,7 @@ theorem DE : sound [Formula| [x’ = f(x) & q(x)]p(x, x’) ↔ [x’ = f(x) & q
     simp [Program.denote] at h₂
     simp [Program.denote] at h₃
 
-    have ⟨r, hr, φ, hp⟩:= h₂
+    let ⟨r, hr, φ, hp⟩:= h₂
 
     apply Exists.intro r
     and_intros
@@ -55,11 +55,11 @@ theorem DE : sound [Formula| [x’ = f(x) & q(x)]p(x, x’) ↔ [x’ = f(x) & q
     . exact h₂
     .
       simp[Program.denote, Term.denote]
-      simp[Program.denote, Term.denote] at h₂
+      simp[Program.denote] at h₂
       simp[odeEvolutionFormula] at h₂
       simp[Formula.denote_and] at h₂
 
-      have ⟨r, hr, φ, hp⟩:= h₂
+      let ⟨r, hr, φ, hp⟩:= h₂
 
       rw[hp.2.1]
 

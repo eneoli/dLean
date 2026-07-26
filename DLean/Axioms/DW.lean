@@ -21,7 +21,6 @@ theorem DW : sound [Formula| [x’ = f(x) & q(x)]q(x)]  := by
   have ⟨⟨left,H⟩, right⟩ := Hinv r ?goal (by simp)
   . clear left right
     revert H
-    simp[TermVector.toVector]
     simp[Term.denote]
     simp[Hend]
   . trivial
