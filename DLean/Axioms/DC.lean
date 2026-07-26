@@ -26,7 +26,7 @@ theorem DC : sound [Formula| ([x’ = f(x) & q(x)]r(x))
     intros t h₃
 
     simp[odeEvolutionFormula] at h₃
-    have ⟨r, hr₁, φ, hp⟩ := h₃
+    let ⟨r, hr₁, φ, hp⟩ := h₃
 
 
     have := by
@@ -76,7 +76,7 @@ theorem DC : sound [Formula| ([x’ = f(x) & q(x)]r(x))
     intros t h₃
 
     simp[odeEvolutionFormula] at h₃
-    have ⟨r, hr₁, φ, hp⟩ := h₃
+    let ⟨r, hr₁, φ, hp⟩ := h₃
 
 
     have := by

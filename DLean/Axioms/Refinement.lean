@@ -1,7 +1,8 @@
 import DLean.Syntax.Syntax
 import DLean.Semantics.Semantics
 
-import DLean.Math.Math
+import Mathlib.Analysis.Calculus.Deriv.Comp
+import Mathlib.Analysis.Calculus.Deriv.Add
 
 import DLean.Embedding.Shallow
 
@@ -510,7 +511,45 @@ theorem odeIdem : sound [Formula| (x’=f(x)&P);(x’=f(x)&P) ≃ x’=f(x)&P] :
       simp only [existsAndEq, true_and, and_imp, imp_self, implies_true]
 
 
-/-- Continuous evolution either reaches Q at a point or never. -/
+/-- Helper for subsolutions of ODE -/
+theorem subODE {i} {r : ℝ} {φ : ℝ → State} {system} {Q} :
+                  (
+                    ∀ζ ∈ Set.Icc 0 r, φ ζ ∈ (odeEvolutionFormula system Q).denote i ∧
+                    State.isEqExcept (φ 0) (φ ζ)
+                    (system.assignables ∪ (system.assignables.map Assignable.diff_emb)) ∧
+                    ∀x∈system.assignables,
+                      HasDerivWithinAt (fun t => φ t x) (φ ζ (Assignable.diff x)) (Set.Icc 0 r) ζ
+                  ) → ∀ (x y : ℝ),
+                    0 ≤ x ∧ x ≤ y ∧ y ≤ r
+                    → (φ x, φ y) ∈ (Program.ode system Q).denote i := by
+  intros H x y Hint
+  simp only [Program.denote, setOf]
+  exists (y-x)
+  apply And.intro (by linarith)
+  exists (fun t ↦ φ (t + x))
+  dsimp only []
+  and_intros
+  . simp[State.isEqExcept]
+  . simp
+  . intros ζ Hz1
+    simp_all only [Set.mem_Icc]
+    rcases H x (by and_intros <;> linarith) with ⟨_, H1, _⟩
+    rcases H (ζ+x) (by and_intros <;> linarith) with ⟨_, H1', H2'⟩
+    and_intros
+    . assumption
+    . have := State.eq_except_trans (fun a x ↦ Eq.symm (H1 x)) H1'
+      simp_all[Set.union_self]
+    . clear * - H2' Hint
+      intros z H
+      specialize H2' z H
+      have := HasDerivWithinAt.comp (h:=fun t ↦ t + x) (h' := 1) (s:=Set.Icc 0 (y-x)) _ H2'
+      simp only [hasDerivWithinAt_add_const_iff, mul_one] at this
+      apply this
+      . apply hasDerivWithinAt_id
+      . intro
+        grind only [= Set.mem_Icc, cases Or]
+
+/-- (Unofficial axiom) Continuous evolution either reaches Q at a point or never. -/
 theorem refdReach : sound [Formula| (x’=f(x)&P) ≼ (x’=f(x)&P); ?Q; (x’=f(x)&P)
                                                           ∪ x’=f(x) & P ∧ ¬Q] := by
   unfold sound

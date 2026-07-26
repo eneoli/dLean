@@ -8,6 +8,7 @@ namespace Embedding
 section SyntaxCategories
 
 declare_syntax_cat dL_var        (behavior := symbol)
+declare_syntax_cat dL_dot
 declare_syntax_cat dL_term       (behavior := symbol)
 declare_syntax_cat dL_formula    (behavior := symbol)
 declare_syntax_cat dL_program    (behavior := symbol)
@@ -16,7 +17,21 @@ declare_syntax_cat dL_ode_system (behavior := symbol)
 
 scoped syntax:max ident : dL_var
 scoped syntax:max dL_var "’" : dL_var
+
+-- FIXME: We only support parsing for 0,1,2,3,4,5,6,7,8,9 but not more like ·₄₂ for now.
+scoped syntax:max "·₀" : dL_dot
+scoped syntax:max "·₁" : dL_dot
+scoped syntax:max "·₂" : dL_dot
+scoped syntax:max "·₃" : dL_dot
+scoped syntax:max "·₄" : dL_dot
+scoped syntax:max "·₅" : dL_dot
+scoped syntax:max "·₆" : dL_dot
+scoped syntax:max "·₇" : dL_dot
+scoped syntax:max "·₈" : dL_dot
+scoped syntax:max "·₉" : dL_dot
+
 scoped syntax:max dL_var : dL_term
+scoped syntax:max dL_dot : dL_term
 scoped syntax:max num : dL_term
 scoped syntax:max scientific : dL_term
 scoped syntax:max "(" dL_term ")" : dL_term
@@ -86,10 +101,28 @@ partial def elabVar : Syntax → MetaM Q(Assignable)
 
   | _ => Lean.Elab.throwUnsupportedSyntax
 
+partial def elabDot : Syntax → MetaM Q(ℕ)
+  | `(dL_dot| ·₀) => pure q(0)
+  | `(dL_dot| ·₁) => pure q(1)
+  | `(dL_dot| ·₂) => pure q(2)
+  | `(dL_dot| ·₃) => pure q(3)
+  | `(dL_dot| ·₄) => pure q(4)
+  | `(dL_dot| ·₅) => pure q(5)
+  | `(dL_dot| ·₆) => pure q(6)
+  | `(dL_dot| ·₇) => pure q(7)
+  | `(dL_dot| ·₈) => pure q(8)
+  | `(dL_dot| ·₉) => pure q(9)
+
+  | _ => Lean.Elab.throwUnsupportedSyntax
+
 partial def elabTerm : Syntax → MetaM Q(_root_.Term)
   | `(dL_term| $var:dL_var) => do
     let varExpr ← elabVar var
     pure q(_root_.Term.var $varExpr)
+
+  | `(dL_term| $dot:dL_dot) => do
+    let n ← elabDot dot
+    pure q(_root_.Term.dot $n)
 
   | `(dL_term| $n:num) => do
     let nExpr : Q(ℕ) := mkNatLit (n.getNat)
@@ -297,6 +330,7 @@ partial def elabProgram : Syntax → MetaM Q(Program)
 end
 
 scoped elab "[Var|" v:dL_var "]"         : term => elabVar v
+scoped elab "[Dot|" t:dL_term "]"       : term => elabDot t
 scoped elab "[Term|" t:dL_term "]"       : term => elabTerm t
 scoped elab "[Formula|" Φ:dL_formula "]" : term => elabFormula Φ
 scoped elab "[Program|" α:dL_program "]" : term => elabProgram α

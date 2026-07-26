@@ -2,6 +2,17 @@ import Mathlib.Data.Finset.Image
 import Mathlib.Logic.Embedding.Basic
 import DLean.Syntax.Definitions
 
+section Assignable
+
+@[simp, grind .]
+theorem Assignable.neq_diff : ∀ {x : Assignable}, ¬ x = Assignable.diff x := by
+  intros x
+  induction x
+  . grind
+  . grind
+
+end Assignable
+
 section TermVector
 
 @[simp]
@@ -152,6 +163,10 @@ theorem TermVector.generate_toVector (n : ℕ) (i : Fin n) (f : ℕ → Term)
           rw[this]
           have := TermVector.generate_toVector n ⟨i, by grind⟩ (f ∘ fun x ↦ x + 1)
           grind
+
+@[simp, grind .]
+theorem term_vector_singleton {t : Term} : (TermVector.cons t TermVector.nil).toVector[0] = t := by cbv
+
 
 end TermVector
 
