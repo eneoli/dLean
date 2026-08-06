@@ -91,8 +91,8 @@ open scoped ContDiff
 
 def Interpretation.ReturnType : (symbol : Symbol) → Type
   | Symbol.Function  f => {g : (Fin f.arity → ℝ) → ℝ // ContDiff ℝ ∞ g}
-  | Symbol.UnitFun   f => Σ x : Finset Assignable, -- forcing x ⊆ f.tabooᶜ blocks the definition of Subst.adjoint
-                            {g : (↑(x \ f.taboo.toFinset) → ℝ) → ℝ // ContDiff ℝ ∞ g}
+  | Symbol.UnitFun   f => Σ x : { s : Finset Assignable // Disjoint s f.taboo.toFinset},
+                            {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}
   | Symbol.Predicate p => (Fin p.arity → ℝ) → Prop
   | Symbol.Program   _ => State × State → Prop
 
@@ -101,7 +101,7 @@ def Interpretation : Type := (s : Symbol) → Interpretation.ReturnType s
 def Interpretation.empty : Interpretation
   | Symbol.Predicate _ => fun _ => False
   | Symbol.Function  _ => ⟨fun _  => (0 : ℝ), contDiff_const⟩
-  | Symbol.UnitFun   _ => ⟨∅, fun _ => (0 : ℝ), contDiff_const⟩
+  | Symbol.UnitFun   _ => ⟨⟨∅, Finset.disjoint_empty_left _⟩, fun _ => (0 : ℝ), contDiff_const⟩
   | Symbol.Program   _ => fun _ => False
 
 def Interpretation.assignDots {n : ℕ}

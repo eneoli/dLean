@@ -139,12 +139,34 @@ section Theorems
 
 open scoped ContDiff
 
-lemma assignDots_freeVarsSem {n : ℕ} (i : Interpretation) (t : Term) (dots : Fin n → ℝ) : t.freeVarsSem (i.assignDots dots) = t.freeVarsSem i := by
+mutual
+lemma TermVector.assignDots_freeVarsSem {n m : ℕ} (i : Interpretation) (ts : TermVector m) (dots : Fin n → ℝ) : ts.freeVarsSem (i.assignDots dots) = ts.freeVarsSem i := by
+  match ts with
+  | .nil => rfl
+  | .cons t ts =>
+    have := t.assignDots_freeVarsSem i dots
+    have := ts.assignDots_freeVarsSem i dots
+    simp only [TermVector.freeVarsSem]
+    grind only
+
+lemma Term.assignDots_freeVarsSem {n : ℕ} (i : Interpretation) (t : Term) (dots : Fin n → ℝ) : t.freeVarsSem (i.assignDots dots) = t.freeVarsSem i := by
   match t with
-  | .applyFn (.unit f) _ => simp[Term.freeVarsSem, Interpretation.assignDots]
-  | .var _ => simp[Term.freeVarsSem]
-  | .plus _ _ => simp[Term.freeVarsSem]; sorry
-  | _ => sorry
+  | .var _ => simp only [Term.freeVarsSem]
+  | .neg _ =>
+    simp only [Term.freeVarsSem, Term.assignDots_freeVarsSem]
+  | .plus t₁ t₂ | .times t₁ t₂ =>
+    have := t₁.assignDots_freeVarsSem i dots
+    have := t₂.assignDots_freeVarsSem i dots
+    simp_all only [Term.freeVarsSem]
+  | .applyFn (.unit f) _ =>
+    simp only [Term.freeVarsSem, Interpretation.assignDots]
+  | .applyFn (.num _) _ | .applyFn (.sym _) _ =>
+    simp only [Term.freeVarsSem, TermVector.assignDots_freeVarsSem]
+  | .differential t =>
+    have := t.assignDots_freeVarsSem i dots
+    simp_all only [Term.freeVarsSem]
+
+end
 
 -- We cannot parameterize the function over entire states as the (euclidian) norm could
 -- be possibly infinite. In theory there is something called L∞ norm but NormedAddCommGroup
