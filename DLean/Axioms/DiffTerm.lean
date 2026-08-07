@@ -19,13 +19,13 @@ open Embedding
 theorem const' : sound [Formula| (f())’ = 0] := by
   unfold sound Formula.denote
   intros i s
-  simp[Term.denote, Term.freeVars, FunctionSymbol.arity]
+  simp[Term.denote, Term.freeVarsSem, TermVector.freeVarsSem, FunctionSymbol.arity]
 
 /-- doc -/
 theorem var' : sound [Formula| (x)’ = x’] := by
   unfold sound Formula.denote
   intros i s
-  simp[Term.denote, Term.freeVars, State.update]
+  simp[Term.denote, Term.freeVarsSem, State.update]
 
 
 open scoped ContDiff
@@ -40,7 +40,7 @@ lemma diffAux {n : ℕ} {f : { g : (Fin n → ℝ) → ℝ // ContDiff ℝ ∞ g
 theorem sum' : sound [Formula| (f(x) + g(x))’ = (f(x))’ + (g(x))’] := by
   unfold sound Formula.denote
   intros i s
-  simp[Term.denote, Term.freeVars, TermVector.toVector, FunctionSymbol.arity, Vector.attach, getElem]
+  simp[Term.denote, Term.freeVarsSem, TermVector.freeVarsSem, TermVector.toVector, FunctionSymbol.arity, Vector.attach, getElem]
   simp[Vector.get]
 
   set z := s (Assignable.var { name := "x" })
@@ -57,7 +57,7 @@ theorem sum' : sound [Formula| (f(x) + g(x))’ = (f(x))’ + (g(x))’] := by
 theorem prod' : sound [Formula| (f(x) * g(x))’ = (f(x))’ * g(x) + f(x) * (g(x))’] := by
   intros i s
   simpFormula
-  simp[Term.denote, Term.freeVars, TermVector.toVector, FunctionSymbol.arity, Vector.attach, getElem]
+  simp[Term.denote, Term.freeVarsSem, TermVector.freeVarsSem, TermVector.toVector, FunctionSymbol.arity, Vector.attach, getElem]
   simp[Vector.get]
   rw[deriv_fun_mul]
   . grind
@@ -69,7 +69,7 @@ theorem comp' : sound [Formula| [y:=g(x)][y’:=1]((f(g(x)))’ = (f(y))’*(g(x
   intros i s
   simp only [Formula.denote, SetRel.mem_core, Set.mem_setOf_eq]
   simp only [Program.denote, Set.mem_setOf_eq, forall_eq]
-  simp[Term.denote, TermVector.toVector, Term.freeVars, FunctionSymbol.arity, Vector.attach, getElem]
+  simp[Term.denote, TermVector.toVector, Term.freeVarsSem, TermVector.freeVarsSem, FunctionSymbol.arity, Vector.attach, getElem]
   simp[Vector.get]
 
   set vx := s (Assignable.var { name := "x" })

@@ -4,75 +4,6 @@ import DLean.Semantics.Interpretation
 
 open Semantics
 
--- Unused
-theorem Subst.adjoint_term_noeffect.pred
-  (i : Interpretation)
-  (p : PredicateSymbol)
-  {rhs : Formula}
-  {es : List SubstEntry}
-  (hsubst : Subst.Nodup (SubstEntry.pred p rhs :: es))
-  (t : Term)
-  (v w : State)
-  : Term.denote (Subst.adjoint ⟨SubstEntry.pred p rhs :: es, hsubst⟩ i v) w t
-  = Term.denote (Subst.adjoint ⟨es, Subst.tail_nodup hsubst⟩ i v) w t := by
-  match t with
-    | .var x => simp[Term.denote]
-    | .neg t' =>
-      have := @Subst.adjoint_term_noeffect.pred i p rhs es hsubst t'
-      simp_all only [Term.denote]
-    | .plus t₁ t₂
-    | .times t₁ t₂ =>
-      have := @Subst.adjoint_term_noeffect.pred i p rhs es hsubst t₁
-      have := @Subst.adjoint_term_noeffect.pred i p rhs es hsubst t₂
-      simp_all only [Term.denote]
-    | .applyFn f args =>
-      match f with
-        | .num n => simp[Term.denote]
-        | .unit _ => sorry
-        | .sym f =>
-          match f with
-            | .dot n =>
-              have := @Subst.get_tail
-                        ⟨es, Subst.tail_nodup hsubst⟩
-                        (.Function (.dot n))
-                        (.pred p rhs)
-                        (by simp_all)
-                        (by simp[SubstEntry.symbol])
-              simp_all[Term.denote, Subst.adjoint, FunctionSymbol.arity]
-            | .udef name arity =>
-              simp[Term.denote, Subst.adjoint]
-              congr 1
-              .
-                congr
-                funext x
-                apply Subst.adjoint_term_noeffect.pred i
-              .
-                have := @Subst.get_tail
-                          ⟨es, Subst.tail_nodup hsubst⟩
-                          (.Function (.udef name arity))
-                          (.pred p rhs)
-                          (by simp_all)
-                          (by simp[SubstEntry.symbol])
-
-                rw[this]
-    | .differential t =>
-      simp[Term.denote]
-      apply Finset.sum_equiv (by rfl) (fun i ↦ by sorry)
-      intros
-      congr
-      funext
-      apply Subst.adjoint_term_noeffect.pred i
-decreasing_by
-  all_goals try decreasing_trivial
-    -- TODO automate this?
-  have ha : sizeOf args.toVector[x] < sizeOf args := by
-    apply TermVector.sizeOf_lt_of_mem
-    simp[TermVector.mem_toVector_iff]
-
-  have hb : sizeOf args
-          < sizeOf (Term.applyFn (.sym (FunctionSymbol.udef name arity)) args) := by simp
-  grind
-
 theorem Subst.adjoint_noeffect_nomem_fun
   (i : Interpretation)
   (v : State)
@@ -443,237 +374,33 @@ theorem toSubst.freeVarsSem_inc {n : ℕ} (args : TermVector n) (i : Interpretat
   args.toSubst.freeVarsSem i S ⊆ args.freeVarsSem i := by
   exact toSubstAux.freeVarsSem_inc _ _ _ 0
 
+/- `freeVarSem` only uses the interpretation of `UnitFunctional`, so it is not affected by changing `dots`. -/
 mutual
-lemma TermVector.freeVarsSem_adjoint {n m : ℕ} (ts : TermVector n) {ts' : TermVector m} {i : Interpretation} {w : State} :
-  ts'.toSubst.freeVarsSem i ts.signature = ∅ →
-  ts.freeVarsSem (ts'.toSubst.adjoint i w) = ts.freeVarsSem i := by
+lemma TermVector.freeVarsSem_toSubst_adjoint {n m : ℕ} (σs : TermVector m) (i : Interpretation) (ts : TermVector n) (w : State) : ts.freeVarsSem (σs.toSubst.adjoint i w) = ts.freeVarsSem i := by
   match ts with
-  | .nil => intro; rfl
+  | .nil => simp only [TermVector.freeVarsSem]
   | .cons t ts =>
-    simp only [TermVector.freeVarsSem, TermVector.signature_cons, ← Subst.freeVarsSem_symbol_union]
-    intro
-    grw[TermVector.freeVarsSem_adjoint, Term.freeVarsSem_adjoint]
-    all_goals
-      grind only [= Finset.mem_union, ← Finset.notMem_empty]
+    simp [TermVector.freeVarsSem, Term.freeVarsSem_toSubst_adjoint, TermVector.freeVarsSem_toSubst_adjoint]
 
-
-
-lemma Term.freeVarsSem_adjoint {n : ℕ} (t : Term) {ts : TermVector n} {i : Interpretation} {w : State} :
-  ts.toSubst.freeVarsSem i t.signature = ∅ →
-  t.freeVarsSem (ts.toSubst.adjoint i w) = t.freeVarsSem i := by
+lemma Term.freeVarsSem_toSubst_adjoint {m : ℕ} (σs : TermVector m) (i : Interpretation) (t : Term) (w : State) : t.freeVarsSem (σs.toSubst.adjoint i w) = t.freeVarsSem i:= by
   match t with
-  | .var v =>
-    intro
-    rfl
-  | .neg t =>
-    simp only [Term.freeVarsSem, Term.signature]
-    apply Term.freeVarsSem_adjoint
-  | .times t₁ t₂
-  | .plus t₁ t₂ =>
-    simp only [Term.freeVarsSem, Term.signature, ← Subst.freeVarsSem_symbol_union]
-    intro
-    have := @Term.freeVarsSem_adjoint _ t₁ ts i w (by grind only [= Finset.mem_union, ← Finset.notMem_empty])
-    have := @Term.freeVarsSem_adjoint _ t₂ ts i w (by grind only [= Finset.mem_union, ← Finset.notMem_empty])
-    grind only [= Finset.subset_iff, = Finset.mem_union]
-  | .differential t =>
-    simp only [Term.freeVarsSem, Term.signature]
-    intro h
-    have := @Term.freeVarsSem_adjoint _ t ts i w h
-    grind only
-  | .applyFn (.unit _) ts =>
-    simp[Term.freeVarsSem, Subst.adjoint, TermVector.toSubst_in]
-
-  | .applyFn (.num _) _
-  | .applyFn (.sym _) _ =>
-    simp only [Term.freeVarsSem, Term.signature, ← Subst.freeVarsSem_symbol_union]
-    intro
-    apply TermVector.freeVarsSem_adjoint
-    grind only [= Finset.mem_union, ← Finset.notMem_empty]
-
-end
-
--- The empty substitution is a no-op (prevent infinite recursion)
--- Could be generalised to `∀ s ∈ t.signature, s ∉ σ`.
-mutual
-lemma TermVector.aux {n : ℕ} (ts : TermVector n) (U : FCSet Assignable) : ts.applySubst TermVector.nil.toSubst U = some ts := by
-  match ts with
-  | .nil => simp[TermVector.applySubst]
-  | .cons t ts =>
-    simp[TermVector.applySubst]
-    rw[TermVector.aux, aux]
-    simp
-
-lemma aux (t : Term) (U : FCSet Assignable) : t.applySubst TermVector.nil.toSubst U = some t := by
-  match t with
-  | .var v
+  | .var _ =>
+    simp only [Term.freeVarsSem]
+  | .neg _
+  | .differential _
+  | .plus t₁ t₂
+  | .times t₁ t₂ =>
+    simp only [Term.freeVarsSem, Term.freeVarsSem_toSubst_adjoint]
+  | .applyFn (.sym _) _
   | .applyFn (.num _) _ =>
-    simp[Term.applySubst]
-  | .neg t
-  | .differential t =>
-    have := aux t
-    simp_all[Term.applySubst]
-  | .plus t₁ t₂
-  | .times t₁ t₂ =>
-    have := aux t₁
-    have := aux t₂
-    simp_all[Term.applySubst]
-  | .applyFn (.unit _) _ =>
-    simp[Term.applySubst, TermVector.toSubst, TermVector.toSubstAux]
-    apply Subst.notin_default
-    simp[Membership.mem, Subst.mem]
-  | .applyFn (.sym _) _ =>
-    simp[Term.applySubst]
-    rw[TermVector.aux]
-    simp[TermVector.toSubst, TermVector.toSubstAux, Membership.mem, Subst.mem]
-end
-
-/- More refined overapproximation of `freeVarsSem` after substitution using `TermVector.toSubst`.
-The overapproximation is simpler : `t.freeVarsSem i` instead of `t.freeVarsSem (σ.adjoint i w)`.
-It also simplify the terminaison argument
--/
-mutual
-theorem TermVector.freeVars_toSubst_applySubst_subset {n m : ℕ} (σs : TermVector m) (i : Interpretation) (U : FCSet Assignable) (ts as : TermVector n) (w : State)
-  : TermVector.applySubst σs.toSubst U ts = some as
-  → ↑(as.freeVarsSem i) ⊆ ↑(ts.freeVarsSem i) ∪ (↑(σs.toSubst.freeVarsSem i (some ts.signature)) \ U.toSet) := by
-  intro h₁
-  match n with
-  | 0 =>
-    simp only [TermVector.zero_size_eq_nil, TermVector.freeVarsSem, Finset.coe_empty,
-      TermVector.signature_nil, Set.empty_union, Set.empty_subset]
-  | n+1 =>
-    match ts with
-    | .cons t ts' =>
-      simp[TermVector.applySubst, Option.bind] at h₁
-      split at h₁
-      . contradiction
-      simp only at h₁
-      split at h₁
-      . contradiction
-      simp at h₁
-      next a heqa _ _ as' heqas' =>
-      rw[←h₁]
-      clear h₁
-      simp only [TermVector.freeVarsSem, Finset.coe_union, TermVector.signature_cons]
-      have := @σs.toSubst.freeVarsSem_symbol_union i t.signature ts'.signature
-      have := Term.freeVars_toSubst_applySubst_subset σs i U t a w heqa
-      have := TermVector.freeVars_toSubst_applySubst_subset σs i U ts' as' w heqas'
-      grind only [= Set.subset_def, = Set.mem_union, = Set.mem_diff, = Finset.mem_coe,
-        = Finset.mem_union]
-termination_by (m, sizeOf ts)
-decreasing_by
-all_goals simp_wf
-all_goals grind only [= Prod.lex_def]
-
-theorem Term.freeVars_toSubst_applySubst_subset {m : ℕ} (σs : TermVector m) (i : Interpretation) (U : FCSet Assignable) (t a : Term) (w : State)
-  : Term.applySubst σs.toSubst U t = some a
-  → ↑(a.freeVarsSem i) ⊆ ↑(t.freeVarsSem i) ∪ (↑(σs.toSubst.freeVarsSem i (some t.signature)) \ U.toSet) := by
-  intro h₁
-  match t with
-  | .var v =>
-    simp[Term.applySubst] at h₁
-    simp[←h₁,Term.freeVarsSem]
-  | .neg t =>
-    simp_all[Term.applySubst, Option.bind]
-    split at h₁
-    . contradiction
-    next a' heq =>
-    have := Term.freeVars_toSubst_applySubst_subset σs i U t a' w heq
-    simp_all
-    rw[← h₁]
-    simp only[Term.freeVarsSem, Term.signature]
-    assumption
-  | .plus t₁ t₂
-  | .times t₁ t₂ =>
-    simp[Term.applySubst, Option.bind] at h₁
-    split at h₁
-    . contradiction
-    simp_all only
-    split at h₁
-    . contradiction
-    next b heqb _ _ c heqc =>
-    simp_all only [Term.signature]
-    have := Term.freeVars_toSubst_applySubst_subset σs i U t₁ b w heqb
-    have := Term.freeVars_toSubst_applySubst_subset σs i U t₂ c w heqc
-    simp[Term.freeVarsSem]
-    all_goals
-    simp at h₁
-    rw[← h₁]
-    simp[Term.freeVarsSem]
-    have := @Subst.freeVarsSem_symbol_union σs.toSubst i t₁.signature t₂.signature
-    grind only [= Set.subset_def, = Set.mem_union, = Set.mem_diff, = Finset.mem_coe,
-      = Finset.mem_union]
-  | .applyFn f args =>
-    match f with
-    | .num n =>
-      simp[Term.applySubst] at h₁
-      simp[←h₁, Term.freeVarsSem, TermVector.freeVarsSem]
-    | .sym s =>
-      simp_all only [Term.freeVarsSem, Term.signature]
-      simp[Term.applySubst, Option.bind] at h₁
-      split at h₁
-      . contradiction
-      next a' _ =>
-        split at h₁
-        next h =>
-          simp at h₁
-          split at h₁
-          . contradiction
-          next _ heq =>
-            simp at h₁ heq
-            rw[←Term.free_vars_decidable] at heq
-            have : Term.applySubst a'.toSubst ∅ (σs.toSubst.get (Symbol.Function s)) = Term.applySubst TermVector.nil.toSubst ∅ (σs.toSubst.get (Symbol.Function s)) := by
-              -- isolate where to use that `s.arity = 0` because dependent types
-              rw[TermVector.toSubst_in] at h
-              rcases h with ⟨_,_,heq⟩
-              simp only [Symbol.Function.injEq] at heq
-              cases heq
-              simp only [TermVector.zero_size_eq_nil]
-              rfl
-            simp[this, aux] at h₁
-            rw[←h₁]
-            clear this
-            have := @Subst.freeVarsSem_symbol_union σs.toSubst i (Function.signature (Fn.sym s)) args.signature
-            grw[←this]
-            clear this
-            simp only [Finset.coe_union]
-            have := @Subst.free_vars_sem_subset_fun σs.toSubst s i
-            grw[←this]
-            clear this
-            have := Term.freeVarsSem_subset_freeVars
-            simp_all only [← Set.disjoint_iff_inter_eq_empty]
-            grind only [= Set.disjoint_left, = Set.subset_def, = Set.mem_union, = Set.mem_diff]
-        .
-          simp at h₁
-          rw[← h₁]
-          simp[Term.freeVarsSem]
-          have := TermVector.freeVars_toSubst_applySubst_subset σs i U args a' (by assumption)
-          have := @Subst.freeVarsSem_symbol_union σs.toSubst
-          grind only [= Set.subset_def, = Set.mem_union, = Set.mem_diff, = Finset.mem_coe,
-            = Finset.mem_union]
-      | .unit F =>
-        simp[Term.applySubst] at h₁
-        rw[σs.toSubst.notin_default] at h₁
-        . rw[←h₁]
-          simp[Term.freeVarsSem, Term.signature, Symbol.default]
-        . intro h
-          rw[TermVector.toSubst_in] at h
-          simp at h
-  | .differential t =>
-    simp[Term.applySubst, Option.bind] at h₁
-    split at h₁
-    . contradiction
-    simp at h₁
-    next a' heq =>
-      rw[←h₁]
-      clear h₁
-      have := Term.freeVars_toSubst_applySubst_subset σs i .univ _ _ w heq
-      simp only [Term.freeVarsSem, Finset.coe_union, Finset.coe_map, Term.signature, FCSet.to_set_univ, Set.diff_univ, Set.union_empty] at *
-      grind only [= Set.mem_diff, = Set.mem_image, = Set.mem_union, = Set.subset_def]
-
-termination_by (m, sizeOf t)
-decreasing_by
-all_goals simp_wf
-all_goals (try grind only [= Prod.lex_def])
+    simp only [Term.freeVarsSem, TermVector.freeVarsSem_toSubst_adjoint]
+  | .applyFn (.unit F) _ =>
+    simp_all only [Term.freeVarsSem, Subst.adjoint]
+    split
+    next h =>
+      rw[TermVector.toSubst_in] at h
+      simp at h
+    . rfl
 end
 
 -- Since the interpretation matters for `freeVarsSem` we have to add an `adjoint` when computing `t.freeVarsSem` similar to `Subst.preserve_semantics.term`.
@@ -770,7 +497,8 @@ theorem Term.freeVars_applySubst_subset (σ : Subst) (i : Interpretation) (U : F
           next _ heq =>
             simp at h₁ heq
             rw[←Term.free_vars_decidable] at heq
-            have := Term.freeVars_toSubst_applySubst_subset a' i ∅ (σ.get (Symbol.Function s)) a w h₁
+            have := Term.freeVars_applySubst_subset a'.toSubst i ∅ (σ.get (Symbol.Function s)) a w h₁
+            rw[Term.freeVarsSem_toSubst_adjoint] at this
             grw[this]
             clear this
             have := @Subst.freeVarsSem_symbol_union σ i (Function.signature (Fn.sym s)) args.signature
@@ -825,6 +553,10 @@ termination_by (σ.size, sizeOf t)
 decreasing_by
 all_goals simp_wf
 all_goals (try grind only [= Prod.lex_def])
+next hin _ _ _ _ _ =>
+  rw[TermVector.toSubst_size]
+  apply Subst.symbol_size at hin
+  grind only [= Prod.lex_def]
 end
 
 theorem Term.freeVarsSem_applySubst_admissible_univ_subset (σ : Subst) (i : Interpretation) (w : State) (t a : Term)
@@ -836,12 +568,12 @@ theorem Term.freeVarsSem_applySubst_admissible_univ_subset (σ : Subst) (i : Int
     SetLike.coe_subset_coe, Finset.le_eq_subset] at this
   apply this
 
-section test
+section depEqAux
 open scoped ContDiff
-lemma test (S : Finset Assignable) (v : State) (f g : Σ x : { s : Finset Assignable // Disjoint s S}, {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}) : f = g → (f.snd).val (fun x ↦ v ↑x) = (g.snd).val (fun x ↦ v ↑x) := by
+lemma depEqAux (S : Finset Assignable) (v : State) (f g : Σ x : { s : Finset Assignable // Disjoint s S}, {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}) : f = g → (f.snd).val (fun x ↦ v ↑x) = (g.snd).val (fun x ↦ v ↑x) := by
   intro h
   rw[h]
-end test
+end depEqAux
 
 lemma Subst.adjoint_unit (v w : State) (i : Interpretation) (σ : Subst) (F : UnitFunctional) : Term.denote i v (σ.get (Symbol.UnitFun F)) = Term.denote (σ.adjoint i w) v (Term.applyFn (Fn.unit F) .nil) := by
   simp[Term.denote, Subst.adjoint]
@@ -850,12 +582,13 @@ lemma Subst.adjoint_unit (v w : State) (i : Interpretation) (σ : Subst) (F : Un
   next h =>
     have := Subst.notin_default _ _ h
     simp[this, Term.denote, Symbol.default]
-    apply test
-    rw[if_neg h]
+    apply depEqAux
+    symm
+    exact if_neg h
   next h =>
     symm
     trans
-    . apply test _ _ _ _ (if_pos h)
+    . apply depEqAux _ _ _ _ (if_pos h)
     . simp only
       apply Term.coincidence'
       simp only [Interpretation.eq_on_rfl, and_true]
