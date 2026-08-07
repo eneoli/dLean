@@ -333,11 +333,12 @@ theorem subst_adjoint_of_term_vector_to_subst
 
 theorem Subst.apply_subst_term_vector_to_term
   (σ : Subst)
+  (U : FCSet Assignable)
   {n : ℕ}
   (args a : TermVector n)
   (x : Fin n)
-  : TermVector.applySubst σ args = some a
-  → Term.applySubst σ args.toVector[x] = some a.toVector[x] := by
+  : TermVector.applySubst σ U args = some a
+  → Term.applySubst σ U args.toVector[x] = some a.toVector[x] := by
     intro h
     cases args with
       | nil => grind
@@ -395,9 +396,9 @@ theorem toSubst.freeVars_inc {n : ℕ} (args : TermVector n) (S : Option (Finset
 
 mutual
 
-theorem TermVector.freeVars_applySubst_subset {n : ℕ} (σ : Subst) (ts as : TermVector n)
-  : TermVector.applySubst σ ts = some as
-  → ↑as.freeVars ⊆ ↑ts.freeVars ∪ (σ.freeVars (some ts.signature)).toSet := by
+theorem TermVector.freeVars_applySubst_subset {n : ℕ} (σ : Subst) (U : FCSet Assignable) (ts as : TermVector n)
+  : TermVector.applySubst σ U ts = some as
+  → ↑as.freeVars ⊆ ↑ts.freeVars ∪ (σ.freeVars (some ts.signature) \ U).toSet := by
   intro h₁
   match n with
   | 0 =>
@@ -418,17 +419,17 @@ theorem TermVector.freeVars_applySubst_subset {n : ℕ} (σ : Subst) (ts as : Te
       clear h₁
       simp only [TermVector.freeVars_cons, Finset.coe_union, TermVector.signature_cons]
       have := @σ.freeVars_symbol_union t.signature ts'.signature
-      have := Term.freeVars_applySubst_subset σ t a heqa
-      have := TermVector.freeVars_applySubst_subset σ ts' as' heqas'
-      grind only [= Set.mem_union, = Set.subset_def]
+      have := Term.freeVars_applySubst_subset σ U t a heqa
+      have := TermVector.freeVars_applySubst_subset σ U ts' as' heqas'
+      grind only [= Set.subset_def, FCSet.to_set_diff, = Set.mem_union, = Set.mem_diff]
 termination_by (σ.size, sizeOf ts)
 decreasing_by
 all_goals simp_wf
 all_goals grind only [= Prod.lex_def]
 
-theorem Term.freeVars_applySubst_subset (σ : Subst) (t a : Term)
-  : Term.applySubst σ t = some a
-  → ↑a.freeVars ⊆ ↑t.freeVars ∪ (σ.freeVars (some t.signature)).toSet := by
+theorem Term.freeVars_applySubst_subset (σ : Subst) (U : FCSet Assignable) (t a : Term)
+  : Term.applySubst σ U t = some a
+  → ↑a.freeVars ⊆ ↑t.freeVars ∪ (σ.freeVars (some t.signature) \ U).toSet := by
   intro h₁
   match t with
   | .var v => simp_all[Term.applySubst]
@@ -437,7 +438,7 @@ theorem Term.freeVars_applySubst_subset (σ : Subst) (t a : Term)
     split at h₁
     . contradiction
     next a' heq =>
-    have := Term.freeVars_applySubst_subset σ t a' heq
+    have := Term.freeVars_applySubst_subset σ U t a' heq
     simp_all
     rw[← h₁]
     simp only[Term.freeVars, Term.signature]
@@ -452,21 +453,19 @@ theorem Term.freeVars_applySubst_subset (σ : Subst) (t a : Term)
     . contradiction
     next b heqb _ _ c heqc =>
     simp_all only [Term.signature]
-    have := Term.freeVars_applySubst_subset σ t₁ b heqb
-    have := Term.freeVars_applySubst_subset σ t₂ c heqc
+    have := Term.freeVars_applySubst_subset σ U t₁ b heqb
+    have := Term.freeVars_applySubst_subset σ U t₂ c heqc
     simp[Term.freeVars]
     all_goals
     simp at h₁
     rw[← h₁]
     simp[Term.freeVars]
     have := @Subst.freeVars_symbol_union σ t₁.signature t₂.signature
-    grind only [= Set.mem_union, = Set.subset_def]
+    grind only [= Set.subset_def, FCSet.to_set_diff, = Set.mem_union, = Set.mem_diff]
   | .applyFn f args =>
     match f with
     | .num n =>
-      simp[Term.applySubst, Option.bind] at h₁
-      split at h₁
-      . contradiction
+      simp[Term.applySubst] at h₁
       simp_all
     | .sym s =>
       simp_all only [Term.freeVars, Term.signature]
@@ -477,62 +476,66 @@ theorem Term.freeVars_applySubst_subset (σ : Subst) (t a : Term)
         split at h₁
         .
           simp at h₁
-          have := TermVector.freeVars_applySubst_subset σ args a' (by assumption)
-          have := Term.freeVars_applySubst_subset a'.toSubst (σ.get (Symbol.Function s)) a h₁
-          have := @toSubst.freeVars_inc _ a' (some (Term.signature (σ.get (Symbol.Function s))))
-          have := @Subst.freeVars_symbol_union σ (Function.signature (Fn.sym s)) args.signature
-          have := @Subst.free_vars_subset_fun σ s
-          grind only [= Set.mem_union, = Set.subset_def, FCSet.to_set_eq]
+          split at h₁
+          . contradiction
+          next _ heq =>
+            simp at h₁ heq
+            have := TermVector.freeVars_applySubst_subset σ U args a' (by assumption)
+            have := Term.freeVars_applySubst_subset a'.toSubst ∅ (σ.get (Symbol.Function s)) a h₁
+            have := @toSubst.freeVars_inc _ a' (some (Term.signature (σ.get (Symbol.Function s))))
+            have := @Subst.freeVars_symbol_union σ (Function.signature (Fn.sym s)) args.signature
+            have := @Subst.free_vars_subset_fun σ s
+            simp_all only [←Set.disjoint_iff_inter_eq_empty]
+            grind only [= Set.disjoint_left, = Set.subset_def, FCSet.to_set_diff,
+              = Set.mem_union, = Set.mem_diff]
         .
           simp at h₁
           rw[← h₁]
           simp[Term.freeVars]
-          have := TermVector.freeVars_applySubst_subset σ args a' (by assumption)
+          have := TermVector.freeVars_applySubst_subset σ U args a' (by assumption)
           have := @Subst.freeVars_symbol_union σ
-          grind only [= Set.mem_union, = Set.subset_def]
+          grind only [= Set.subset_def, FCSet.to_set_diff, = Set.mem_union, = Set.mem_diff]
 
   | .differential t =>
     simp[Term.applySubst, Option.bind] at h₁
     split at h₁
     . contradiction
     simp at h₁
-    split at h₁
-    . contradiction
-    next _ _ hg _ _ a' heq =>
-      simp at h₁ hg
+    next a' heq =>
       rw[←h₁]
       clear h₁
-      have := Term.freeVars_applySubst_subset σ _ _ heq
-      simp only [Term.freeVars, Finset.coe_union, Finset.coe_map, Term.signature]
-      grind only [= Set.mem_image, = Set.mem_empty_iff_false, = Set.mem_union, = Set.subset_def]
+      have := Term.freeVars_applySubst_subset σ .univ _ _ heq
+      simp only [Term.freeVars, Finset.coe_union, Finset.coe_map, Term.signature, FCSet.to_set_diff, FCSet.to_set_univ, Set.diff_univ, Set.union_empty] at *
+      grind only [= Set.mem_diff, = Set.mem_image, = Set.mem_union, = Set.subset_def]
 
 termination_by (σ.size, sizeOf t)
 decreasing_by
 all_goals simp_wf
 all_goals (try grind only [= Prod.lex_def])
-next hin =>
+next hin _ _ _ _ _ =>
   rw[TermVector.toSubst_size]
   apply Subst.symbol_size at hin
   grind only [= Prod.lex_def]
 end
 
 theorem Term.freeVars_applySubst_admissible_univ_subset (σ : Subst) (t a : Term)
-  : Term.applySubst σ t = some a
-  → σ.admissible FCSet.univ t.signature
+  : Term.applySubst σ FCSet.univ t = some a
   → (a.freeVars : Set Assignable ) ⊆ (t.freeVars : Set Assignable) := by
   intros h _
-  have := Term.freeVars_applySubst_subset σ t a h
-  simp_all only [FCSet.to_set_eq, FCSet.to_set_inter, FCSet.to_set_univ, Set.inter_univ,
-    FCSet.to_set_empty, Set.union_empty, Finset.coe_subset]
-
+  have := Term.freeVars_applySubst_subset σ FCSet.univ t a h
+  simp only [FCSet.to_set_diff, FCSet.to_set_univ, Set.diff_univ, Set.union_empty,
+    SetLike.coe_subset_coe, Finset.le_eq_subset] at this
+  apply this
 
 theorem Subst.preserve_semantics.term
   (σ : Subst)
+  (U : FCSet Assignable)
   (i : Interpretation)
-  (v : State)
+  (v w : State)
+  (hvw : v.isEqExcept w U)
   (t t' : Term)
-  (hs : t' = Term.applySubst σ t)
-  : Term.denote i v t' = Term.denote (Subst.adjoint σ i v) v t := by
+  (hs : t' = Term.applySubst σ U t)
+  : Term.denote i v t' = Term.denote (Subst.adjoint σ i w) v t := by
   match t with
     | .var x => simp_all[Term.applySubst, Term.denote]
     | .neg t =>
@@ -541,7 +544,7 @@ theorem Subst.preserve_semantics.term
       . contradiction
       .
         next a heq =>
-        have := Subst.preserve_semantics.term σ i v t a (by simp[heq])
+        have := Subst.preserve_semantics.term σ U i v w hvw t a (by simp[heq])
         simp_all[Term.denote]
     | .plus t₁ t₂
     | .times t₁ t₂ =>
@@ -554,15 +557,13 @@ theorem Subst.preserve_semantics.term
         . contradiction
         .
           next a ha _ _ b hb =>
-          have := Subst.preserve_semantics.term σ i v t₁ a (by simp[ha])
-          have := Subst.preserve_semantics.term σ i v t₂ b (by simp[hb])
+          have := Subst.preserve_semantics.term σ U i v w hvw t₁ a (by simp[ha])
+          have := Subst.preserve_semantics.term σ U i v w hvw t₂ b (by simp[hb])
           simp_all[Term.denote]
     | .applyFn f args =>
       match hf : f with
         | .num n =>
-          simp[Term.applySubst, Option.bind] at hs
-          split at hs
-          . contradiction
+          simp[Term.applySubst] at hs
           simp_all[Term.denote]
         | .sym s =>
           simp[Term.applySubst, Option.bind] at hs
@@ -570,41 +571,48 @@ theorem Subst.preserve_semantics.term
           .
             contradiction
           .
-            simp_all
+            simp at hs
             -- we do apply the subst
             split at hs
             next _ b _ _ =>
-
+              split at hs
+              . contradiction
+              simp_all
               simp[Term.denote]
 
               -- remove adjoint by Subst.preserve_semantics.termVector
               have : (fun (x : Fin s.arity) =>
-                        Term.denote (σ.adjoint i v) v args.toVector[↑(x : Nat)])
+                        Term.denote (σ.adjoint i w) v args.toVector[↑(x : Nat)])
                    = (fun (x : Fin s.arity) => Term.denote i v b.toVector[↑x]) := by
                     funext x
                     apply Eq.symm
-                    apply Subst.preserve_semantics.term
+                    apply Subst.preserve_semantics.term _ _ _ _ _ hvw
                     apply Eq.symm
                     apply Subst.apply_subst_term_vector_to_term
                     assumption
               rw[this]
 
-              apply Subst.preserve_semantics.term b.toSubst at hs
-              rw[hs]
-              rw[subst_adjoint_of_term_vector_to_subst]
-              simp only [adjoint]
-
+              apply Subst.preserve_semantics.term b.toSubst _ _ v v at hs
+              .
+                rw[hs]
+                rw[subst_adjoint_of_term_vector_to_subst]
+                simp only [adjoint]
+                apply Term.coincidence
+                simp_all[State.isEqExcept, ←Set.disjoint_iff_inter_eq_empty]
+                grind only [= Set.disjoint_left, Set.EqOn, = Set.mem_compl_iff]
+              .
+                simp_all only [State.isEqExcept, FCSet.to_set_empty, Set.compl_empty, Set.eqOn_univ]
             next a _ _ =>
               -- we don't apply subst
               simp_all
 
               -- remove adjoint by Subst.preserve_semantics.termVector
               have : (fun (x : Fin s.arity) =>
-                        Term.denote (σ.adjoint i v) v args.toVector[↑(x : ℕ)])
+                        Term.denote (σ.adjoint i w) v args.toVector[↑(x : ℕ)])
                    = (fun (x : Fin s.arity) => Term.denote i v a.toVector[↑x]) := by
                     funext x
                     apply Eq.symm
-                    apply Subst.preserve_semantics.term
+                    apply Subst.preserve_semantics.term _ _ _ _ _ hvw
                     apply Eq.symm
                     apply Subst.apply_subst_term_vector_to_term
                     assumption
@@ -612,18 +620,15 @@ theorem Subst.preserve_semantics.term
               simp[Term.denote]
               rw[this]
 
-              -- remove remaining adjoint because `σ.adjoint i v f = i f` if `f ∉ σ`
-              have := @Subst.adjoint_noeffect_nomem_fun i v s σ (by assumption)
+              -- remove remaining adjoint because `σ.adjoint i w f = i f` if `f ∉ σ`
+              have := @Subst.adjoint_noeffect_nomem_fun i w s σ (by assumption)
               rw[this]
               simp
     | .differential t =>
       simp[Term.applySubst, Option.bind] at hs
       split at hs
       . contradiction
-      simp at hs
-      split at hs
-      . contradiction
-      next _ _ hg _ _ a heq =>
+      next a heq =>
       simp at hs
       cases hs
       simp[Term.denote]
@@ -652,7 +657,7 @@ theorem Subst.preserve_semantics.term
       -- and hence substitution can *only reduce* free variables, e.g. {f(⋅) → 2}
       have : a.freeVars ⊆ t.freeVars := by
         have ih := Term.freeVars_applySubst_admissible_univ_subset
-              (σ := σ) t a heq (by simp_all[Subst.admissible])
+              (σ := σ) t a heq
         intro x hx
         have := ih hx
         grind
@@ -669,14 +674,10 @@ theorem Subst.preserve_semantics.term
       funext x
       congr
       funext y
-      have := by
-        apply @Subst.admissible_adjoint.term v (v.update x y) (v.update x y) σ i t FCSet.univ
-        . simp_all[Subst.admissible, Option.guard_eq_some']
-        . simp_all[State.isEqOn]
-      rw[this]
+      apply Subst.preserve_semantics.term _ FCSet.univ
+      . simp only [FCSet.to_set_univ, State.eq_except_univ]
+      . simp_all only
 
-      apply Subst.preserve_semantics.term σ i (v.update x y)
-      grind
 termination_by
   (σ.size, sizeOf t)
 decreasing_by
@@ -699,32 +700,21 @@ decreasing_by
     grind
 
 
-lemma ode_mapM_assignables_eq
-  {σ : Subst}
-  {system : OdeSystem}
-  {ssystem : OdeSystem}
-  (h : system.mapM (fun x => do return ODE.mk x.var (← Term.applySubst σ x.term))
-       = some ssystem)
-  : OdeSystem.assignables ssystem = OdeSystem.assignables system := by
-  unfold OdeSystem.assignables at *;
-  induction system generalizing ssystem <;> simp_all +decide [ List.mapM_cons ];
-  cases h' : Term.applySubst σ ‹ODE›.term <;> simp_all +decide [ Option.bind_eq_some_iff ];
-  aesop
-
 lemma ode_evolution_formula_applySubst
   {σ : Subst}
+  {U : FCSet Assignable}
   {system ssystem : OdeSystem}
   {Ψ Ψ' : Formula}
-  : Formula.applySubst σ Ψ = some Ψ'
-  → system.mapM (fun x => do return ODE.mk x.var (← Term.applySubst σ x.term)) = some ssystem
-  → Formula.applySubst σ (odeEvolutionFormula system Ψ)
+  : Formula.applySubst σ U Ψ = some Ψ'
+  → system.mapM (fun x => do return ODE.mk x.var (← Term.applySubst σ U x.term)) = some ssystem
+  → Formula.applySubst σ U (odeEvolutionFormula system Ψ)
   = some (odeEvolutionFormula ssystem Ψ') := by
 
   intros h₁ h₂
   induction system generalizing ssystem Ψ Ψ' with
     | nil => simp_all[odeEvolutionFormula]
     | cons head tail ih =>
-      cases _ : Term.applySubst σ head.term
+      cases _ : Term.applySubst σ U head.term
       . simp_all
       .
         simp_all[Option.bind_eq_some_iff]
@@ -757,6 +747,18 @@ lemma ode_evolution_formula_admissible
     unfold Subst.admissible; aesop;
   exact h_foldr system hterms
 
+/- Taboo set computation -/
+theorem Program.boundVars_applySubst_subset
+  (σ : Subst)
+  (U V : FCSet Assignable)
+  (α α' : Program) :
+  Program.applySubst σ U α = some ⟨V,α'⟩ → α'.boundVars ∪ U ⊆ V := by
+  intro h
+  have := Program.substBoundVars_applySubst h
+  apply Program.substBoundVars_applySubst_boundVars at h
+  rw[Program.bound_vars_decidable α']
+  grind only [= Set.subset_def, FCSet.to_set_union]
+
 set_option maxHeartbeats 0 in
 /- Good things take time (dunno if that is one of them) --/
 
@@ -764,11 +766,13 @@ mutual
 
 theorem Subst.preserve_semantics.formula
   (σ : Subst)
+  (U : FCSet Assignable)
   (i : Interpretation)
-  (v : State)
+  (v w : State)
+  (hvw : v.isEqExcept w U)
   (Φ Φ' : Formula)
-  (hs : Φ' = Formula.applySubst σ Φ)
-  : v ∈ Formula.denote i Φ' ↔ v ∈ Formula.denote (Subst.adjoint σ i v) Φ := by
+  (hs : Φ' = Formula.applySubst σ U Φ)
+  : v ∈ Formula.denote i Φ' ↔ v ∈ Formula.denote (Subst.adjoint σ i w) Φ := by
     match Φ with
       | .True
       | .False =>
@@ -782,8 +786,8 @@ theorem Subst.preserve_semantics.formula
         split at hs
         . contradiction
         simp_all[Formula.denote]
-        have := Subst.preserve_semantics.term σ i v t₁
-        have := Subst.preserve_semantics.term σ i v t₂
+        have := Subst.preserve_semantics.term σ U i v w hvw t₁
+        have := Subst.preserve_semantics.term σ U i v w hvw t₂
         grind
       | .not Φ =>
         simp_all[Formula.denote, Formula.applySubst, Option.bind]
@@ -791,7 +795,7 @@ theorem Subst.preserve_semantics.formula
         . contradiction
         simp_all
         rename Formula => Φ'
-        have := Subst.preserve_semantics.formula σ i v Φ Φ'
+        have := Subst.preserve_semantics.formula σ U i v w hvw Φ Φ'
         simp_all[Formula.denote]
       | .and Φ₁ Φ₂ =>
         simp_all[Formula.denote, Formula.applySubst, Option.bind]
@@ -802,69 +806,46 @@ theorem Subst.preserve_semantics.formula
         . contradiction
         simp_all
         next Φ₁' _ _ _ Φ₂' _ =>
-        have := Subst.preserve_semantics.formula σ i v Φ₁ Φ₁'
-        have := Subst.preserve_semantics.formula σ i v Φ₂ Φ₂'
+        have := Subst.preserve_semantics.formula σ U i v w hvw Φ₁ Φ₁'
+        have := Subst.preserve_semantics.formula σ U i v w hvw Φ₂ Φ₂'
         simp_all[Formula.denote]
       | .forall x Φ =>
         simp_all[Formula.denote, Formula.applySubst, Option.bind]
         split at hs
         . contradiction
         simp_all
-        split at hs
-        . contradiction
         rename Formula => Φ'
         simp_all[Formula.denote]
         apply Iff.intro
         .
           intros h r
-          have := (Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)).mp (h r)
-          have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
-                                                   (v := v) (w := v.update x r)
-                                                   (by simp_all[Subst.admissible])
-                                                   (by simp_all[State.isEqOn, Set.EqOn])
-          rw[this]
-          grind
+          have hvw' : (v.update x r).isEqExcept w ({.var x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
+          apply (Subst.preserve_semantics.formula σ ({.var x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mp (h r)
+
         .
           intros h r
-          have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
-                                                   (v := v) (w := v.update x r)
-                                                   (by simp_all[Subst.admissible])
-                                                   (by simp_all[State.isEqOn, Set.EqOn])
-          rw[this] at h
-          have := (Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)).mpr (h r)
-          grind
+          have hvw' : (v.update x r).isEqExcept w ({.var x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
+          apply (Subst.preserve_semantics.formula σ ({.var x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mpr (h r)
       | .exists x Φ =>
         simp_all[Formula.denote, Formula.applySubst, Option.bind]
         split at hs
         . contradiction
         simp_all
-        split at hs
-        . contradiction
         rename Formula => Φ'
         simp_all[Formula.denote]
         apply Iff.intro
         .
-          intros h
-          obtain ⟨r, hr⟩ := h
+          intro ⟨r, hr⟩
           apply Exists.intro r
 
-          have := Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)
-          have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
-                                                   (v := v) (w := v.update x r)
-                                                   (by simp_all[Subst.admissible])
-                                                   (by simp_all[State.isEqOn, Set.EqOn])
-          grind
+          have hvw' : (v.update x r).isEqExcept w ({.var x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
+          apply (Subst.preserve_semantics.formula σ ({.var x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mp hr
         .
-          intros h
-          obtain ⟨r, hr⟩ := h
+          intro ⟨r, hr⟩
           apply Exists.intro r
 
-          have := Subst.preserve_semantics.formula σ i (v.update x r) Φ Φ' (by grind)
-          have := Subst.admissible_adjoint.formula (U := {.var x}) (Φ := Φ) (i := i) (σ := σ)
-                                                   (v := v) (w := v.update x r)
-                                                   (by simp_all[Subst.admissible])
-                                                   (by simp_all[State.isEqOn, Set.EqOn])
-          grind
+          have hvw' : (v.update x r).isEqExcept w ({.var x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
+          apply (Subst.preserve_semantics.formula σ ({.var x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mpr hr
       | .box α Φ =>
         simp_all[Formula.denote, Formula.applySubst, Option.bind]
         split at hs
@@ -873,24 +854,22 @@ theorem Subst.preserve_semantics.formula
         split at hs
         . contradiction
         simp_all
-        split at hs
-        . contradiction
-        rename Program => α'
+        rename FCSet Assignable × Program => Vα'
+        rcases Vα' with ⟨V,α'⟩
         rename Formula => Φ'
         simp_all[Formula.denote]
         apply Iff.intro
         all_goals
-        -- guard <| σ.admissible σα.boundVars' Φ.signature
-        intros h₁ w h₂
-        have := Program.bound_effect h₂
-        have := Subst.preserve_semantics.program σ i v w α α'
-        have := Subst.admissible_adjoint.formula (U := α'.boundVars')
-                                                 (Φ := Φ) (i := i)
-                                                 (σ := σ) (v := v) (w := w)
-                                                 (by simp_all[Subst.admissible])
-                                                 (by grind[Program.bound_effect'])
-        have := Subst.preserve_semantics.formula σ i w Φ Φ'
-        grind
+        intros h₁ w' h₂
+        have := Subst.preserve_semantics.program σ U V i v w w' hvw α α'
+        simp_all only [iff_true, forall_const]
+        have hww' : w'.isEqExcept w V.toSet := by
+          have := Program.bound_effect this
+          have := Program.boundVars_applySubst_subset σ U V α α'
+          grind only [= Set.subset_def, State.isEqExcept, Set.EqOn, = Set.mem_compl_iff,
+            = Set.mem_union]
+        have := Subst.preserve_semantics.formula σ V i w' w hww' Φ Φ'
+        grind only
       | .diamond α Φ =>
         simp_all[Formula.denote, Formula.applySubst, Option.bind]
         split at hs
@@ -899,24 +878,23 @@ theorem Subst.preserve_semantics.formula
         split at hs
         . contradiction
         simp_all
-        split at hs
-        . contradiction
-        rename Program => α'
+        rename FCSet Assignable × Program => Vα'
+        rcases Vα' with ⟨V,α'⟩
         rename Formula => Φ'
         simp_all[Formula.denote]
         apply Iff.intro
         all_goals
-        intros h
-        obtain ⟨w, hw⟩ := h
-        apply Exists.intro w
-        have := Subst.preserve_semantics.program σ i v w α α'
-        have := Subst.admissible_adjoint.formula (U := α'.boundVars')
-                                               (Φ := Φ) (i := i)
-                                               (σ := σ) (v := v) (w := w)
-                                               (by simp_all[Subst.admissible])
-                                               (by grind[Program.bound_effect'])
-        have := Subst.preserve_semantics.formula σ i w Φ Φ'
-        grind
+        intro ⟨w', hw⟩
+        apply Exists.intro w'
+        have := Subst.preserve_semantics.program σ U V i v w w' hvw α α'
+        simp_all only [iff_true, forall_const, and_true]
+        have hww' : w'.isEqExcept w V.toSet := by
+          have := Program.bound_effect this
+          have := Program.boundVars_applySubst_subset σ U V α α'
+          grind only [= Set.subset_def, State.isEqExcept, Set.EqOn, = Set.mem_compl_iff,
+            = Set.mem_union]
+        have := Subst.preserve_semantics.formula σ V i w' w hww' Φ Φ'
+        grind only
       | .ref α β =>
         simp_all[Formula.denote, Formula.applySubst, Option.bind]
         split at hs
@@ -925,39 +903,50 @@ theorem Subst.preserve_semantics.formula
         split at hs
         . contradiction
         simp_all[Formula.denote]
-        next _ _ α' _ _ _ β' _ =>
+        next _ _ Vα' _ _ _ Wβ' _ =>
         apply Iff.intro
         all_goals
-        intros h₁ w h₂
-        have := Subst.preserve_semantics.program σ i v w α α'
-        have := Subst.preserve_semantics.program σ i v w β β'
+        intros h₁ w' h₂
+        have := Subst.preserve_semantics.program σ U Vα'.1 i v w w' hvw α Vα'.2
+        have := Subst.preserve_semantics.program σ U Wβ'.1 i v w w' hvw β Wβ'.2
         grind
       | .applyPred p args =>
-        simp_all[Formula.denote, Formula.applySubst, Option.bind]
+        simp[Formula.applySubst, Option.bind] at hs
         split at hs
         . contradiction
-        simp_all
+        simp only at hs
 
         next _ args' _ =>
-        have : (fun (x : Fin p.arity) => Term.denote (σ.adjoint i v) v args.toVector[↑(x : ℕ)])
+        have : (fun (x : Fin p.arity) => Term.denote (σ.adjoint i w) v args.toVector[↑(x : ℕ)])
              = (fun (x : Fin p.arity) => Term.denote i v args'.toVector[↑x]) := by
                   funext x
                   apply Eq.symm
-                  apply Subst.preserve_semantics.term
+                  apply Subst.preserve_semantics.term _ U _ _ _ hvw
                   apply Eq.symm
                   apply Subst.apply_subst_term_vector_to_term
                   assumption
 
         split at hs
-        .
+        . split at hs
+          . contradiction
+          simp_all
           -- we do apply the subst
-          apply Subst.preserve_semantics.formula (σ := args'.toSubst) (v := v) (i := i) at hs
-          rw[hs]
-          rw[subst_adjoint_of_term_vector_to_subst]
-          simp_all[Subst.adjoint]
+          apply Subst.preserve_semantics.formula args'.toSubst ∅ i v v at hs
+          .
+            rw[hs]
+            rw[subst_adjoint_of_term_vector_to_subst]
+            simp[Formula.denote, adjoint]
+            rw[this]
+            apply Iff.intro
+            all_goals
+            apply Formula.coincidence
+            simp_all[State.isEqExcept, ←Set.disjoint_iff_inter_eq_empty]
+            grind only [Formula.free_vars_decidable, = Set.disjoint_left, Set.EqOn, = Set.mem_compl_iff]
+          .
+            simp_all only [State.isEqExcept, FCSet.to_set_empty, Set.compl_empty, Set.eqOn_univ]
         .
           -- we dont apply the subst
-          have := @Subst.adjoint_noeffect_nomem_pred i v p σ (by assumption)
+          have := @Subst.adjoint_noeffect_nomem_pred i w p σ (by assumption)
           simp_all[Formula.denote, Subst.adjoint]
 termination_by (σ.size, Φ.size)
 decreasing_by
@@ -976,11 +965,13 @@ decreasing_by
 
 theorem Subst.preserve_semantics.program
   (σ : Subst)
+  (U V : FCSet Assignable)
   (i : Interpretation)
-  (v w : State)
+  (v v' w : State)
+  (hvv' : v.isEqExcept v' U)
   (α α' : Program)
-  (hs : α' = Program.applySubst σ α)
-  : ⟨v, w⟩ ∈ Program.denote i α' ↔ ⟨v, w⟩ ∈ Program.denote (Subst.adjoint σ i v) α := by
+  (hs : some ⟨V,α'⟩ = Program.applySubst σ U α)
+  : ⟨v, w⟩ ∈ Program.denote i α' ↔ ⟨v, w⟩ ∈ Program.denote (Subst.adjoint σ i v') α := by
     match α with
       | .const a =>
         simp_all[Program.denote, Program.applySubst, Subst.adjoint]
@@ -990,11 +981,11 @@ theorem Subst.preserve_semantics.program
         . contradiction
         rename Term => t'
         simp_all[Program.denote]
-        have := Subst.preserve_semantics.term σ i v t t'
+        have := Subst.preserve_semantics.term σ U i v _ hvv' t t'
         grind
       | .random x =>
         simp[Program.applySubst] at hs
-        rw[hs]
+        rw[hs.2]
         simp only [Program.denote]
       | .test Φ =>
         simp_all[Program.denote, Program.applySubst, Option.bind]
@@ -1002,7 +993,7 @@ theorem Subst.preserve_semantics.program
         . contradiction
         rename Formula => Φ'
         simp_all[Program.denote]
-        have := Subst.preserve_semantics.formula σ i v Φ Φ'
+        have := Subst.preserve_semantics.formula σ U i v _ hvv' Φ Φ'
         grind
       | .choice α β =>
         simp_all[Program.denote, Program.applySubst, Option.bind]
@@ -1012,127 +1003,84 @@ theorem Subst.preserve_semantics.program
         split at hs
         . contradiction
         simp_all[Program.denote]
-        next _ _ _ α' _ _ _ β' _ =>
-        have := Subst.preserve_semantics.program σ i v w α α'
-        have := Subst.preserve_semantics.program σ i v w β β'
+        next _ _ _ Vα' _ _ _ Wβ' _ =>
+        have := Subst.preserve_semantics.program σ U Vα'.1 i v _ w hvv' α Vα'.2
+        have := Subst.preserve_semantics.program σ U Wβ'.1 i v _ w hvv' β Wβ'.2
         grind
       | .seq α β =>
-        simp_all[Program.denote, Program.applySubst, Option.bind]
+        simp[Program.applySubst, Option.bind] at hs
         split at hs
         . contradiction
-        simp_all
-        split at hs
-        . contradiction
+        simp only at hs
         split at hs
         . contradiction
         simp_all[Program.denote]
-        next α' _ _ _ _ _ _ β' _ _  =>
+        next Vα' _ _ _ Wβ' _  =>
+        rcases Vα' with ⟨V,α'⟩
+        rcases Wβ' with ⟨W,β'⟩
         apply Iff.intro
-        .
-          intros h
-          obtain ⟨w', hw'⟩ := h
+        all_goals
+          intro ⟨w', hw'⟩
           apply Exists.intro w'
-          and_intros
-          .
-            have := Subst.preserve_semantics.program σ i v w' α α'
-            grind
-          .
-            have := Subst.preserve_semantics.program σ i w' w β β'
-            have := Subst.admissible_adjoint.program (U := α'.boundVars')
-                                                     (α := β) (i := i)
-                                                     (σ := σ) (v := v) (w := w')
-                                                     (by simp_all[Subst.admissible])
-                                                     (by grind[Program.bound_effect'])
-
-            grind
-        .
-          intros h
-          obtain ⟨w', hw'⟩ := h
-          apply Exists.intro w'
-          and_intros
-          .
-            have := Subst.preserve_semantics.program σ i v w' α α'
-            grind
-          .
-            have := Subst.preserve_semantics.program σ i v w' α α'
-            have := Subst.preserve_semantics.program σ i w' w β β'
-            have := Subst.admissible_adjoint.program (U := α'.boundVars')
-                                                     (α := β) (i := i)
-                                                     (σ := σ) (v := v) (w := w')
-                                                     (by simp_all[Subst.admissible])
-                                                     (by grind[Program.bound_effect'])
-
-            grind
+          have := Subst.preserve_semantics.program σ U V i v _ w' hvv' α α'
+          simp_all only [iff_true, forall_const, true_and]
+          have hw'v' : w'.isEqExcept v' V.toSet := by
+            have := Program.bound_effect this
+            have := Program.boundVars_applySubst_subset σ U V α α'
+            grind only [= Set.subset_def, State.isEqExcept, Set.EqOn, = Set.mem_compl_iff,
+              = Set.mem_union]
+          have := Subst.preserve_semantics.program σ V W i w' _ w hw'v' β β'
+          grind only
       | .loop α =>
-        simp_all[Program.denote, Program.applySubst, Option.bind]
+        simp[Program.applySubst, Option.bind] at hs
         split at hs
         . contradiction
-        simp_all
-        split at hs
-        . contradiction
-        rename Program => α'
+        -- first pass to get bound variables
+        simp at hs
+        rename FCSet Assignable × Program => Vα'
+        rcases Vα' with ⟨V, α'⟩
+        set V' := Program.substBoundVars σ α ∪ U
+        have := Subst.preserve_semantics.program σ U V i v _ w hvv' α α'
+
         simp_all[Program.denote]
-        have := Subst.preserve_semantics.program σ i v w α α'
         apply Iff.intro
-        .
+        all_goals
           intros h
           induction h with
             | rfl => grind[LoopClosure]
-            | trans v w h₁ h₂ ih =>
-                have := ih (by apply Subst.preserve_semantics.program)
-                apply LoopClosure.trans (v := v)
-                . grind
+            | trans v₂ w h₁ h₂ ih =>
+                have := ih (by apply Subst.preserve_semantics.program _ _ _ _ _ _ _ hvv')
+                apply LoopClosure.trans (v := v₂)
+                . grind only
                 .
-                  next u _ _ _ _ _ _ _ _ _ _ _ =>
-                  have := (Subst.preserve_semantics.program σ i v w α α' (by grind)).mp h₂
-                  have := Subst.admissible_adjoint.program (U := α'.boundVars') (α := α) (i := i)
-                                                           (σ := σ) (v := u) (w := v)
-                            (by simp_all[Subst.admissible])
-                            (by grind)
-
+                  have hv₂v' : v₂.isEqExcept v' V'.toSet := by
+                    have := @Program.bound_effect α'.loop v v₂ i
+                    simp_all only [Program.denote, Set.mem_setOf_eq, Program.boundVars,
+                      forall_const]
+                    have := Program.boundVars_applySubst_subset σ V' V α α'
+                    have := @Program.substBoundVars_applySubst σ α α' V' V
+                    grind[!FCSet.to_set_union, State.isEqExcept, Set.EqOn]
+                  have := Subst.preserve_semantics.program σ V' V i v₂ v' w hv₂v' α α'
                   simp_all[Membership.mem, Set.Mem]
-        .
-          intros h
-          induction h with
-            | rfl => grind[LoopClosure]
-            | trans v w h₁ h₂ ih =>
-              have := ih (by apply Subst.preserve_semantics.program)
-              apply LoopClosure.trans (v := v)
-              . grind
-              .
-                next u _ _ _ _ _ _ _ _ _ _ _ =>
-                have := Subst.admissible_adjoint.program (U := α'.boundVars') (α := α) (i := i)
-                                                         (σ := σ) (v := u) (w := v)
-                         (by simp_all[Subst.admissible])
-                         (by grind)
-
-                have := (Subst.preserve_semantics.program σ i v w α α' (by grind)).mpr
-                  (by rw[← this] ; exact h₂)
-
-                simp_all[Membership.mem, Set.Mem]
       | .ode system Ψ =>
         simp[Program.applySubst, Option.bind] at hs
         split at hs
         . contradiction
-        simp_all
+        simp only at hs
         split at hs
         . contradiction
-        simp_all
-        split at hs
-        . contradiction
-        simp_all
-        split at hs
-        . contradiction
+        simp_all[Program.denote, -FCSet.to_set_eq]
         rename List ODE => ssystem
         rename Formula => Ψ'
-        simp_all[Program.denote]
+        set V' := FCSet.Finite (system.assignables ∪ Finset.map Assignable.diff_emb system.assignables) ∪ U
 
         have hassign : OdeSystem.assignables ssystem = OdeSystem.assignables system :=
           ode_mapM_assignables_eq (show _ = some ssystem from ‹_›)
 
         rw[hassign]
         apply Iff.intro
-        . rintro ⟨r, hr, φ, heq0, heqr, hflow⟩
+        all_goals
+          rintro ⟨r, hr, φ, heq0, heqr, hflow⟩
           apply Exists.intro r
           and_intros
           . grind
@@ -1148,66 +1096,17 @@ theorem Subst.preserve_semantics.program
                 have := hflow ζ h₁ h₂
 
                 have := ode_evolution_formula_applySubst
-                          (σ := σ) (system := system) (ssystem := ssystem)
+                          (σ := σ) (U := V') (system := system) (ssystem := ssystem)
                           (Ψ := Ψ) (Ψ' := Ψ') (by grind) (by grind)
 
-                have := Subst.preserve_semantics.formula σ i (φ ζ)
+                have hφv' : (φ ζ).isEqExcept v' V'.toSet := by
+                  specialize hflow ζ h₁ h₂
+                  clear * - hvv' heq0 hflow
+                  grind[State.isEqExcept, Set.EqOn, OdeSystem.assignables]
+                have := Subst.preserve_semantics.formula σ V' i (φ ζ) v' hφv'
                           (odeEvolutionFormula system Ψ)
                           (odeEvolutionFormula ssystem Ψ') (by grind)
-
-                have := this.mp (by grind)
-
-                have := ode_evolution_formula_admissible σ system Ψ
-                          (.Finite (system.assignables ∪ system.assignables.map Assignable.diff_emb))
-                          (by simp_all[Subst.admissible, OdeSystem.assignables])
-                          (by simp_all[Subst.admissible, OdeSystem.assignables])
-
-                have := Subst.admissible_adjoint.formula
-                          (v := v) (w := φ ζ) (σ := σ)
-                          (i := i) (Φ := odeEvolutionFormula system Ψ)
-                          (U := .Finite (system.assignables ∪ system.assignables.map Assignable.diff_emb))
-                          (by simp_all [Subst.admissible])
-                          (by simp_all[State.isEqOn, State.isEqExcept, Set.EqOn])
-
-                grind
-              . grind
-              . grind
-        . rintro ⟨r, hr, φ, heq0, heqr, hflow⟩
-          apply Exists.intro r
-          and_intros
-          . grind
-          .
-            apply Exists.intro φ
-            and_intros
-            . grind
-            . grind
-            .
-              intros ζ h₁ h₂
-              and_intros
-              .
-                have := hflow ζ h₁ h₂
-
-                have := ode_evolution_formula_applySubst
-                          (σ := σ) (system := system) (ssystem := ssystem)
-                          (Ψ := Ψ) (Ψ' := Ψ') (by grind) (by grind)
-
-                have := Subst.preserve_semantics.formula σ i (φ ζ)
-                          (odeEvolutionFormula system Ψ)
-                          (odeEvolutionFormula ssystem Ψ') (by grind)
-
-                have := ode_evolution_formula_admissible σ system Ψ
-                          (.Finite (system.assignables ∪ system.assignables.map Assignable.diff_emb))
-                          (by simp_all[Subst.admissible, OdeSystem.assignables])
-                          (by simp_all[Subst.admissible, OdeSystem.assignables])
-
-                have := Subst.admissible_adjoint.formula
-                          (v := v) (w := φ ζ) (σ := σ)
-                          (i := i) (Φ := odeEvolutionFormula system Ψ)
-                          (U := .Finite (system.assignables ∪ system.assignables.map Assignable.diff_emb))
-                          (by simp_all [Subst.admissible])
-                          (by simp_all [State.isEqOn, State.isEqExcept, Set.EqOn])
-
-                grind
+                grind only
               . grind
               . grind
 termination_by (σ.size, α.size)
@@ -1219,35 +1118,30 @@ end
 
 -- Uniform Substitution for Differential Dynamic Logic is sound!
 theorem US {σ : Subst} {Φ Φ' : Formula}
-  : Formula.applySubst σ Φ = Φ'
+  : Formula.applySubst σ ∅ Φ = Φ'
   → (∀ (i : Interpretation) (v : State), v ∈ Formula.denote i Φ)
   → (∀ (i : Interpretation) (v : State), v ∈ Formula.denote i Φ') := by
   intros h₁ h₂ i v
   have := h₂ i v
-  have := Subst.preserve_semantics.formula σ i v Φ Φ' (by grind)
+  have := Subst.preserve_semantics.formula σ ∅ i v v (Set.eqOn_refl _ _) Φ Φ' (by grind)
   simp_all
 
 theorem US_rule {σ : Subst}
                 (premises : List (Formula × Formula))
                 (Ψ Ψ' : Formula)
-                (hp : ∀ Φ ∈ premises, Formula.applySubst σ Φ.1 = Φ.2)
-                (hΨ : Formula.applySubst σ Ψ = Ψ')
-                (hσ : Subst.freeVars σ .none = ∅)
+                (hp : ∀ Φ ∈ premises, Formula.applySubst σ .univ Φ.1 = Φ.2)
+                (hΨ : Formula.applySubst σ .univ Ψ = Ψ')
   : (∀ (i : Interpretation), (∀ (v : State) (Φ : Formula × Formula), Φ ∈ premises → v ∈ Formula.denote i Φ.1) → (∀ (v : State), v ∈ Formula.denote i Ψ))
   → (∀ (i : Interpretation), (∀ (v : State) (Φ : Formula × Formula), Φ ∈ premises → v ∈ Formula.denote i Φ.2) → (∀ (v : State), v ∈ Formula.denote i Ψ')) := by
   intros h₁ i h₂ v
 
-  have := by
-    apply h₁ (Subst.adjoint σ i v) (?_) v
+  have : ∀ (w : State), ∀ Φ ∈ premises, w ∈ Formula.denote (σ.adjoint i v) Φ.1:= by
     intros w Φ hp
-    have := Subst.preserve_semantics.formula σ i w Φ.1 Φ.2 (by grind)
-    have := Subst.freeVars_symbol_subset_none (σ := σ) (S := (Φ.1).signature)
-    have := Subst.admissible_adjoint.formula
-              (Φ := Φ.1) (i := i) (σ := σ)
-              (v := v) (w := w) (U := .univ)
-              (by simp_all [Subst.admissible])
-              (by simp_all)
-    grind
+    have := Subst.preserve_semantics.formula σ .univ i w v (by grind[State.isEqExcept, Set.EqOn]) Φ.1 Φ.2 (by grind only)
+    grind only
 
-  have := Subst.preserve_semantics.formula σ i v Ψ Ψ' (by grind)
-  grind
+  have : v ∈ Formula.denote (σ.adjoint i v) Ψ :=
+    h₁ (Subst.adjoint σ i v) this v
+
+  have := Subst.preserve_semantics.formula σ .univ i v v (Set.eqOn_refl _ _) Ψ Ψ' (by grind)
+  grind only
