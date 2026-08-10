@@ -363,7 +363,7 @@ lemma ode_evolution_formula_freeVars_eq_ode_freeVars
       : (odeEvolutionFormula system Ψ).freeVars \ (Program.ode system Ψ).mustBoundVars
         ⊆ (Program.ode system Ψ).freeVars := by
     induction system
-    . simp[OdeSystem.assignables, unionListOfFinsets, odeEvolutionFormula,
+    . simp[OdeSystem.assignables, odeEvolutionFormula,
            Program.freeVars, Program.mustBoundVars, Program.boundVars]
     . next hd _ h =>
       simp_all only [Program.mustBoundVars]
