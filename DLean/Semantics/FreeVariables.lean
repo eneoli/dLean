@@ -16,7 +16,7 @@ def Term.freeVars : (t : Term) → Set Assignable
   | Term.times t₁ t₂    => Term.freeVars t₁ ∪ Term.freeVars t₂
   | Term.differential t => let fvars := Term.freeVars t;
                            fvars ∪ fvars.image Assignable.diff
-  | Term.applyFn (.unit f) _ => f.taboo.toFinsetᶜ
+  | Term.unit F         => F.taboo.toFinsetᶜ
   | Term.applyFn _ ts   => ts.freeVars
 
 def TermVector.freeVars {n : ℕ}
@@ -63,7 +63,7 @@ def Term.freeVars' : (t : Term) → FCSet Assignable
   | Term.times t₁ t₂    => Term.freeVars' t₁ ∪ Term.freeVars' t₂
   | Term.differential t => let fvars := Term.freeVars' t;
                            fvars.addDiff
-  | Term.applyFn (.unit f) _ => .Infinite f.taboo.toFinset
+  | Term.unit F         => .Infinite F.taboo.toFinset
   | Term.applyFn _ ts   => ts.freeVars'
 
 def TermVector.freeVars' {n : ℕ}
@@ -93,9 +93,9 @@ theorem Term.free_vars_decidable (t : Term) : t.freeVars = t.freeVars' := by
   | .differential _ =>
     simp only [Term.freeVars, Term.freeVars', FCSet.to_set_union, FCSet.to_set_add_diff, FCSet.to_set_singleton,
       Term.free_vars_decidable]
-  | .applyFn (.unit _) _ =>
+  | .unit _ =>
     simp only [Term.freeVars, List.coe_toFinset, FCSet.toSet, Term.freeVars']
-  | .applyFn (.sym _) _ | .applyFn (.num _) _ =>
+  | .applyFn _ _ =>
     simp only [Term.freeVars, TermVector.free_vars_decidable, Term.freeVars']
 
 end
@@ -109,7 +109,7 @@ def Term.freeVarsSem (i : Interpretation) : (t : Term) → Finset Assignable
   | Term.times t₁ t₂    => Term.freeVarsSem i t₁ ∪ Term.freeVarsSem i t₂
   | Term.differential t => let fvars := Term.freeVarsSem i t;
                            fvars ∪ Finset.map Assignable.diff_emb fvars
-  | Term.applyFn (.unit f) _ => (i f).1
+  | Term.unit F         => (i F).1
   | Term.applyFn _ ts   => ts.freeVarsSem i
 
 def TermVector.freeVarsSem {n : ℕ}
@@ -165,7 +165,7 @@ theorem Term.dots_free_vars {n : ℕ}
                             : (Term.dots n).freeVars = ∅ := by
   induction n
   . simp
-  . simp?[TermVector.generate, Term.dots]
+  . simp[TermVector.generate, Term.dots]
 
 theorem Term.dots_free_vars_sem {n : ℕ} {i : Interpretation}
                             : (Term.dots n).freeVarsSem i = ∅ := by
@@ -226,12 +226,12 @@ theorem Term.freeVarsSem_subset_freeVars (t : Term) (i : Interpretation) : ↑(t
     simp only [Term.freeVarsSem, Assignable.diff_emb, Finset.coe_union, Finset.coe_map,
       Function.Embedding.coeFn_mk, Term.freeVars]
     grind only [= Set.subset_def, = Set.mem_union, = Set.mem_preimage, = Set.mem_image]
-  | .applyFn (.unit F) _ =>
+  | .unit F =>
     simp only [Term.freeVars, Term.freeVarsSem]
     apply Disjoint.subset_compl_right
     rw[Finset.disjoint_coe]
     exact (i (Symbol.UnitFun F)).fst.2
-  | .applyFn (.sym _) _ | .applyFn (.num _) _ =>
+  | .applyFn _ _ =>
     simp only [Term.freeVars, TermVector.freeVarsSem_subset_freeVars, Term.freeVarsSem]
 
 end

@@ -38,7 +38,6 @@ mutual
 def Function.signature : (f : Fn) → Finset Symbol
   | .num _ => ∅
   | .sym f => {Symbol.Function f}
-  | .unit f => {Symbol.UnitFun f}
 
 def Term.signature (t : Term) : Finset Symbol := match t with
   | Term.var _           => ∅
@@ -46,6 +45,7 @@ def Term.signature (t : Term) : Finset Symbol := match t with
   | Term.plus  t1 t2
   | Term.times t1 t2     => t1.signature ∪ t2.signature
   | Term.differential t' => t'.signature
+  | Term.unit F          => {.UnitFun F}
   | Term.applyFn f args  => Function.signature f ∪ args.signature
 
 def TermVector.signature {n : ℕ}
@@ -91,7 +91,7 @@ open scoped ContDiff
 
 def Interpretation.ReturnType : (symbol : Symbol) → Type
   | Symbol.Function  f => {g : (Fin f.arity → ℝ) → ℝ // ContDiff ℝ ∞ g}
-  | Symbol.UnitFun   f => Σ x : { s : Finset Assignable // Disjoint s f.taboo.toFinset},
+  | Symbol.UnitFun   F => Σ x : { s : Finset Assignable // Disjoint s F.taboo.toFinset},
                             {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}
   | Symbol.Predicate p => (Fin p.arity → ℝ) → Prop
   | Symbol.Program   _ => State × State → Prop

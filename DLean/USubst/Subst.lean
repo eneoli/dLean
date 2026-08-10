@@ -49,7 +49,7 @@ def SubstEntry.rhs (e : SubstEntry) : e.symbol.SubstType :=
 
 def Symbol.default : (symbol : Symbol) → symbol.SubstType
   | .Function f => Term.applyFn (.sym f) (Term.dots f.arity)
-  | .UnitFun f => Term.applyFn (.unit f) TermVector.nil
+  | .UnitFun F => Term.unit F
   | .Predicate p => Formula.applyPred p (Term.dots p.arity)
   | .Program a => Program.const a
 
@@ -239,8 +239,9 @@ def Term.applySubst (σ : Subst) (U : FCSet Assignable) (t : Term) : Option Term
     | .times t₁ t₂ => do return .times (← Term.applySubst σ U t₁) (← Term.applySubst σ U t₂)
     | .differential t => do
         return .differential (← Term.applySubst σ .univ t)
+    | .unit F => do
+        return Subst.get σ F
     | .applyFn (.num _) _ => do
-        -- let sargs ← TermVector.applySubst σ U args
         return t
     | .applyFn (.sym f) args => do
         let sargs ← TermVector.applySubst σ U args
@@ -249,8 +250,6 @@ def Term.applySubst (σ : Subst) (U : FCSet Assignable) (t : Term) : Option Term
           Term.applySubst (sargs.toSubst) ∅ (Subst.get σ f)
         else
           return .applyFn (.sym f) sargs
-    | .applyFn (.unit F) _ => do
-        return Subst.get σ F
 
 termination_by (σ.size, sizeOf t)
 decreasing_by
@@ -421,7 +420,7 @@ theorem term_vector_to_subst_get.unitfun
   {args : TermVector n}
   {F : UnitFunctional}
   : Subst.get args.toSubst (.UnitFun F)
-  = Term.applyFn (.unit F) .nil := by
+  = Term.unit F := by
   apply Subst.notin_default
   rw[TermVector.toSubst_in]
   simp
@@ -546,8 +545,8 @@ lemma Term.taboo_mono {σ : Subst} {U V : FCSet Assignable} {t t' : Term} :
   V.toSet ⊆ U.toSet → t.applySubst σ U = t' → t.applySubst σ V = t' := by
   match t with
   | .var _
+  | .unit _
   | .applyFn (Fn.num _) _
-  | .applyFn (Fn.unit _) _
   | .differential _ =>
     grind only [Term.applySubst]
   | .neg _ =>

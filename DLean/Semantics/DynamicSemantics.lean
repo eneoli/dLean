@@ -16,6 +16,7 @@ noncomputable def Term.denote (i : Interpretation) (s : State) (t : Term) : ℝ 
     | Term.neg  t         => - denote i s t
     | Term.plus x y       => denote i s x + denote i s y
     | Term.times x y      => denote i s x * denote i s y
+    | Term.unit F         => (i (.UnitFun F)).2.1 (fun ⟨x,_⟩ ↦ s x)
     | Term.applyFn f args =>
       match _ : f with
         | .num num   => num
@@ -23,7 +24,6 @@ noncomputable def Term.denote (i : Interpretation) (s : State) (t : Term) : ℝ 
           let argValues := Vector.map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
           have : f.arity = fnSym.arity := by simp_all only [Fn.arity]
           (i (Symbol.Function fnSym)).1 (argValues[·])
-        | .unit fUnit => (i (.UnitFun fUnit)).2.1 (fun ⟨x,_⟩ ↦ s x)
     | Term.differential t =>
       ∑ x ∈ t.freeVarsSem i, s (Assignable.diff x) *
                         (
@@ -158,9 +158,9 @@ lemma Term.assignDots_freeVarsSem {n : ℕ} (i : Interpretation) (t : Term) (dot
     have := t₁.assignDots_freeVarsSem i dots
     have := t₂.assignDots_freeVarsSem i dots
     simp_all only [Term.freeVarsSem]
-  | .applyFn (.unit f) _ =>
+  | .unit _ =>
     simp only [Term.freeVarsSem, Interpretation.assignDots]
-  | .applyFn (.num _) _ | .applyFn (.sym _) _ =>
+  | .applyFn _ _ =>
     simp only [Term.freeVarsSem, TermVector.assignDots_freeVarsSem]
   | .differential t =>
     have := t.assignDots_freeVarsSem i dots
@@ -206,6 +206,14 @@ theorem Term.contDiff {n : ℕ}
     apply ContDiff.mul
     . apply Term.contDiff
     . apply Term.contDiff
+  | .unit F =>
+      simp[Term.denote, Interpretation.assignDots]
+      apply contDiff_dep_app
+      . apply ContDiff.snd'
+        exact (i (Symbol.UnitFun F)).snd.2
+      . apply contDiff_pi.mpr
+        intro _
+        apply ContDiff.comp State.finUpdate_contDiff contDiff_snd
   | .applyFn f fargs =>
       match f with
       | .num n => simp[Term.denote, contDiff_const]
@@ -234,14 +242,7 @@ theorem Term.contDiff {n : ℕ}
         .
           apply contDiff_pi.mpr
           exact fun x ↦ @Term.contDiff n i v A fargs.toVector[x]
-      | .unit f =>
-        simp[Term.denote, Interpretation.assignDots]
-        apply contDiff_dep_app
-        . apply ContDiff.snd'
-          exact (i (Symbol.UnitFun f)).snd.2
-        . apply contDiff_pi.mpr
-          intro _
-          apply ContDiff.comp State.finUpdate_contDiff contDiff_snd
+
   | .differential t =>
     simp[Term.denote, assignDots_freeVarsSem]
     apply ContDiff.sum

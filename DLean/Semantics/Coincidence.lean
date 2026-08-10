@@ -51,11 +51,10 @@ lemma Term.freeVarsSem_coincidence (t : Term)
     Term.freeVarsSem_coincidence t₂ i j]
   | .differential t =>
     simp_all[Term.freeVarsSem, Term.signature, Term.freeVarsSem_coincidence t i j]
-  | .applyFn (.num _) ts
-  | .applyFn (.sym _) ts =>
+  | .unit _ =>
+    simp_all[Term.freeVarsSem, Term.signature, Interpretation.isEqOn]
+  | .applyFn _ ts =>
     simp_all[-TermVector.zero_size_eq_nil, Term.freeVarsSem, Term.signature, TermVector.freeVarsSem_coincidence ts i j]
-  | .applyFn (.unit _) _ =>
-    simp_all[Term.freeVarsSem, Term.signature, Function.signature, Interpretation.isEqOn]
 
 end
 
@@ -110,6 +109,15 @@ theorem Term.coincidence' (t : Term)
       all_goals
       . apply Term.coincidence'
         simp_all[Term.freeVarsSem, Term.signature, Interpretation.eq_union_iff_both]
+  | .unit F =>
+    intro h
+    simp_all[Term.freeVarsSem, Interpretation.isEqOn, Term.signature, Term.denote,
+      -Finset.coe_sdiff]
+    suffices (fun x : ↑(i (Symbol.UnitFun F)).fst ↦ v x) =
+              (fun x : ↑(i (Symbol.UnitFun F)).fst ↦ w x) by
+      rw[this, h.2]
+    grind only [Set.EqOn, = Finset.mem_coe]
+
   | .applyFn (.num _) ts | .applyFn (.sym _) ts =>
       intros h
       have : ∀ t ∈ ts.toVector, Term.denote i v t = Term.denote j w t := by
@@ -148,15 +156,6 @@ theorem Term.coincidence' (t : Term)
         simp[Set.EqOn] at h
         apply h.1
         simp_all[Term.freeVarsSem, Assignable.diff_emb]
-  | .applyFn (.unit F) _ =>
-      intro h
-      simp_all[Term.freeVarsSem, Interpretation.isEqOn, Term.signature, Function.signature,
-        Term.denote, -Finset.coe_sdiff]
-      suffices (fun x : ↑(i (Symbol.UnitFun F)).fst ↦ v x) =
-               (fun x : ↑(i (Symbol.UnitFun F)).fst ↦ w x) by
-        rw[this, h.2]
-      grind only [Set.EqOn, = Finset.mem_coe]
-
 end
 
 theorem TermVector.coincidence {n : ℕ}

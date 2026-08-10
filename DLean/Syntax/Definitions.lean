@@ -72,11 +72,10 @@ deriving Repr, DecidableEq, BEq
 inductive Fn : Type where
   | num :  ℚ → Fn
   | sym : FunctionSymbol → Fn
-  | unit : UnitFunctional → Fn
 deriving Repr, DecidableEq, BEq
 
 abbrev Fn.arity (f : Fn) : ℕ := match f with
-  | .num _ | .unit _ => 0
+  | .num _ => 0
   | .sym s => s.arity
 
 structure PredicateSymbol : Type where
@@ -97,12 +96,13 @@ inductive TermVector : ℕ → Type where
 deriving Repr, DecidableEq
 
 inductive Term : Type where
-  | var          : Assignable → Term
-  | neg          : Term       → Term
-  | plus         : Term       → Term               → Term
-  | times        : Term       → Term               → Term
-  | applyFn      : (f : Fn)   → TermVector f.arity → Term
-  | differential : Term       → Term
+  | var          : Assignable     → Term
+  | neg          : Term           → Term
+  | plus         : Term           → Term               → Term
+  | times        : Term           → Term               → Term
+  | applyFn      : (f : Fn)       → TermVector f.arity → Term
+  | unit        : UnitFunctional → Term
+  | differential : Term           → Term
 deriving Repr, DecidableEq, Inhabited
 end
 

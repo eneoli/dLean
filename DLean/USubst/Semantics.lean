@@ -405,7 +405,7 @@ lemma depEqAux (S : Finset Assignable)
   rw[h]
 end depEqAux
 
-lemma Subst.adjoint_unit (v w : State) (i : Interpretation) (σ : Subst) (F : UnitFunctional) : Term.denote i v (σ.get (Symbol.UnitFun F)) = Term.denote (σ.adjoint i w) v (Term.applyFn (Fn.unit F) .nil) := by
+lemma Subst.adjoint_unit (v w : State) (i : Interpretation) (σ : Subst) (F : UnitFunctional) : Term.denote i v (σ.get (Symbol.UnitFun F)) = Term.denote (σ.adjoint i w) v (Term.unit F) := by
   simp[Term.denote]
   simp[Subst.adjoint]
   let := σ.mem_dec (Symbol.UnitFun F)
@@ -500,6 +500,16 @@ theorem Term.freeVarsSem_applySubst_subset (σ : Subst) (i : Interpretation) (U 
     have := @Subst.freeVarsSem_symbol_union σ i t₁.signature t₂.signature
     grind only [= Set.subset_def, = Set.mem_union, = Set.mem_diff, = Finset.mem_coe,
       = Finset.mem_union]
+  | .unit F =>
+    simp[Term.applySubst] at h₁
+    rw[←h₁]
+    simp[Term.freeVarsSem, Term.signature, Subst.adjoint]
+    apply Set.subset_union_of_subset_left
+    split
+    . rfl
+    next h =>
+      rw[σ.notin_default _ h]
+      rfl
   | .applyFn f args =>
     match f with
     | .num n =>
@@ -549,16 +559,6 @@ theorem Term.freeVarsSem_applySubst_subset (σ : Subst) (i : Interpretation) (U 
           have := @Subst.freeVarsSem_symbol_union σ
           grind only [= Set.subset_def, = Set.mem_union, = Set.mem_diff, = Finset.mem_coe,
             = Finset.mem_union]
-      | .unit F =>
-        simp[Term.applySubst] at h₁
-        rw[←h₁]
-        simp[Term.freeVarsSem, Term.signature, Subst.adjoint]
-        apply Set.subset_union_of_subset_left
-        split
-        . rfl
-        next h =>
-          rw[σ.notin_default _ h]
-          rfl
   | .differential t =>
     simp[Term.applySubst, Option.bind] at h₁
     split at h₁
@@ -626,6 +626,10 @@ theorem Subst.preserve_semantics.term
           have := Subst.preserve_semantics.term σ U i v w hvw t₁ a (by simp[ha])
           have := Subst.preserve_semantics.term σ U i v w hvw t₂ b (by simp[hb])
           simp_all[Term.denote]
+    | .unit F =>
+      simp[Term.applySubst] at hs
+      rw[hs]
+      rw[Subst.adjoint_unit _ w]
     | .applyFn f args =>
       match hf : f with
         | .num n =>
@@ -690,12 +694,6 @@ theorem Subst.preserve_semantics.term
               have := @Subst.adjoint_noeffect_nomem i w s σ (by assumption)
               rw[this]
               simp
-        | .unit F =>
-          simp[Term.applySubst] at hs
-          rw[hs]
-          rw[Subst.adjoint_unit _ w]
-          congr
-          simp only [TermVector.zero_size_eq_nil]
 
     | .differential t =>
       simp[Term.applySubst, Option.bind] at hs

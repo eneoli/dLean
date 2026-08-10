@@ -141,7 +141,7 @@ lemma Term.denote_times {s} {t₁ t₂} : (Term.times t₁ t₂).denote i s
   apply Term.denote.eq_4
 
 lemma Term.denote_num {s} {q} : (Term.applyFn (Fn.num q) TermVector.nil).denote i s = q := by
-  apply Term.denote.eq_5
+  apply Term.denote.eq_6
 
 macro "simpFormula" : tactic => `(tactic| simp only [Formula.denote_True, Formula.denote_False,
   Formula.denote_not, Formula.denote_and, Formula.denote_or,
