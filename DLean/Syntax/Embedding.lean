@@ -37,6 +37,7 @@ scoped syntax:max scientific : dL_term
 scoped syntax:max "(" dL_term ")" : dL_term
 scoped syntax:max "(" dL_term ")’" : dL_term
 scoped syntax:max ident "(" dL_term,* ")" : dL_term
+scoped syntax:max ident "(|" dL_var,* "|)" : dL_term
 scoped syntax:30  " - " dL_term:30 : dL_term
 scoped syntax:20  dL_term:20 " * " dL_term:21 : dL_term
 scoped syntax:10  dL_term:10 " + " dL_term:11 : dL_term
@@ -153,6 +154,13 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
     let t₁Expr ← elabTerm t₁
     let t₂Expr ← elabTerm t₂
     pure q(Term.times $t₁Expr $t₂Expr)
+
+  | `(dL_term|$f:ident (|$[$args:dL_var],*|)) => do
+    let vars ← args.mapM elabVar
+    let taboo : Q(List Assignable) := vars.foldr (fun v acc ↦ q(List.cons $v $acc)) q([])
+    let FName : Q(String) := mkStrLit f.getId.toString
+    let unitFun : Q(UnitFunctional) := q(UnitFunctional.mk $FName $taboo)
+    pure q(Term.unit $unitFun)
 
   | `(dL_term|$f:ident ($args:dL_term,*)) => do
     let args : Array Syntax := args
@@ -373,6 +381,24 @@ def delabAssignable.diff : Delab := do
 
 section Delaborators.Term
 
+partial def delabTaboo (expr : Expr) : DelabM (List (Lean.TSyntax `dL_var)) := do
+  guard <| expr.isAppOfArity' ``List.nil 0 || expr.isAppOfArity' ``List.cons 3
+  if expr.isAppOfArity' ``List.nil 0 then
+    pure []
+  else
+    let tail := expr.appArg!
+    let head := expr.appFn!.appArg!
+    pure <| ⟨← delab head⟩ :: (← delabTaboo tail)
+
+@[app_delab UnitFunctional.mk]
+def delabUnitFunctional.mk : Delab := do
+  let expr ← getExpr
+  guard <| expr.isAppOfArity' ``UnitFunctional.mk 2
+  let F := ⟨← delabStructString expr.appFn!.appArg!⟩
+  -- FIXME
+  -- let taboo := ⟨← delabTaboo expr.appArg!⟩
+  return ⟨← `(dL_term| $F:ident(||))⟩
+
 @[app_delab Fn.num]
 def delabFn.num : Delab := do
   let expr ← getExpr
@@ -431,6 +457,13 @@ def delabTerm.times : Delab := do
   let t₁ ← withNaryArg 0 delab
   let t₂ ← withNaryArg 1 delab
   `($t₁ * $t₂)
+
+@[app_delab Term.unit]
+def delabTerm.unit : Delab := do
+  let expr ← getExpr
+  guard <| expr.isAppOfArity' ``Term.unit 1
+  let F ← withAppArg delab
+  `($F)
 
 -- TODO use dL_term category, adjust delabTermVector
 @[app_delab Term.applyFn]
