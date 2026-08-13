@@ -151,5 +151,5 @@ theorem comp' : sound [Formula| [y:=G(|y,y’|)][y’:=1]((f(G(|y,y’|)))’ = 
       all_goals
       grind only [usr Subtype.property]
     rw[this]
-  . exact diffAux _
+  . apply diffAux
   . apply diffAux₂
