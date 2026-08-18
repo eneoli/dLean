@@ -6,8 +6,7 @@ import DLean.Util.ContDiff
 import DLean.Syntax.Syntax
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
-import DLean.Semantics.FreeVariables
-
+import DLean.Semantics.FreeVarsSem
 open Semantics
 
 noncomputable def Term.denote (i : Interpretation) (s : State) (t : Term) : ℝ :=

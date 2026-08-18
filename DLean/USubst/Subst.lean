@@ -1,5 +1,5 @@
 import DLean.Syntax.Definitions
-import DLean.Semantics.State
+import DLean.Semantics.Interpretation
 import DLean.Util.FCSet
 import DLean.Semantics.FreeVariables
 import DLean.Semantics.BoundVariables

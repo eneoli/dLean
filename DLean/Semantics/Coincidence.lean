@@ -4,7 +4,7 @@ import DLean.Syntax.Definitions
 import DLean.Syntax.Theorems
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
-import DLean.Semantics.FreeVariables
+import DLean.Semantics.FreeVarsSem
 import DLean.Semantics.DynamicSemantics
 
 import Mathlib.Data.Real.Basic
