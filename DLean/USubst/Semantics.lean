@@ -36,7 +36,7 @@ def Subst.freeVarsSem (σ : Subst) (i : Interpretation) (S : Option (Finset Symb
     | ⟨e::xs, h⟩ =>
       let σ' : Subst := ⟨xs, Subst.tail_nodup h⟩
       let efreeVarsSem := match e with
-      | .fn _ t | .unit _ t _ => t.freeVarsSem i
+      | .fn _ t | .unitFun _ t _ => t.freeVarsSem i
       | _ => ∅
       match S with
         | .none => efreeVarsSem ∪ σ'.freeVarsSem i S
@@ -169,7 +169,7 @@ lemma Subst.get_unitFun_freeVarsSem (σ : Subst) (F : UnitFunctional) (i : Inter
       apply Subst.get_unitFun_freeVarsSem
     | .isTrue h' =>
       match e with
-      | .unit F' t hdis =>
+      | .unitFun F' t hdis =>
         simp[SubstEntry.symbol] at h'
         rw[h', Subst.get_unitfun_head (σ:=σ')]
         rw[←Finset.disjoint_coe]
@@ -405,7 +405,7 @@ lemma depEqAux (S : Finset Assignable)
   rw[h]
 end depEqAux
 
-lemma Subst.adjoint_unit (v w : State) (i : Interpretation) (σ : Subst) (F : UnitFunctional) : Term.denote i v (σ.get (Symbol.UnitFun F)) = Term.denote (σ.adjoint i w) v (Term.unit F) := by
+lemma Subst.adjoint_unitFun (v w : State) (i : Interpretation) (σ : Subst) (F : UnitFunctional) : Term.denote i v (σ.get (Symbol.UnitFun F)) = Term.denote (σ.adjoint i w) v (Term.unit F) := by
   simp[Term.denote]
   simp[Subst.adjoint]
   let := σ.mem_dec (Symbol.UnitFun F)
@@ -629,7 +629,7 @@ theorem Subst.preserve_semantics.term
     | .unit F =>
       simp[Term.applySubst] at hs
       rw[hs]
-      rw[Subst.adjoint_unit _ w]
+      rw[Subst.adjoint_unitFun _ w]
     | .applyFn f args =>
       match hf : f with
         | .num n =>

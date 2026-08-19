@@ -9,20 +9,20 @@ open Semantics
 inductive SubstEntry : Type where
   | fn : (f : FunctionSymbol) → Term → SubstEntry
   -- Taboo condition checked when creating the substitution required for defining `Subst.adjoint`
-  | unit : (F : UnitFunctional) → (t : Term)
+  | unitFun : (F : UnitFunctional) → (t : Term)
             → (FCSet.Finite F.taboo.toFinset) ∩ t.freeVars' = ∅  → SubstEntry
   | pred : (p : PredicateSymbol) → Formula → SubstEntry
   | prog : (a : ProgramSymbol) → Program → SubstEntry
 
 def SubstEntry.symbol : SubstEntry → Symbol
   | .fn f _ => .Function f
-  | .unit F _ _ => .UnitFun F
+  | .unitFun F _ _ => .UnitFun F
   | .pred p _ => .Predicate p
   | .prog a _ => .Program a
 
 /-- Decidable version. -/
 def SubstEntry.freeVars : SubstEntry → FCSet Assignable
-  | .fn _ rhs | .unit _ rhs _ => rhs |> Term.freeVars'
+  | .fn _ rhs | .unitFun _ rhs _ => rhs |> Term.freeVars'
   | .pred _ rhs => rhs |> Formula.freeVars'
   | .prog _ _ => ∅
 
@@ -43,7 +43,7 @@ def Symbol.SubstType : Symbol → Type
 
 def SubstEntry.rhs (e : SubstEntry) : e.symbol.SubstType :=
   match e with
-    | .fn _ rhs | .unit _ rhs _ => rhs
+    | .fn _ rhs | .unitFun _ rhs _ => rhs
     | .pred _ rhs => rhs
     | .prog _ rhs => rhs
 
@@ -371,8 +371,8 @@ lemma Subst.get_unitfun_head {σ : Subst}
                              {f : UnitFunctional}
                              {rhs : Term}
                              {hdis : FCSet.Finite f.taboo.toFinset ∩ rhs.freeVars' = ∅}
-                             {h : Subst.Nodup (.unit f rhs hdis :: σ.1)}
-                             : Subst.get ⟨.unit f rhs hdis :: σ.1, h⟩ (Symbol.UnitFun f) = rhs := by
+                             {h : Subst.Nodup (.unitFun f rhs hdis :: σ.1)}
+                             : Subst.get ⟨.unitFun f rhs hdis :: σ.1, h⟩ (Symbol.UnitFun f) = rhs := by
   simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
 
 lemma Subst.get_pred_head {σ : Subst}

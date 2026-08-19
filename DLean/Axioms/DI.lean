@@ -373,8 +373,8 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
                   simp[Formula.denote_leq] at h₁
 
                   have ha := US (σ := ⟨[
-                                      .unit (.mk "F" []) [Term|   h(x)] (by cbv),
-                                      .unit (.mk "G" []) [Term| - g(x)] (by cbv)
+                                      .unitFun (.mk "F" []) [Term|   h(x)] (by cbv),
+                                      .unitFun (.mk "G" []) [Term| - g(x)] (by cbv)
                                     ], by cbv ; grind⟩)
                              (Φ  := [Formula| (F(||) + G(||))’ = (F(||))’ + (G(||))’])
                              (Φ' := [Formula| (h(x) - g(x))’ = (h(x))’ + (- g(x))’])
@@ -578,8 +578,8 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
                   simp[Formula.denote_lte] at h₁
 
                   have ha := US (σ := ⟨[
-                                      .unit (.mk "F" []) [Term|   h(x)] (by cbv),
-                                      .unit (.mk "G" []) [Term| - g(x)] (by cbv)
+                                      .unitFun (.mk "F" []) [Term|   h(x)] (by cbv),
+                                      .unitFun (.mk "G" []) [Term| - g(x)] (by cbv)
                                     ], by cbv ; grind⟩)
                              (Φ  := [Formula| (F(||) + G(||))’ = (F(||))’ + (G(||))’])
                              (Φ' := [Formula| (h(x) - g(x))’ = (h(x))’ + (- g(x))’])
