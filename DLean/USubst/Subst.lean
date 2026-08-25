@@ -20,11 +20,6 @@ def SubstEntry.symbol : SubstEntry → Symbol
   | .pred p _ => .Predicate p
   | .prog a _ => .Program a
 
-/-- Decidable version. -/
-def SubstEntry.freeVars : SubstEntry → FCSet Assignable
-  | .fn _ rhs | .unitFun _ rhs _ => rhs |> Term.freeVars'
-  | .pred _ rhs => rhs |> Formula.freeVars'
-  | .prog _ _ => ∅
 
 def Subst.Nodup (σ : List SubstEntry) : Prop :=
   (σ.map SubstEntry.symbol).Nodup

@@ -98,12 +98,6 @@ def Interpretation.ReturnType : (symbol : Symbol) → Type
 
 def Interpretation : Type := (s : Symbol) → Interpretation.ReturnType s
 
-def Interpretation.empty : Interpretation
-  | Symbol.Predicate _ => fun _ => False
-  | Symbol.Function  _ => ⟨fun _  => (0 : ℝ), contDiff_const⟩
-  | Symbol.UnitFun   _ => ⟨⟨∅, Finset.disjoint_empty_left _⟩, fun _ => (0 : ℝ), contDiff_const⟩
-  | Symbol.Program   _ => fun _ => False
-
 def Interpretation.assignDots {n : ℕ}
                               (i : Interpretation)
                               (args : Fin n → ℝ)
