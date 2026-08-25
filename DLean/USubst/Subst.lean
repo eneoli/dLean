@@ -12,12 +12,16 @@ inductive SubstEntry : Type where
   | unitFun : (F : UnitFunctional) → (t : Term)
             → (FCSet.Finite F.taboo.toFinset) ∩ t.freeVars' = ∅  → SubstEntry
   | pred : (p : PredicateSymbol) → Formula → SubstEntry
+  -- Taboo condition checked when creating the substitution required for defining `Subst.adjoint`
+  | unitPred : (P : UnitPredicational) → (f : Formula)
+            → (FCSet.Finite P.taboo.toFinset) ∩ f.freeVars' = ∅  → SubstEntry
   | prog : (a : ProgramSymbol) → Program → SubstEntry
 
 def SubstEntry.symbol : SubstEntry → Symbol
   | .fn f _ => .Function f
   | .unitFun F _ _ => .UnitFun F
   | .pred p _ => .Predicate p
+  | .unitPred P _ _ => .UnitPred P
   | .prog a _ => .Program a
 
 
@@ -33,19 +37,20 @@ theorem Subst.tail_nodup {e : SubstEntry}
 
 def Symbol.SubstType : Symbol → Type
   | .Function _ | .UnitFun _ => Term
-  | .Predicate _ => Formula
+  | .Predicate _ | .UnitPred _ => Formula
   | .Program _ => _root_.Program
 
 def SubstEntry.rhs (e : SubstEntry) : e.symbol.SubstType :=
   match e with
     | .fn _ rhs | .unitFun _ rhs _ => rhs
-    | .pred _ rhs => rhs
+    | .pred _ rhs | .unitPred _ rhs _ => rhs
     | .prog _ rhs => rhs
 
 def Symbol.default : (symbol : Symbol) → symbol.SubstType
   | .Function f => Term.applyFn (.sym f) (Term.dots f.arity)
   | .UnitFun F => Term.unit F
   | .Predicate p => Formula.applyPred p (Term.dots p.arity)
+  | .UnitPred P => Formula.unit P
   | .Program a => Program.const a
 
 def Subst.get (σ : Subst) (symbol : Symbol) : symbol.SubstType :=
@@ -292,6 +297,8 @@ def Formula.applySubst (σ : Subst) (U : FCSet Assignable) (Φ : Formula) : Opti
       return .box σα (← Φ.applySubst σ V)
   | .ref α β          => do
       return .ref (← α.applySubst σ U).2 (← β.applySubst σ U).2
+  | .unit P => do
+    return Subst.get σ P
   | .applyPred p args => do
       let sargs ← TermVector.applySubst σ U args
       if (.Predicate p) ∈ σ then
@@ -363,11 +370,11 @@ lemma Subst.get_fn_head {σ : Subst}
   simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
 
 lemma Subst.get_unitfun_head {σ : Subst}
-                             {f : UnitFunctional}
+                             {F : UnitFunctional}
                              {rhs : Term}
-                             {hdis : FCSet.Finite f.taboo.toFinset ∩ rhs.freeVars' = ∅}
-                             {h : Subst.Nodup (.unitFun f rhs hdis :: σ.1)}
-                             : Subst.get ⟨.unitFun f rhs hdis :: σ.1, h⟩ (Symbol.UnitFun f) = rhs := by
+                             {hdis : FCSet.Finite F.taboo.toFinset ∩ rhs.freeVars' = ∅}
+                             {h : Subst.Nodup (.unitFun F rhs hdis :: σ.1)}
+                             : Subst.get ⟨.unitFun F rhs hdis :: σ.1, h⟩ (Symbol.UnitFun F) = rhs := by
   simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
 
 lemma Subst.get_pred_head {σ : Subst}
@@ -376,6 +383,36 @@ lemma Subst.get_pred_head {σ : Subst}
                           {h : Subst.Nodup (.pred p rhs :: σ.1)}
                           : Subst.get ⟨.pred p rhs :: σ.1, h⟩ (Symbol.Predicate p) = rhs := by
   simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
+
+lemma Subst.get_unitpred_head {σ : Subst}
+                              {P : UnitPredicational}
+                              {rhs : Formula}
+                              {hdis : FCSet.Finite P.taboo.toFinset ∩ rhs.freeVars' = ∅}
+                              {h : Subst.Nodup (.unitPred P rhs hdis :: σ.1)}
+                              : Subst.get ⟨.unitPred P rhs hdis :: σ.1, h⟩ (Symbol.UnitPred P) = rhs := by
+  simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
+
+lemma Subst.get_unitPred_freeVars (σ : Subst) (P : UnitPredicational) : Disjoint (σ.get (.UnitPred P)).freeVars P.taboo.toFinset := by
+  match σ with
+  | ⟨.nil, _⟩ =>
+    simp[Subst.get, Formula.freeVars, Symbol.default]
+    exact Set.disjoint_compl_left_iff_subset.mpr fun ⦃a⦄ a_1 ↦ a_1
+  | ⟨e::σ', h⟩ =>
+    set σ' : Subst := ⟨σ', Subst.tail_nodup h⟩
+    match decEq (Symbol.UnitPred P) e.symbol with
+    | .isFalse _ =>
+      simp_all only [get, ↓reduceDIte]
+      apply Subst.get_unitPred_freeVars
+    | .isTrue h' =>
+      match e with
+      | .unitPred P f hdis =>
+        simp[SubstEntry.symbol] at h'
+        rw[h', Subst.get_unitpred_head (σ:=σ')]
+        rw[Set.disjoint_iff_inter_eq_empty, Formula.free_vars_decidable]
+        simp[-List.coe_toFinset] at hdis
+        grind only
+termination_by
+  σ.1
 
 -- Lemmas about `Subst.get` for `TermVector.toSubst`
 
@@ -396,6 +433,16 @@ theorem term_vector_to_subst_get.pred
   {p : PredicateSymbol}
   : Subst.get args.toSubst (.Predicate p)
   = Formula.applyPred p (Term.dots p.arity) := by
+  apply Subst.notin_default
+  rw[TermVector.toSubst_in]
+  simp
+
+theorem term_vector_to_subst_get.unitpred
+  {n : ℕ}
+  {args : TermVector n}
+  {P : UnitPredicational}
+  : Subst.get args.toSubst (.UnitPred P)
+  = Formula.unit P := by
   apply Subst.notin_default
   rw[TermVector.toSubst_in]
   simp
@@ -592,7 +639,8 @@ lemma Formula.taboo_mono {σ : Subst} {U V : FCSet Assignable} {φ ψ : Formula}
   V.toSet ⊆ U.toSet → φ.applySubst σ U = ψ → φ.applySubst σ V = ψ := by
   match φ with
   | .True
-  | .False =>
+  | .False
+  | .unit P =>
     grind only [Formula.applySubst]
   | .gte _ _
   | .eq _ _ =>

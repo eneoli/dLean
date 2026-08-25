@@ -173,6 +173,7 @@ def Formula.freeVars (Φ : Formula) : Set Assignable := match Φ with
   | .False          => ∅
   | .gte t₁ t₂
   | .eq  t₁ t₂      => Term.freeVars t₁ ∪ Term.freeVars t₂
+  | .unit P         => (P.taboo.toFinset)ᶜ
   | .applyPred _ ts => ts.freeVars
   | .not Φ'         => Formula.freeVars Φ'
   | .and Φ₁ Φ₂      => Formula.freeVars Φ₁ ∪ Formula.freeVars Φ₂
@@ -206,6 +207,7 @@ def Formula.freeVars' (Φ : Formula) : FCSet Assignable := match Φ with
   | .False          => ∅
   | .gte t₁ t₂
   | .eq  t₁ t₂      => Term.freeVars' t₁ ∪ Term.freeVars' t₂
+  | .unit P         => .Infinite P.taboo.toFinset
   | .applyPred _ ts => ts.freeVars'
   | .not Φ'         => Formula.freeVars' Φ'
   | .and Φ₁ Φ₂      => Formula.freeVars' Φ₁ ∪ Formula.freeVars' Φ₂
@@ -243,6 +245,8 @@ theorem Formula.free_vars_decidable (Φ : Formula)
     | .applyPred _ ts =>
       simp[Formula.freeVars, Formula.freeVars', Term.free_vars_decidable,
         TermVector.free_vars_decidable]
+    | .unit _ =>
+      simp only [Formula.freeVars, List.coe_toFinset, FCSet.toSet, Formula.freeVars']
     | .not Φ'         =>
       simp[Formula.freeVars, Formula.freeVars']
       apply Formula.free_vars_decidable

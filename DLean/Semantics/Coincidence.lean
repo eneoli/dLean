@@ -214,6 +214,16 @@ theorem Formula.coincidence (Φ : Formula)
       apply And.intro
       . exact Formula.coincidence Φ₁ i j v w ⟨h.1.1, h.2.1⟩ hv1
       . exact Formula.coincidence Φ₂ i j v w ⟨h.1.2, h.2.2⟩ hv2
+    | .unit P =>
+      simp[Formula.denote]
+      simp only [Set.EqOn, Formula.freeVars, Set.mem_compl_iff, SetLike.mem_coe,
+        Interpretation.isEqOn, Formula.signature, Finset.coe_singleton, Set.mem_singleton_iff,
+        forall_eq] at h
+      have : (fun x : ↑(P.taboo.toFinset : Set Assignable)ᶜ ↦ v ↑x) =
+             (fun x : ↑(P.taboo.toFinset : Set Assignable)ᶜ ↦ w ↑x) := by
+        funext
+        grind only [= Set.mem_compl_iff, = Finset.mem_coe]
+      grind only
     | .applyPred p ts =>
       have : ∀ t ∈ ts.toVector, Term.denote i v t = Term.denote j w t := by
         intro t ht

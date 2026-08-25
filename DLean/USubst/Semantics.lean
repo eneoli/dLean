@@ -227,11 +227,6 @@ noncomputable def Subst.adjoint (σ : Subst)
 
             exact ContDiff.comp hg hf
         ⟩
-      | .Predicate p =>
-        let Φ := σ.get (.Predicate p)
-        fun args ↦
-          let idots := i.assignDots args
-          v ∈ Formula.denote idots Φ
       | .UnitFun F =>
         if (.UnitFun F) ∈ σ
         then
@@ -248,6 +243,16 @@ noncomputable def Subst.adjoint (σ : Subst)
             ⟩
           else
             i (.UnitFun F)
+      | .Predicate p =>
+        let Φ := σ.get (.Predicate p)
+        fun args ↦
+          let idots := i.assignDots args
+          v ∈ Formula.denote idots Φ
+      | .UnitPred P =>
+        fun s' ↦ (σ.get (.UnitPred P)).denote i
+          (fun x ↦ if h : x ∈ P.taboo.toFinset
+            then 0
+            else s' ⟨x, h⟩)
       | .Program a =>
           Program.denote i (σ.get a)
 
@@ -307,7 +312,15 @@ theorem Subst.adjoint_noeffect_nomem
                 apply Interpretation.dots_eq
 
     simp_all[Term.dot, Term.denote, Interpretation.assignDots]
-
+  | .UnitPred P =>
+    apply Subst.notin_default at h
+    simp[h, Symbol.default, Formula.denote]
+    funext s'
+    simp[setOf]
+    suffices (fun x ↦ if ↑x ∈ P.taboo.toFinset then 0 else s' x) = s' by
+      rw[this]
+    funext x
+    grind only [= Set.mem_compl_iff, = Finset.mem_coe]
   | .Program a =>
     apply Subst.notin_default at h
     simp[h, Symbol.default, Program.denote]
@@ -388,6 +401,17 @@ theorem subst_adjoint_of_term_vector_to_subst
         simp only [this]
 
         simp[Term.dot, Term.denote, Interpretation.assignDots]
+
+      | .UnitPred P =>
+        simp[Subst.adjoint]
+        simp only [term_vector_to_subst_get.unitpred]
+        simp[Formula.denote, Interpretation.assignDots]
+        funext s'
+        simp[setOf]
+        suffices (fun x ↦ if ↑x ∈ P.taboo.toFinset then 0 else s' x) = s' by
+          rw[this]
+        funext x
+        grind only [= Set.mem_compl_iff, = Finset.mem_coe]
       | .Program a =>
         simp[Subst.adjoint]
         simp only [term_vector_to_subst_get.program]
@@ -916,6 +940,16 @@ theorem Subst.preserve_semantics.formula
         have := Subst.preserve_semantics.program σ U Vα'.1 i v w w' hvw α Vα'.2
         have := Subst.preserve_semantics.program σ U Wβ'.1 i v w w' hvw β Wβ'.2
         grind
+      | .unit P =>
+        simp[Formula.applySubst] at hs
+        simp[hs, Formula.denote, Subst.adjoint]
+        change _ ↔ (fun x ↦ if x ∈ P.taboo.toFinset then 0 else v x) ∈ Formula.denote i (σ.get (Symbol.UnitPred P))
+        apply Iff.intro
+        all_goals
+        apply Formula.coincidence
+        have := Subst.get_unitPred_freeVars σ P
+        simp_all[Set.EqOn]
+        grind only [= Set.disjoint_left, usr Set.mem_setOf_eq]
       | .applyPred p args =>
         simp[Formula.applySubst, Option.bind] at hs
         split at hs

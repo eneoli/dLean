@@ -86,6 +86,7 @@ def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) : Formula := match s
 
 mutual
 def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ with
+  | Formula.unit P         => {s | i (.UnitPred P) (fun ⟨x,_⟩ ↦ s x)}
   | Formula.applyPred p ts => {s | i (Symbol.Predicate p) (Term.denote i s ts.toVector[·])}
   | Formula.True           => Set.univ
   | Formula.False          => ∅

@@ -48,6 +48,7 @@ scoped syntax:max "false" : dL_formula
 scoped syntax:max ident : dL_formula
 scoped syntax:max "(" dL_formula ")" : dL_formula
 scoped syntax:max ident "(" dL_term,* ")" : dL_formula
+scoped syntax:max ident "(|" dL_var,* "|)" : dL_formula
 scoped syntax:max dL_term " = " dL_term : dL_formula
 scoped syntax:max dL_term " ≥ " dL_term : dL_formula
 scoped syntax:max dL_term " ≠ " dL_term : dL_formula
@@ -218,6 +219,13 @@ partial def elabFormula : Syntax → MetaM Q(Formula)
     let programExpr ← elabProgram α
     let formulaExpr ← elabFormula Φ
     pure q(Formula.diamond $programExpr $formulaExpr)
+
+  | `(dL_formula|$f:ident (|$[$args:dL_var],*|)) => do
+    let vars ← args.mapM elabVar
+    let taboo : Q(List Assignable) := vars.foldr (fun v acc ↦ q(List.cons $v $acc)) q([])
+    let FName : Q(String) := mkStrLit f.getId.toString
+    let unitPred : Q(UnitPredicational) := q(UnitPredicational.mk $FName $taboo)
+    pure q(Formula.unit $unitPred)
 
   | `(dL_formula| $p:ident ($args:dL_term,*)) => do
     let args : Array Lean.Syntax := args
@@ -606,6 +614,23 @@ def delabAnd : Delab := do
   let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ ∧ $Φ₂)⟩
+
+
+@[app_delab UnitPredicational.mk]
+def delabUnitPredicational.mk : Delab := do
+  let expr ← getExpr
+  guard <| expr.isAppOfArity' ``UnitPredicational.mk 2
+  let P := ⟨← delabStructString expr.appFn!.appArg!⟩
+  -- FIXME
+  -- let taboo := ⟨← delabTaboo expr.appArg!⟩
+  return ⟨← `(dL_term| $P:ident(||))⟩
+
+@[app_delab Formula.unit]
+def delabFormula.unit : Delab := do
+  let expr ← getExpr
+  guard <| expr.isAppOfArity' ``Formula.unit 1
+  let P ← withAppArg delab
+  `($P)
 
 @[app_delab PredicateSymbol.mk]
 def delabPredicateSymbol.mk : Delab := do

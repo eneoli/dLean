@@ -83,6 +83,12 @@ structure PredicateSymbol : Type where
   arity : ℕ
 deriving Repr, DecidableEq, BEq
 
+-- In the theory: "p(ȳ \ sp)" i.e., talks about all but "sp"
+structure UnitPredicational : Type where
+  name : String
+  taboo : List Assignable -- List over Finset for deriving Repr
+deriving Repr, DecidableEq, BEq
+
 structure ProgramSymbol : Type where
   name : String
 deriving Repr, DecidableEq, BEq
@@ -183,6 +189,7 @@ deriving Repr, DecidableEq
 inductive Formula : Type where
   | True      : Formula
   | False     : Formula
+  | unit      : UnitPredicational → Formula
   | applyPred : (p : PredicateSymbol) → TermVector p.arity → Formula
   | eq        : Term → Term → Formula
   | gte       : Term → Term → Formula
@@ -221,6 +228,7 @@ def Formula.progEquiv (α₁ α₂ : Program) : Formula :=
   Formula.and (Formula.ref α₁ α₂) (Formula.ref α₂ α₁)
 mutual
 noncomputable def Formula.size (Φ : Formula) := match Φ with
+  | Formula.unit P         => 1 + sizeOf P
   | Formula.applyPred p ts => 1 + sizeOf p + sizeOf ts
   | Formula.True           => 1
   | Formula.False          => 1

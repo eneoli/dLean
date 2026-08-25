@@ -10,10 +10,11 @@ import DLean.Semantics.State
 open Semantics
 
 inductive Symbol where
-  | Predicate : PredicateSymbol → Symbol
-  | Function  : FunctionSymbol  → Symbol
-  | UnitFun   : UnitFunctional  → Symbol
-  | Program   : ProgramSymbol   → Symbol
+  | Predicate : PredicateSymbol   → Symbol
+  | Function  : FunctionSymbol    → Symbol
+  | UnitFun   : UnitFunctional    → Symbol
+  | UnitPred  : UnitPredicational → Symbol
+  | Program   : ProgramSymbol     → Symbol
 deriving Repr, DecidableEq, BEq
 
 instance : Coe FunctionSymbol Symbol where
@@ -25,13 +26,16 @@ instance : Coe UnitFunctional Symbol where
 instance : Coe PredicateSymbol Symbol where
   coe := Symbol.Predicate
 
+instance : Coe UnitPredicational Symbol where
+  coe := Symbol.UnitPred
+
 instance : Coe ProgramSymbol Symbol where
   coe := Symbol.Program
 
 abbrev Symbol.arity : Symbol → ℕ
   | .Predicate p => p.arity
   | .Function f => f.arity
-  | .UnitFun _ | .Program _ => 0
+  | .UnitFun _ | .UnitPred _ | .Program _ => 0
 
 mutual
 
@@ -59,6 +63,7 @@ mutual
 def Formula.signature (Φ : Formula) : Finset Symbol := match Φ with
   | Formula.True             => ∅
   | Formula.False            => ∅
+  | Formula.unit P           => {Symbol.UnitPred P}
   | Formula.applyPred p args => {Symbol.Predicate p} ∪ args.signature
   | Formula.not Φ'           => Φ'.signature
   | Formula.and Φ₁ Φ₂        => Φ₁.signature ∪ Φ₂.signature
@@ -94,6 +99,7 @@ def Interpretation.ReturnType : (symbol : Symbol) → Type
   | Symbol.UnitFun   F => Σ x : { s : Finset Assignable // Disjoint s F.taboo.toFinset},
                             {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}
   | Symbol.Predicate p => (Fin p.arity → ℝ) → Prop
+  | Symbol.UnitPred P => (↑(P.taboo.toFinset : Set Assignable)ᶜ → ℝ) → Prop
   | Symbol.Program   _ => State × State → Prop
 
 def Interpretation : Type := (s : Symbol) → Interpretation.ReturnType s
