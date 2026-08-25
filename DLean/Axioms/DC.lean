@@ -10,8 +10,9 @@ import DLean.Axioms.Base
 open Semantics
 open Embedding
 
-theorem DC : sound [Formula| ([x’ = f(x) & q(x)]r(x))
-                           → ([x’ = f(x) & q(x)]p(x) ↔ [x’ = f(x) & q(x) ∧ r(x)]p(x))] := by
+/- Predicational/Functional can be replaced by symbol of arity 2 with parameters x and x' equivalently.-/
+theorem DC : sound [Formula| ([x’ = F(||) & Q(||)]R(||))
+                           → ([x’ = F(||) & Q(||)]P(||) ↔ [x’ = F(||) & Q(||) ∧ R(||)]P(||))] := by
   intros i s
   simpFormula
   intros h₁
@@ -19,9 +20,7 @@ theorem DC : sound [Formula| ([x’ = f(x) & q(x)]r(x))
   .
     intros h₂
     simp_all[Formula.denote]
-    simp only [Program.denote]
-    simp only [Program.denote] at h₁
-    simp only [Program.denote] at h₂
+    simp only [Program.denote] at *
 
     intros t h₃
 
@@ -43,8 +42,7 @@ theorem DC : sound [Formula| ([x’ = f(x) & q(x)]r(x))
         . grind
         .
           simp[odeEvolutionFormula]
-          simp[Formula.denote_and]
-          simp[Formula.denote_and] at hp
+          simp[Formula.denote_and] at hp ⊢
           grind
 
     have := by
@@ -61,17 +59,14 @@ theorem DC : sound [Formula| ([x’ = f(x) & q(x)]r(x))
         . grind
         .
           simp[odeEvolutionFormula]
-          simp[Formula.denote_and]
-          simp[Formula.denote_and] at hp
+          simp[Formula.denote_and] at hp ⊢
           grind
     grind
   .
     intros h₂
 
     simp_all[Formula.denote]
-    simp only [Program.denote]
-    simp only [Program.denote] at h₁
-    simp only [Program.denote] at h₂
+    simp only [Program.denote] at *
 
     intros t h₃
 
@@ -93,8 +88,7 @@ theorem DC : sound [Formula| ([x’ = f(x) & q(x)]r(x))
         . grind
         .
           simp[odeEvolutionFormula]
-          simp[Formula.denote_and]
-          simp[Formula.denote_and] at hp
+          simp[Formula.denote_and] at hp ⊢
           grind
 
 
@@ -112,8 +106,7 @@ theorem DC : sound [Formula| ([x’ = f(x) & q(x)]r(x))
         . grind
         .
           simp[odeEvolutionFormula]
-          simp[Formula.denote_and]
-          simp[Formula.denote_and] at hp
+          simp[Formula.denote_and] at hp ⊢
 
           intros ζ hz₁ hz₂
           and_intros

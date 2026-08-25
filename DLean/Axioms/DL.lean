@@ -12,7 +12,7 @@ open Embedding
 
 section Axioms
 
-theorem diamond : sound [Formula| ⟨a⟩P ↔ ¬ ([a] ¬ P)] := by
+theorem diamond : sound [Formula| ⟨a⟩P(||) ↔ ¬ ([a] ¬ P(||))] := by
   intros i s
   simpFormula
   simp[Formula.denote]
@@ -32,17 +32,7 @@ theorem assign : sound [Formula| [x:=f()]p(x) ↔ p(f())] := by
   simp only [Program.denote_assign, SetRel.mem_core, Set.mem_setOf_eq, forall_eq]
   simp[Term.denote]
 
-theorem boxSeq : sound [Formula| [a;b]p(x) ↔ [a][b]p(x)] := by
-  unfold sound
-  intros i s
-  simpFormula
-  simp only [Formula.denote]
-  simp only [Program.denote, SetRel.mem_comp, SetRel.mem_core, Set.mem_setOf_eq,
-    forall_exists_index, and_imp]
-  grind only
-
-/-- Variant of boxSeq allowing arbitrary formula -/
-lemma boxSeq' : sound [Formula| [a;b]P ↔ [a][b]P] := by
+lemma boxSeq : sound [Formula| [a;b]P(||) ↔ [a][b]P(||)] := by
   unfold sound
   intros i s
   simpFormula
@@ -51,13 +41,13 @@ lemma boxSeq' : sound [Formula| [a;b]P ↔ [a][b]P] := by
     forall_exists_index, and_imp]
   grind only
 
-theorem boxUnion : sound [Formula| [a ∪ b]P ↔ [a]P ∧ [b]P] := by
+theorem boxUnion : sound [Formula| [a ∪ b]P(||) ↔ [a]P(||) ∧ [b]P(||)] := by
   intros i s
   simpFormula
   simp[Formula.denote, Program.denote]
   grind
 
-theorem loopUnroll : sound [Formula| [a*]P ↔ P ∧ [a][a*]P] := by
+theorem loopUnroll : sound [Formula| [a*]P(||) ↔ P(||) ∧ [a][a*]P(||)] := by
   intro i s
   simpFormula
   simp_all[Formula.denote, Program.denote]
@@ -84,25 +74,26 @@ theorem loopUnroll : sound [Formula| [a*]P ↔ P ∧ [a][a*]P] := by
       . exact hv₁
       . exact hv₂
 
-theorem K : sound [Formula| [a](P → Q) → [a]P → [a]Q] := by
+theorem K : sound [Formula| [a](P(||) → Q(||)) → [a]P(||) → [a]Q(||)] := by
   unfold sound
   intros i s
   simpFormula
   simp only [Formula.denote, SetRel.mem_core]
   simpFormula
+  simp only [Formula.denote]
   exact fun a a_1 _ a_2 ↦ a a_2 (a_1 a_2)
 
-theorem I : sound [Formula| [a*](P → [a]P) → (P → [a*]P)] := by
+theorem I : sound [Formula| [a*](P(||) → [a]P(||)) → (P(||) → [a*]P(||))] := by
   intros i s
   simpFormula
   simp[Formula.denote, Program.denote]
   simpFormula
+  simp[Formula.denote]
   intros h₁ h₂ t h₃
   induction h₃ with
     | rfl => grind
     | trans v w h₃ h₄ ih =>
       have := h₁ h₃ ih
-      simp_all[Formula.denote_box]
       apply this
       simp_all[Membership.mem, Set.Mem, Program.denote]
 
@@ -113,24 +104,24 @@ theorem V : sound [Formula| p() → [a]p()] := by
   simp[Formula.denote, Matrix.empty_eq]
   exact fun a _ _ ↦ a
 
-theorem G : ∀ i, (∀ s, s ∈ P.denote i) → ∀ s, s ∈ [Formula|[a]P].denote i := by
+theorem G : ∀ i, (∀ s, s ∈ [Formula|P(||)].denote i) → ∀ s, s ∈ [Formula|[a]P(||)].denote i := by
   intros i h s
-  simp only [Formula.denote, SetRel.mem_core]
+  simp only [Formula.denote, SetRel.mem_core] at *
   exact fun ⦃b⦄ _ ↦ h b
 
 theorem Forall : ∀ i,
-    (∀ s, s ∈ [Formula| p(x)].denote i)
+    (∀ s, s ∈ [Formula| P(||)].denote i)
     ----------------------------------------
-  → (∀ s, s ∈ [Formula| ∀ x, p(x)].denote i) := by
+  → (∀ s, s ∈ [Formula| ∀ x, P(||)].denote i) := by
     intros i
     simpFormula
     grind
 
 theorem MP : ∀ i,
-    (∀ s, s ∈ [Formula| P → Q].denote i)
-  → (∀ s, s ∈ [Formula| P].denote i)
+    (∀ s, s ∈ [Formula| P(||) → Q(||)].denote i)
+  → (∀ s, s ∈ [Formula| P(||)].denote i)
     ------------------------------------
-  → (∀ s, s ∈ [Formula| Q].denote i) := by
+  → (∀ s, s ∈ [Formula| Q(||)].denote i) := by
   simp_all[Formula.denote_implies]
 
 -- todo x-
