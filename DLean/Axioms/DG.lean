@@ -106,19 +106,19 @@ lemma nnnorm_coe_le_nnnorm {α E : Type}
 
 
 /-- Two ODE solutions over an interval with the same initial value agree on it by uniqueness. -/
-lemma ODE_unique {b c : ℝ} {K} {F : ℝ → ℝ → ℝ} {α β : ℝ → ℝ} :
-          (∀ t ∈ Set.Icc b c, LipschitzWith K (F t)) →
+lemma ODE_unique {b c : ℝ} {K} {F : ℝ → ℝ → ℝ} {α β : ℝ → ℝ} {s : ℝ → Set ℝ} :
+          (∀ t ∈ Set.Icc b c, α t ∈ s t ∧ β t ∈ s t) →
+          (∀ t ∈ Set.Icc b c, LipschitzOnWith K (F t) (s t)) →
           ((∀ t ∈ Set.Icc b c, HasDerivWithinAt α (F t (α t)) (Set.Icc b c) t) ∧
           β b = α b ∧ ∀ t ∈ Set.Icc b c, HasDerivWithinAt β (F t (β t)) (Set.Icc b c) t) →
           ∀ t ∈ Set.Icc b c, α t = β t := by
   by_cases (b < c)
   next hbc =>
-    rintro hL ⟨hα, hβ₀, hβ⟩
-    apply ODE_solution_unique_of_mem_Icc_right (s:=fun _ ↦ Set.univ) (K:=K) (v:=F)
+    rintro hs hL ⟨hα, hβ₀, hβ⟩
+    apply ODE_solution_unique_of_mem_Icc_right (s:=s) (K:=K) (v:=F)
     -- Lipschitz
     . intros t ht
       simp_all only [Set.mem_Icc, Set.mem_Ico]
-      apply LipschitzWith.lipschitzOnWith
       grind only
 
     -- proofs for α
@@ -131,7 +131,7 @@ lemma ODE_unique {b c : ℝ} {K} {F : ℝ → ℝ → ℝ} {α β : ℝ → ℝ}
         grind only [= Set.mem_Ici, = Set.mem_Icc, = Set.subset_def, = Set.mem_Iio,
           = Set.mem_inter_iff, = Set.mem_Ico, isOpen_Iio]
       . grind only [= Set.mem_Ici, = Set.mem_Icc, = Set.subset_def, = Set.mem_Ico]
-    . simp only [Set.mem_univ, implies_true]
+    . grind only [= Set.mem_Ico, = Set.mem_Icc]
 
     -- same proofs for β
     . exact (fun x hx => HasDerivWithinAt.continuousWithinAt (hβ x hx))
@@ -143,7 +143,7 @@ lemma ODE_unique {b c : ℝ} {K} {F : ℝ → ℝ → ℝ} {α β : ℝ → ℝ}
         grind only [= Set.mem_Ici, = Set.mem_Icc, = Set.subset_def, = Set.mem_Iio,
           = Set.mem_inter_iff, = Set.mem_Ico, isOpen_Iio]
       . grind only [= Set.mem_Ici, = Set.mem_Icc, = Set.subset_def, = Set.mem_Ico]
-    . simp only [Set.mem_univ, implies_true]
+    . grind only [= Set.mem_Ico, = Set.mem_Icc]
 
     -- equal at b
     . simp_all only
@@ -295,7 +295,7 @@ lemma merge {K} {x₀} {F : ℝ → ℝ → ℝ} : ∀r ≥ 0, (∀ t ∈ Set.Ic
               exact (sub_lt_sub_iff_right _).mpr hb2
             _ = 1 := by field_simp; ring
 
-        apply ODE_concat' (K:=K) (by simp_all) ?_ ⟨β, hβ, hind, α, hα, h⟩
+        apply ODE_concat (K:=K) (by simp_all) ?_ ⟨β, hβ, hind, α, hα, h⟩
         intros t ht
         apply hL t
         grind only [= Set.mem_Icc]
