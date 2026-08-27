@@ -56,8 +56,8 @@ scoped syntax:max dL_term " > " dL_term : dL_formula
 scoped syntax:max dL_term " < " dL_term : dL_formula
 scoped syntax:max dL_term " ≤ " dL_term : dL_formula
 scoped syntax:70  "¬" dL_formula:70 : dL_formula
-scoped syntax:60  "∀" ident ", " dL_formula:60 : dL_formula
-scoped syntax:60  "∃" ident ", " dL_formula:60 : dL_formula
+scoped syntax:60  "∀" dL_var ", " dL_formula:60 : dL_formula
+scoped syntax:60  "∃" dL_var ", " dL_formula:60 : dL_formula
 scoped syntax:60  "[" dL_program "]" dL_formula:60 : dL_formula
 scoped syntax:60  "⟨" dL_program "⟩" dL_formula:60 : dL_formula
 scoped syntax:50 dL_program " ≼ " dL_program : dL_formula
@@ -200,15 +200,15 @@ partial def elabFormula : Syntax → MetaM Q(Formula)
     let Φ₂Expr ← elabFormula Φ₂
     pure q(Formula.and $Φ₁Expr $Φ₂Expr)
 
-  | `(dL_formula| ∀ $x:ident, $Φ:dL_formula) => do
-    let assignableExpr ← parseVariable x.getId.toString
+  | `(dL_formula| ∀ $x:dL_var, $Φ:dL_formula) => do
+    let varExpr ← elabVar x
     let ΦExpr ← elabFormula Φ
-    pure q(Formula.forall $assignableExpr $ΦExpr)
+    pure q(Formula.forall $varExpr $ΦExpr)
 
-  | `(dL_formula| ∃ $x:ident, $Φ:dL_formula) => do
-    let assignableExpr ← parseVariable x.getId.toString
+  | `(dL_formula| ∃ $x:dL_var, $Φ:dL_formula) => do
+    let varExpr ← elabVar x
     let ΦExpr ← elabFormula Φ
-    pure q(Formula.exists $assignableExpr $ΦExpr)
+    pure q(Formula.exists $varExpr $ΦExpr)
 
   | `(dL_formula| [$α:dL_program]$Φ:dL_formula) => do
     let programExpr ← elabProgram α

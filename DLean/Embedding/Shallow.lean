@@ -42,11 +42,11 @@ lemma Formula.denote_equiv {Φ₁ Φ₂} : s ∈ (Formula.equiv Φ₁ Φ₂).den
   grind only
 
 lemma Formula.denote_forall {x Φ} : s ∈ (Formula.forall x Φ).denote i
-                                    ↔ ∀r, s.update (Assignable.var x) r ∈ Φ.denote i := by
+                                    ↔ ∀r, s.update x r ∈ Φ.denote i := by
   simp only [denote, Set.mem_setOf]
 
 lemma Formula.denote_exists {x Φ} : s ∈ (Formula.exists x Φ).denote i
-                                    ↔ ∃r, s.update (Assignable.var x) r ∈ Φ.denote i := by
+                                    ↔ ∃r, s.update x r ∈ Φ.denote i := by
   simp only [denote, Set.mem_setOf]
 
 lemma Formula.denote_eq {t₁ t₂} : s ∈ (Formula.eq t₁ t₂).denote i

@@ -195,8 +195,8 @@ inductive Formula : Type where
   | gte       : Term → Term → Formula
   | not       : Formula → Formula
   | and       : Formula → Formula → Formula
-  | forall    : Variable → Formula → Formula
-  | exists    : Variable → Formula → Formula
+  | forall    : Assignable → Formula → Formula
+  | exists    : Assignable → Formula → Formula
   | diamond   : Program  → Formula → Formula
   | box       : Program  → Formula → Formula
   | ref       : Program  → Program → Formula

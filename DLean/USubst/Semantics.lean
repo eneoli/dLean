@@ -849,13 +849,13 @@ theorem Subst.preserve_semantics.formula
         apply Iff.intro
         .
           intros h r
-          have hvw' : (v.update x r).isEqExcept w ({.var x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
-          apply (Subst.preserve_semantics.formula σ ({.var x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mp (h r)
+          have hvw' : (v.update x r).isEqExcept w ({x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
+          apply (Subst.preserve_semantics.formula σ ({x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mp (h r)
 
         .
           intros h r
-          have hvw' : (v.update x r).isEqExcept w ({.var x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
-          apply (Subst.preserve_semantics.formula σ ({.var x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mpr (h r)
+          have hvw' : (v.update x r).isEqExcept w ({x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
+          apply (Subst.preserve_semantics.formula σ ({x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mpr (h r)
       | .exists x Φ =>
         simp_all[Formula.denote, Formula.applySubst, Option.bind]
         split at hs
@@ -868,14 +868,14 @@ theorem Subst.preserve_semantics.formula
           intro ⟨r, hr⟩
           apply Exists.intro r
 
-          have hvw' : (v.update x r).isEqExcept w ({.var x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
-          apply (Subst.preserve_semantics.formula σ ({.var x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mp hr
+          have hvw' : (v.update x r).isEqExcept w ({x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
+          apply (Subst.preserve_semantics.formula σ ({x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mp hr
         .
           intro ⟨r, hr⟩
           apply Exists.intro r
 
-          have hvw' : (v.update x r).isEqExcept w ({.var x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
-          apply (Subst.preserve_semantics.formula σ ({.var x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mpr hr
+          have hvw' : (v.update x r).isEqExcept w ({x} ∪ U).toSet := by grind[Set.EqOn, State.isEqExcept]
+          apply (Subst.preserve_semantics.formula σ ({x} ∪ U) i (v.update x r) w hvw' Φ Φ' (by grind)).mpr hr
       | .box α Φ =>
         simp_all[Formula.denote, Formula.applySubst, Option.bind]
         split at hs

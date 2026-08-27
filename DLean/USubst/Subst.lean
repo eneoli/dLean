@@ -286,9 +286,9 @@ def Formula.applySubst (σ : Subst) (U : FCSet Assignable) (Φ : Formula) : Opti
   | .not Φ'           => do return .not (← Φ'.applySubst σ U)
   | .and Φ₁ Φ₂        => do return .and (← Φ₁.applySubst σ U) (← Φ₂.applySubst σ U)
   | .forall x Φ       => do
-      return .forall x (← Φ.applySubst σ ({.var x} ∪ U))
+      return .forall x (← Φ.applySubst σ ({x} ∪ U))
   | .exists x Φ       => do
-      return .exists x (← Φ.applySubst σ ({.var x} ∪ U))
+      return .exists x (← Φ.applySubst σ ({x} ∪ U))
   | .diamond α Φ      => do
       let ⟨V,σα⟩ ← α.applySubst σ U
       return .diamond σα (← Φ.applySubst σ V)
@@ -658,7 +658,7 @@ lemma Formula.taboo_mono {σ : Subst} {U V : FCSet Assignable} {φ ψ : Formula}
   | .forall x _ =>
     simp[Formula.applySubst, Option.bind_eq_some_iff]
     intro hUV _ h
-    have : ({.var x} ∪ V).toSet ⊆ ({.var x} ∪ U).toSet := by
+    have : ({x} ∪ V).toSet ⊆ ({x} ∪ U).toSet := by
       grind only [= Set.subset_def, FCSet.to_set_union, = Set.mem_union]
     apply Formula.taboo_mono this at h
     grind only

@@ -178,7 +178,7 @@ def Formula.freeVars (Φ : Formula) : Set Assignable := match Φ with
   | .not Φ'         => Formula.freeVars Φ'
   | .and Φ₁ Φ₂      => Formula.freeVars Φ₁ ∪ Formula.freeVars Φ₂
   | .forall x Φ'
-  | .exists x Φ'    => Formula.freeVars Φ' \ {Assignable.var x}
+  | .exists x Φ'    => Formula.freeVars Φ' \ {x}
   | .box α Φ'
   | .diamond α Φ'   => Program.freeVars α ∪ (Formula.freeVars Φ' \ Program.mustBoundVars α)
   | .ref α β        => α.freeVars ∪ β.freeVars ∪ ((α.boundVars ∪ β.boundVars)
@@ -212,7 +212,7 @@ def Formula.freeVars' (Φ : Formula) : FCSet Assignable := match Φ with
   | .not Φ'         => Formula.freeVars' Φ'
   | .and Φ₁ Φ₂      => Formula.freeVars' Φ₁ ∪ Formula.freeVars' Φ₂
   | .forall x Φ'
-  | .exists x Φ'    => Formula.freeVars' Φ' \ {Assignable.var x}
+  | .exists x Φ'    => Formula.freeVars' Φ' \ {x}
   | .box α Φ'
   | .diamond α Φ'   => Program.freeVars' α ∪ (Formula.freeVars' Φ' \ Program.mustBoundVars' α)
   | .ref α β        => α.freeVars' ∪ β.freeVars' ∪ ((α.boundVars' ∪ β.boundVars')

@@ -92,8 +92,8 @@ def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ w
   | Formula.False          => ∅
   | Formula.not Φ₁         => (Φ₁.denote i)ᶜ
   | Formula.and Φ₁ Φ₂      => (Φ₁.denote i) ∩ (Φ₂.denote i)
-  | Formula.forall x Φ₁    => {s | ∀r:ℝ, (s.update (Assignable.var x) r) ∈ Φ₁.denote i}
-  | Formula.exists x Φ₁    => {s | ∃r:ℝ, (s.update (Assignable.var x) r) ∈ Φ₁.denote i}
+  | Formula.forall x Φ₁    => {s | ∀r:ℝ, (s.update x r) ∈ Φ₁.denote i}
+  | Formula.exists x Φ₁    => {s | ∃r:ℝ, (s.update x r) ∈ Φ₁.denote i}
   | Formula.eq t₁ t₂       => {s | t₁.denote i s = t₂.denote i s}
   | Formula.gte t₁ t₂      => {s | t₁.denote i s ≥ t₂.denote i s}
   | Formula.diamond α Φ    => (α.denote i).preimage (Φ.denote i)
