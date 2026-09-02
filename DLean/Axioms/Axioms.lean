@@ -14,3 +14,5 @@ import DLean.Axioms.DiffTerm
 import DLean.Axioms.DL
 import DLean.Axioms.DW
 import DLean.Axioms.Refinement
+import DLean.Axioms.Extended
+import DLean.Axioms.DMP
