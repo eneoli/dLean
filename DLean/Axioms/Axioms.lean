@@ -7,6 +7,7 @@ import DLean.Semantics.DynamicSemantics
 
 import DLean.Axioms.Base
 import DLean.Axioms.DC
+import DLean.Axioms.DI
 import DLean.Axioms.DE
 import DLean.Axioms.DG
 import DLean.Axioms.DiffTerm

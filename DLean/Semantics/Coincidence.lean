@@ -4,7 +4,7 @@ import DLean.Syntax.Definitions
 import DLean.Syntax.Theorems
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
-import DLean.Semantics.FreeVariables
+import DLean.Semantics.FreeVarsSem
 import DLean.Semantics.DynamicSemantics
 
 import Mathlib.Data.Real.Basic
@@ -24,14 +24,50 @@ theorem ode_evolution_formula_size_bound {system : OdeSystem}
       omega
 
 mutual
+lemma TermVector.freeVarsSem_coincidence {n : ℕ}
+                                         (ts : TermVector n)
+                                         (i j : Interpretation)
+                                         : Interpretation.isEqOn i j ts.signature
+                                           → ts.freeVarsSem i = ts.freeVarsSem j := by
+  match ts with
+  | .nil => simp[TermVector.freeVarsSem]
+  | .cons t ts =>
+    simp_all[TermVector.freeVarsSem, Term.freeVarsSem_coincidence t i j,
+      TermVector.freeVarsSem_coincidence ts i j]
 
-theorem TermVector.coincidence {n : ℕ}
+
+
+lemma Term.freeVarsSem_coincidence (t : Term)
+                                   (i j : Interpretation)
+                                   : Interpretation.isEqOn i j t.signature
+                                     → t.freeVarsSem i = t.freeVarsSem j := by
+  match t with
+  | .var _ => simp[Term.freeVarsSem]
+  | .neg t =>
+    simp_all[Term.freeVarsSem, Term.signature, Term.freeVarsSem_coincidence t i j]
+  | .plus t₁ t₂
+  | .times t₁ t₂ =>
+    simp_all[Term.freeVarsSem, Term.signature, Term.freeVarsSem_coincidence t₁ i j,
+    Term.freeVarsSem_coincidence t₂ i j]
+  | .differential t =>
+    simp_all[Term.freeVarsSem, Term.signature, Term.freeVarsSem_coincidence t i j]
+  | .unit _ =>
+    simp_all[Term.freeVarsSem, Term.signature, Interpretation.isEqOn]
+  | .applyFn _ ts =>
+    simp_all[-TermVector.zero_size_eq_nil, Term.freeVarsSem, Term.signature, TermVector.freeVarsSem_coincidence ts i j]
+
+end
+
+mutual
+
+/- Coincidence theorem with freeVarsSem -/
+theorem TermVector.coincidence' {n : ℕ}
                                (ts : TermVector n)
                                (i : Interpretation)
                                (j : Interpretation)
                                (v : State)
                                (w : State)
-                               : Set.EqOn v w ts.freeVars ∧
+                               : Set.EqOn v w (ts.freeVarsSem i) ∧
                                  Interpretation.isEqOn i j ts.signature
                                  → ∀ t ∈ ts, t.denote i v = t.denote j w := by
   match ts with
@@ -42,28 +78,28 @@ theorem TermVector.coincidence {n : ℕ}
       .
         intro htt'
         rw[htt']
-        simp[TermVector.signature_cons] at h
-        apply Term.coincidence
+        simp[TermVector.signature_cons, TermVector.freeVarsSem] at h
+        apply Term.coincidence'
         apply And.intro
         . exact h.1.1
         . exact h.2.1
       .
-        apply TermVector.coincidence
-        simp_all
+        apply TermVector.coincidence'
+        simp_all[TermVector.freeVarsSem]
 
-theorem Term.coincidence (t : Term)
-                         (i : Interpretation)
-                         (j : Interpretation)
-                         (v : State)
-                         (w : State)
-                         : Set.EqOn v w t.freeVars ∧
-                           Interpretation.isEqOn i j t.signature → t.denote i v = t.denote j w := by
+theorem Term.coincidence' (t : Term)
+                          (i : Interpretation)
+                          (j : Interpretation)
+                          (v : State)
+                          (w : State)
+                          : Set.EqOn v w (t.freeVarsSem i) ∧
+                            Interpretation.isEqOn i j t.signature → t.denote i v = t.denote j w := by
   match t with
-  | .var a => simp_all[Term.freeVars, Term.denote, Set.EqOn]
+  | .var a => simp_all[Term.freeVarsSem, Term.denote, Set.EqOn]
   | .neg a =>
       intro h
-      simp_all[Term.denote, Term.freeVars, Term.signature]
-      apply Term.coincidence
+      simp_all[Term.denote, Term.freeVarsSem, Term.signature]
+      apply Term.coincidence'
       assumption
   | .plus a b
   | .times a b =>
@@ -71,48 +107,81 @@ theorem Term.coincidence (t : Term)
       simp[Term.denote]
       congr 1
       all_goals
-      . apply Term.coincidence
-        simp_all[Term.freeVars, Term.signature, Interpretation.eq_union_iff_both]
-  | .applyFn f ts =>
+      . apply Term.coincidence'
+        simp_all[Term.freeVarsSem, Term.signature, Interpretation.eq_union_iff_both]
+  | .unit F =>
+    intro h
+    simp_all[Term.freeVarsSem, Interpretation.isEqOn, Term.signature, Term.denote,
+      -Finset.coe_sdiff]
+    suffices (fun x : ↑(i (Symbol.UnitFun F)).fst ↦ v x) =
+              (fun x : ↑(i (Symbol.UnitFun F)).fst ↦ w x) by
+      rw[this, h.2]
+    grind only [Set.EqOn, = Finset.mem_coe]
+
+  | .applyFn (.num _) ts | .applyFn (.sym _) ts =>
       intros h
       have : ∀ t ∈ ts.toVector, Term.denote i v t = Term.denote j w t := by
         intro t ht
-        apply TermVector.coincidence ts
+        apply TermVector.coincidence' ts
         .
           simp_all only [
-            Term.freeVars,
+            Term.freeVarsSem,
             Term.signature,
             Interpretation.eq_union_iff_both,
             Finset.coe_union
           ]
           trivial
         . exact (TermVector.mem_toVector_iff _ _).mpr ht
+      simp_all[Term.denote, Term.signature, Interpretation.isEqOn, Function.signature]
 
-      match f with
-        | .num _ => simp_all[Term.denote, Term.signature, Interpretation.isEqOn]
-        | .sym _ => simp_all[Term.denote, Term.signature, Interpretation.isEqOn, Function.signature]
   | .differential t =>
+      simp only [Term.denote, Term.signature]
       intro h
-      simp only [Term.denote]
-      apply Finset.sum_equiv (by rfl) (fun i ↦ by rfl)
+      apply Finset.sum_equiv (by rfl) (by simp[Term.freeVarsSem_coincidence t i j h.2])
       intro a ha
       congr
-      . exact h.1 (Term.freeVar_lifts_to_diff t a ha)
+      . apply h.1
+        simp_all[Term.freeVarsSem, Assignable.diff_emb]
       .
         have : ∀ y : ℝ, Term.denote i (v.update a y) t = Term.denote j (w.update a y) t := by
                 intro y
-                apply Term.coincidence _ _ _ (v.update a y) (w.update a y)
+                apply Term.coincidence' _ _ _ (v.update a y) (w.update a y)
                 apply And.intro
-                . simp_all[(State.eq_on_except_eq_on_if_update _ _).mp,
-                           Set.EqOn.mono (s₂:= (t.freeVars : Set Assignable)), Term.freeVars]
-                . simp_all[Term.signature]
+                . simp_all[(State.eq_on_except_eq_on_if_update a y).mp,
+                           Set.EqOn.mono (s₂:= (t.freeVarsSem i : Set Assignable)), Term.freeVarsSem]
+                . simp_all only
 
-        simp_all[Term.freeVars]
+        simp_all only [Equiv.refl_apply]
       .
         simp[Set.EqOn] at h
-        exact h.1 (Term.freeVars_subset_diff_freeVars t ha)
-
+        apply h.1
+        simp_all[Term.freeVarsSem, Assignable.diff_emb]
 end
+
+theorem TermVector.coincidence {n : ℕ}
+                               (ts : TermVector n)
+                               (i : Interpretation)
+                               (j : Interpretation)
+                               (v : State)
+                               (w : State)
+                               : Set.EqOn v w ts.freeVars ∧
+                                 Interpretation.isEqOn i j ts.signature
+                                 → ∀ t ∈ ts, t.denote i v = t.denote j w := by
+  intro h
+  apply TermVector.coincidence'
+  exact ⟨Set.EqOn.mono (ts.freeVarsSem_subset_freeVars _) h.1, h.2⟩
+
+theorem Term.coincidence (t : Term)
+                         (i : Interpretation)
+                         (j : Interpretation)
+                         (v : State)
+                         (w : State)
+                         : Set.EqOn v w t.freeVars ∧
+                           Interpretation.isEqOn i j t.signature
+                           → t.denote i v = t.denote j w := by
+  intro h
+  apply Term.coincidence'
+  exact ⟨Set.EqOn.mono (t.freeVarsSem_subset_freeVars _) h.1, h.2⟩
 
 mutual
 
@@ -145,6 +214,16 @@ theorem Formula.coincidence (Φ : Formula)
       apply And.intro
       . exact Formula.coincidence Φ₁ i j v w ⟨h.1.1, h.2.1⟩ hv1
       . exact Formula.coincidence Φ₂ i j v w ⟨h.1.2, h.2.2⟩ hv2
+    | .unit P =>
+      simp[Formula.denote]
+      simp only [Set.EqOn, Formula.freeVars, Set.mem_compl_iff, SetLike.mem_coe,
+        Interpretation.isEqOn, Formula.signature, Finset.coe_singleton, Set.mem_singleton_iff,
+        forall_eq] at h
+      have : (fun x : ↑(P.taboo.toFinset : Set Assignable)ᶜ ↦ v ↑x) =
+             (fun x : ↑(P.taboo.toFinset : Set Assignable)ᶜ ↦ w ↑x) := by
+        funext
+        grind only [= Set.mem_compl_iff, = Finset.mem_coe]
+      grind only
     | .applyPred p ts =>
       have : ∀ t ∈ ts.toVector, Term.denote i v t = Term.denote j w t := by
         intro t ht

@@ -6,8 +6,7 @@ import DLean.Util.ContDiff
 import DLean.Syntax.Syntax
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
-import DLean.Semantics.FreeVariables
-
+import DLean.Semantics.FreeVarsSem
 open Semantics
 
 noncomputable def Term.denote (i : Interpretation) (s : State) (t : Term) : ℝ :=
@@ -16,15 +15,16 @@ noncomputable def Term.denote (i : Interpretation) (s : State) (t : Term) : ℝ 
     | Term.neg  t         => - denote i s t
     | Term.plus x y       => denote i s x + denote i s y
     | Term.times x y      => denote i s x * denote i s y
+    | Term.unit F         => (i (.UnitFun F)).2.1 (fun ⟨x,_⟩ ↦ s x)
     | Term.applyFn f args =>
-      let argValues := Vector.map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
       match _ : f with
         | .num num   => num
         | .sym fnSym =>
+          let argValues := Vector.map (fun ⟨e, h⟩ => denote i s e) args.toVector.attach
           have : f.arity = fnSym.arity := by simp_all only [Fn.arity]
           (i (Symbol.Function fnSym)).1 (argValues[·])
     | Term.differential t =>
-      ∑ x ∈ t.freeVars, s (Assignable.diff x) *
+      ∑ x ∈ t.freeVarsSem i, s (Assignable.diff x) *
                         (
                           deriv (
                             fun y => denote i (
@@ -86,13 +86,14 @@ def odeEvolutionFormula (system : OdeSystem) (Ψ : Formula) : Formula := match s
 
 mutual
 def Formula.denote (i : Interpretation) (Φ : Formula) : Set State := match Φ with
+  | Formula.unit P         => {s | i (.UnitPred P) (fun ⟨x,_⟩ ↦ s x)}
   | Formula.applyPred p ts => {s | i (Symbol.Predicate p) (Term.denote i s ts.toVector[·])}
   | Formula.True           => Set.univ
   | Formula.False          => ∅
   | Formula.not Φ₁         => (Φ₁.denote i)ᶜ
   | Formula.and Φ₁ Φ₂      => (Φ₁.denote i) ∩ (Φ₂.denote i)
-  | Formula.forall x Φ₁    => {s | ∀r:ℝ, (s.update (Assignable.var x) r) ∈ Φ₁.denote i}
-  | Formula.exists x Φ₁    => {s | ∃r:ℝ, (s.update (Assignable.var x) r) ∈ Φ₁.denote i}
+  | Formula.forall x Φ₁    => {s | ∀r:ℝ, (s.update x r) ∈ Φ₁.denote i}
+  | Formula.exists x Φ₁    => {s | ∃r:ℝ, (s.update x r) ∈ Φ₁.denote i}
   | Formula.eq t₁ t₂       => {s | t₁.denote i s = t₂.denote i s}
   | Formula.gte t₁ t₂      => {s | t₁.denote i s ≥ t₂.denote i s}
   | Formula.diamond α Φ    => (α.denote i).preimage (Φ.denote i)
@@ -138,6 +139,35 @@ section Theorems
 
 open scoped ContDiff
 
+mutual
+lemma TermVector.assignDots_freeVarsSem {n m : ℕ} (i : Interpretation) (ts : TermVector m) (dots : Fin n → ℝ) : ts.freeVarsSem (i.assignDots dots) = ts.freeVarsSem i := by
+  match ts with
+  | .nil => rfl
+  | .cons t ts =>
+    have := t.assignDots_freeVarsSem i dots
+    have := ts.assignDots_freeVarsSem i dots
+    simp only [TermVector.freeVarsSem]
+    grind only
+
+lemma Term.assignDots_freeVarsSem {n : ℕ} (i : Interpretation) (t : Term) (dots : Fin n → ℝ) : t.freeVarsSem (i.assignDots dots) = t.freeVarsSem i := by
+  match t with
+  | .var _ => simp only [Term.freeVarsSem]
+  | .neg _ =>
+    simp only [Term.freeVarsSem, Term.assignDots_freeVarsSem]
+  | .plus t₁ t₂ | .times t₁ t₂ =>
+    have := t₁.assignDots_freeVarsSem i dots
+    have := t₂.assignDots_freeVarsSem i dots
+    simp_all only [Term.freeVarsSem]
+  | .unit _ =>
+    simp only [Term.freeVarsSem, Interpretation.assignDots]
+  | .applyFn _ _ =>
+    simp only [Term.freeVarsSem, TermVector.assignDots_freeVarsSem]
+  | .differential t =>
+    have := t.assignDots_freeVarsSem i dots
+    simp_all only [Term.freeVarsSem]
+
+end
+
 -- We cannot parameterize the function over entire states as the (euclidian) norm could
 -- be possibly infinite. In theory there is something called L∞ norm but NormedAddCommGroup
 -- requires us to return a real number. Also I'm not sure if the set of assignables is *countable*
@@ -176,6 +206,14 @@ theorem Term.contDiff {n : ℕ}
     apply ContDiff.mul
     . apply Term.contDiff
     . apply Term.contDiff
+  | .unit F =>
+      simp[Term.denote, Interpretation.assignDots]
+      apply contDiff_dep_app
+      . apply ContDiff.snd'
+        exact (i (Symbol.UnitFun F)).snd.2
+      . apply contDiff_pi.mpr
+        intro _
+        apply ContDiff.comp State.finUpdate_contDiff contDiff_snd
   | .applyFn f fargs =>
       match f with
       | .num n => simp[Term.denote, contDiff_const]
@@ -204,8 +242,9 @@ theorem Term.contDiff {n : ℕ}
         .
           apply contDiff_pi.mpr
           exact fun x ↦ @Term.contDiff n i v A fargs.toVector[x]
+
   | .differential t =>
-    simp[Term.denote]
+    simp[Term.denote, assignDots_freeVarsSem]
     apply ContDiff.sum
     intros a ha
     apply ContDiff.mul
@@ -325,7 +364,7 @@ lemma ode_evolution_formula_freeVars_eq_ode_freeVars
       : (odeEvolutionFormula system Ψ).freeVars \ (Program.ode system Ψ).mustBoundVars
         ⊆ (Program.ode system Ψ).freeVars := by
     induction system
-    . simp[OdeSystem.assignables, unionListOfFinsets, odeEvolutionFormula,
+    . simp[OdeSystem.assignables, odeEvolutionFormula,
            Program.freeVars, Program.mustBoundVars, Program.boundVars]
     . next hd _ h =>
       simp_all only [Program.mustBoundVars]

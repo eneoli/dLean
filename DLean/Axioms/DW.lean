@@ -10,7 +10,7 @@ import DLean.Axioms.Base
 open Semantics
 open Embedding
 
-theorem DW : sound [Formula| [x’ = f(x) & q(x)]q(x)]  := by
+theorem DW : sound [Formula| [x’ = F(||) & Q(||)]Q(||)]  := by
   intros i s
   simp[Formula.denote, setOf]
   unfold Program.denote
@@ -21,6 +21,5 @@ theorem DW : sound [Formula| [x’ = f(x) & q(x)]q(x)]  := by
   have ⟨⟨left,H⟩, right⟩ := Hinv r ?goal (by simp)
   . clear left right
     revert H
-    simp[Term.denote]
     simp[Hend]
   . trivial

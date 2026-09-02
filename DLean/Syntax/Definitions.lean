@@ -63,6 +63,12 @@ def FunctionSymbol.arity : FunctionSymbol → ℕ
   | .dot _ => 0
   | .udef _ n => n
 
+-- In the theory: "f(ȳ \ sp)" i.e., talks about all but "sp"
+structure UnitFunctional : Type where
+  name : String
+  taboo : List Assignable -- List over Finset for deriving Repr
+deriving Repr, DecidableEq, BEq
+
 inductive Fn : Type where
   | num :  ℚ → Fn
   | sym : FunctionSymbol → Fn
@@ -75,6 +81,12 @@ abbrev Fn.arity (f : Fn) : ℕ := match f with
 structure PredicateSymbol : Type where
   name  : String
   arity : ℕ
+deriving Repr, DecidableEq, BEq
+
+-- In the theory: "p(ȳ \ sp)" i.e., talks about all but "sp"
+structure UnitPredicational : Type where
+  name : String
+  taboo : List Assignable -- List over Finset for deriving Repr
 deriving Repr, DecidableEq, BEq
 
 structure ProgramSymbol : Type where
@@ -90,12 +102,13 @@ inductive TermVector : ℕ → Type where
 deriving Repr, DecidableEq
 
 inductive Term : Type where
-  | var          : Assignable → Term
-  | neg          : Term       → Term
-  | plus         : Term       → Term               → Term
-  | times        : Term       → Term               → Term
-  | applyFn      : (f : Fn)   → TermVector f.arity → Term
-  | differential : Term       → Term
+  | var          : Assignable     → Term
+  | neg          : Term           → Term
+  | plus         : Term           → Term               → Term
+  | times        : Term           → Term               → Term
+  | applyFn      : (f : Fn)       → TermVector f.arity → Term
+  | unit        : UnitFunctional → Term
+  | differential : Term           → Term
 deriving Repr, DecidableEq, Inhabited
 end
 
@@ -176,13 +189,14 @@ deriving Repr, DecidableEq
 inductive Formula : Type where
   | True      : Formula
   | False     : Formula
+  | unit      : UnitPredicational → Formula
   | applyPred : (p : PredicateSymbol) → TermVector p.arity → Formula
   | eq        : Term → Term → Formula
   | gte       : Term → Term → Formula
   | not       : Formula → Formula
   | and       : Formula → Formula → Formula
-  | forall    : Variable → Formula → Formula
-  | exists    : Variable → Formula → Formula
+  | forall    : Assignable → Formula → Formula
+  | exists    : Assignable → Formula → Formula
   | diamond   : Program  → Formula → Formula
   | box       : Program  → Formula → Formula
   | ref       : Program  → Program → Formula
@@ -214,6 +228,7 @@ def Formula.progEquiv (α₁ α₂ : Program) : Formula :=
   Formula.and (Formula.ref α₁ α₂) (Formula.ref α₂ α₁)
 mutual
 noncomputable def Formula.size (Φ : Formula) := match Φ with
+  | Formula.unit P         => 1 + sizeOf P
   | Formula.applyPred p ts => 1 + sizeOf p + sizeOf ts
   | Formula.True           => 1
   | Formula.False          => 1

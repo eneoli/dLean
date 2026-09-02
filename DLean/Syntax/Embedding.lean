@@ -37,6 +37,7 @@ scoped syntax:max scientific : dL_term
 scoped syntax:max "(" dL_term ")" : dL_term
 scoped syntax:max "(" dL_term ")’" : dL_term
 scoped syntax:max ident "(" dL_term,* ")" : dL_term
+scoped syntax:max ident "(|" dL_var,* "|)" : dL_term
 scoped syntax:30  " - " dL_term:30 : dL_term
 scoped syntax:20  dL_term:20 " * " dL_term:21 : dL_term
 scoped syntax:10  dL_term:10 " + " dL_term:11 : dL_term
@@ -47,6 +48,7 @@ scoped syntax:max "false" : dL_formula
 scoped syntax:max ident : dL_formula
 scoped syntax:max "(" dL_formula ")" : dL_formula
 scoped syntax:max ident "(" dL_term,* ")" : dL_formula
+scoped syntax:max ident "(|" dL_var,* "|)" : dL_formula
 scoped syntax:max dL_term " = " dL_term : dL_formula
 scoped syntax:max dL_term " ≥ " dL_term : dL_formula
 scoped syntax:max dL_term " ≠ " dL_term : dL_formula
@@ -54,8 +56,8 @@ scoped syntax:max dL_term " > " dL_term : dL_formula
 scoped syntax:max dL_term " < " dL_term : dL_formula
 scoped syntax:max dL_term " ≤ " dL_term : dL_formula
 scoped syntax:70  "¬" dL_formula:70 : dL_formula
-scoped syntax:60  "∀" ident ", " dL_formula:60 : dL_formula
-scoped syntax:60  "∃" ident ", " dL_formula:60 : dL_formula
+scoped syntax:60  "∀" dL_var ", " dL_formula:60 : dL_formula
+scoped syntax:60  "∃" dL_var ", " dL_formula:60 : dL_formula
 scoped syntax:60  "[" dL_program "]" dL_formula:60 : dL_formula
 scoped syntax:60  "⟨" dL_program "⟩" dL_formula:60 : dL_formula
 scoped syntax:50 dL_program " ≼ " dL_program : dL_formula
@@ -154,6 +156,13 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
     let t₂Expr ← elabTerm t₂
     pure q(Term.times $t₁Expr $t₂Expr)
 
+  | `(dL_term|$f:ident (|$[$args:dL_var],*|)) => do
+    let vars ← args.mapM elabVar
+    let taboo : Q(List Assignable) := vars.foldr (fun v acc ↦ q(List.cons $v $acc)) q([])
+    let FName : Q(String) := mkStrLit f.getId.toString
+    let unitFun : Q(UnitFunctional) := q(UnitFunctional.mk $FName $taboo)
+    pure q(Term.unit $unitFun)
+
   | `(dL_term|$f:ident ($args:dL_term,*)) => do
     let args : Array Syntax := args
     let fnName : Q(String) := mkStrLit f.getId.toString
@@ -191,15 +200,15 @@ partial def elabFormula : Syntax → MetaM Q(Formula)
     let Φ₂Expr ← elabFormula Φ₂
     pure q(Formula.and $Φ₁Expr $Φ₂Expr)
 
-  | `(dL_formula| ∀ $x:ident, $Φ:dL_formula) => do
-    let assignableExpr ← parseVariable x.getId.toString
+  | `(dL_formula| ∀ $x:dL_var, $Φ:dL_formula) => do
+    let varExpr ← elabVar x
     let ΦExpr ← elabFormula Φ
-    pure q(Formula.forall $assignableExpr $ΦExpr)
+    pure q(Formula.forall $varExpr $ΦExpr)
 
-  | `(dL_formula| ∃ $x:ident, $Φ:dL_formula) => do
-    let assignableExpr ← parseVariable x.getId.toString
+  | `(dL_formula| ∃ $x:dL_var, $Φ:dL_formula) => do
+    let varExpr ← elabVar x
     let ΦExpr ← elabFormula Φ
-    pure q(Formula.exists $assignableExpr $ΦExpr)
+    pure q(Formula.exists $varExpr $ΦExpr)
 
   | `(dL_formula| [$α:dL_program]$Φ:dL_formula) => do
     let programExpr ← elabProgram α
@@ -210,6 +219,13 @@ partial def elabFormula : Syntax → MetaM Q(Formula)
     let programExpr ← elabProgram α
     let formulaExpr ← elabFormula Φ
     pure q(Formula.diamond $programExpr $formulaExpr)
+
+  | `(dL_formula|$f:ident (|$[$args:dL_var],*|)) => do
+    let vars ← args.mapM elabVar
+    let taboo : Q(List Assignable) := vars.foldr (fun v acc ↦ q(List.cons $v $acc)) q([])
+    let FName : Q(String) := mkStrLit f.getId.toString
+    let unitPred : Q(UnitPredicational) := q(UnitPredicational.mk $FName $taboo)
+    pure q(Formula.unit $unitPred)
 
   | `(dL_formula| $p:ident ($args:dL_term,*)) => do
     let args : Array Lean.Syntax := args
@@ -373,6 +389,24 @@ def delabAssignable.diff : Delab := do
 
 section Delaborators.Term
 
+partial def delabTaboo (expr : Expr) : DelabM (List (Lean.TSyntax `dL_var)) := do
+  guard <| expr.isAppOfArity' ``List.nil 0 || expr.isAppOfArity' ``List.cons 3
+  if expr.isAppOfArity' ``List.nil 0 then
+    pure []
+  else
+    let tail := expr.appArg!
+    let head := expr.appFn!.appArg!
+    pure <| ⟨← delab head⟩ :: (← delabTaboo tail)
+
+@[app_delab UnitFunctional.mk]
+def delabUnitFunctional.mk : Delab := do
+  let expr ← getExpr
+  guard <| expr.isAppOfArity' ``UnitFunctional.mk 2
+  let F := ⟨← delabStructString expr.appFn!.appArg!⟩
+  -- FIXME
+  -- let taboo := ⟨← delabTaboo expr.appArg!⟩
+  return ⟨← `(dL_term| $F:ident(||))⟩
+
 @[app_delab Fn.num]
 def delabFn.num : Delab := do
   let expr ← getExpr
@@ -431,6 +465,13 @@ def delabTerm.times : Delab := do
   let t₁ ← withNaryArg 0 delab
   let t₂ ← withNaryArg 1 delab
   `($t₁ * $t₂)
+
+@[app_delab Term.unit]
+def delabTerm.unit : Delab := do
+  let expr ← getExpr
+  guard <| expr.isAppOfArity' ``Term.unit 1
+  let F ← withAppArg delab
+  `($F)
 
 -- TODO use dL_term category, adjust delabTermVector
 @[app_delab Term.applyFn]
@@ -573,6 +614,23 @@ def delabAnd : Delab := do
   let Φ₁ := ⟨← delab expr.appFn!.appArg!⟩
   let Φ₂ := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_formula| $Φ₁ ∧ $Φ₂)⟩
+
+
+@[app_delab UnitPredicational.mk]
+def delabUnitPredicational.mk : Delab := do
+  let expr ← getExpr
+  guard <| expr.isAppOfArity' ``UnitPredicational.mk 2
+  let P := ⟨← delabStructString expr.appFn!.appArg!⟩
+  -- FIXME
+  -- let taboo := ⟨← delabTaboo expr.appArg!⟩
+  return ⟨← `(dL_term| $P:ident(||))⟩
+
+@[app_delab Formula.unit]
+def delabFormula.unit : Delab := do
+  let expr ← getExpr
+  guard <| expr.isAppOfArity' ``Formula.unit 1
+  let P ← withAppArg delab
+  `($P)
 
 @[app_delab PredicateSymbol.mk]
 def delabPredicateSymbol.mk : Delab := do

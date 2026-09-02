@@ -42,11 +42,11 @@ lemma Formula.denote_equiv {Φ₁ Φ₂} : s ∈ (Formula.equiv Φ₁ Φ₂).den
   grind only
 
 lemma Formula.denote_forall {x Φ} : s ∈ (Formula.forall x Φ).denote i
-                                    ↔ ∀r, s.update (Assignable.var x) r ∈ Φ.denote i := by
+                                    ↔ ∀r, s.update x r ∈ Φ.denote i := by
   simp only [denote, Set.mem_setOf]
 
 lemma Formula.denote_exists {x Φ} : s ∈ (Formula.exists x Φ).denote i
-                                    ↔ ∃r, s.update (Assignable.var x) r ∈ Φ.denote i := by
+                                    ↔ ∃r, s.update x r ∈ Φ.denote i := by
   simp only [denote, Set.mem_setOf]
 
 lemma Formula.denote_eq {t₁ t₂} : s ∈ (Formula.eq t₁ t₂).denote i
@@ -141,7 +141,7 @@ lemma Term.denote_times {s} {t₁ t₂} : (Term.times t₁ t₂).denote i s
   apply Term.denote.eq_4
 
 lemma Term.denote_num {s} {q} : (Term.applyFn (Fn.num q) TermVector.nil).denote i s = q := by
-  apply Term.denote.eq_5
+  apply Term.denote.eq_6
 
 macro "simpFormula" : tactic => `(tactic| simp only [Formula.denote_True, Formula.denote_False,
   Formula.denote_not, Formula.denote_and, Formula.denote_or,

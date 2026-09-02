@@ -24,7 +24,7 @@ open scoped ContDiff
 -- lemma term_vector_singleton {t : Term} : (TermVector.cons t TermVector.nil).toVector[0] = t := by cbv
 
 lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Assignable} {θ : Term} {Ψ : Formula} {η : Term}
-        (hr : r > 0) (hfv : η.freeVars ⊆ {x})
+        (hr : r > 0) (hfv : η.freeVarsSem i ⊆ {x})
         (h :
           ∀ (ζ : ℝ),
             0 ≤ ζ →
@@ -35,7 +35,7 @@ lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Assi
   : ∀ (ζ : ℝ), 0 ≤ ζ → ζ ≤ r → Term.denote i (φ ζ) (η.differential) = derivWithin (fun t => Term.denote i (φ t) η) (Set.Icc 0 r) ζ := by
   intros ζ hl hr
   simp[Term.denote]
-  by_cases η.freeVars = {x}
+  by_cases η.freeVarsSem i = {x}
   .
     simp_all
     have : derivWithin (fun t ↦ Term.denote i (φ t) η) (Set.Icc 0 r) ζ
@@ -47,7 +47,7 @@ lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Assi
           .
             simp_all[Set.EqOn, State.isEqExcept]
             intros x hl hr
-            apply Term.coincidence (t := η)
+            apply Term.coincidence' (t := η)
             simp_all[Set.EqOn]
           . simp_all
 
@@ -107,7 +107,7 @@ lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Assi
   .
     simp_all
 
-    have := fun t ↦ Term.coincidence η i i (φ t) (fun _ ↦ 0) (by simp_all[Set.EqOn])
+    have := fun t ↦ Term.coincidence' η i i (φ t) (fun _ ↦ 0) (by simp_all[Set.EqOn])
     simp[this]
 
 open Set in
@@ -272,7 +272,7 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
                             (φ := φ)
                             (i := i)
                          (by grind)
-                         (by simp[Term.minus, Term.freeVars, FunctionSymbol.arity])
+                         (by simp[Term.minus, Term.freeVarsSem, TermVector.freeVarsSem])
                          (by
                             simp_all[odeEvolutionFormula, State.isEqExcept, OdeSystem.assignables, Assignable.diff_emb, Set.EqOn]
                             grind
@@ -373,10 +373,10 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
                   simp[Formula.denote_leq] at h₁
 
                   have ha := US (σ := ⟨[
-                                      .fn (.udef "f" 1) [Term|   h(·₀)],
-                                      .fn (.udef "g" 1) [Term| - g(·₀)]
+                                      .unitFun (.mk "F" []) [Term|   h(x)] (by cbv),
+                                      .unitFun (.mk "G" []) [Term| - g(x)] (by cbv)
                                     ], by cbv ; grind⟩)
-                             (Φ  := [Formula| (f(x) + g(x))’ = (f(x))’ + (g(x))’])
+                             (Φ  := [Formula| (F(||) + G(||))’ = (F(||))’ + (G(||))’])
                              (Φ' := [Formula| (h(x) - g(x))’ = (h(x))’ + (- g(x))’])
                              (by cbv)
                              sum'
@@ -385,9 +385,8 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
                   have hv : ∀ i v, Term.denote i v [Term| (-g (x))’]
                        = Term.denote i v [Term| - ((g (x))’)] := by
                     intros i v
-                    simp[Term.denote]
-                    congr 1
-                    cbv
+                    simp[Term.denote, Term.freeVarsSem]
+
 
 
                   simp only [hv, Term.denote_neg] at ha
@@ -478,7 +477,7 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
                             (φ := φ)
                             (i := i)
                          (by grind)
-                         (by simp[Term.minus, Term.freeVars, FunctionSymbol.arity])
+                         (by simp[Term.minus, Term.freeVarsSem, TermVector.freeVarsSem])
                          (by
                             simp_all[odeEvolutionFormula, State.isEqExcept, OdeSystem.assignables, Assignable.diff_emb, Set.EqOn]
                             grind
@@ -579,10 +578,10 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
                   simp[Formula.denote_lte] at h₁
 
                   have ha := US (σ := ⟨[
-                                      .fn (.udef "f" 1) [Term|   h(·₀)],
-                                      .fn (.udef "g" 1) [Term| - g(·₀)]
+                                      .unitFun (.mk "F" []) [Term|   h(x)] (by cbv),
+                                      .unitFun (.mk "G" []) [Term| - g(x)] (by cbv)
                                     ], by cbv ; grind⟩)
-                             (Φ  := [Formula| (f(x) + g(x))’ = (f(x))’ + (g(x))’])
+                             (Φ  := [Formula| (F(||) + G(||))’ = (F(||))’ + (G(||))’])
                              (Φ' := [Formula| (h(x) - g(x))’ = (h(x))’ + (- g(x))’])
                              (by cbv)
                              sum'
@@ -591,9 +590,7 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
                   have hv : ∀ i v, Term.denote i v [Term| (-g (x))’]
                        = Term.denote i v [Term| - ((g (x))’)] := by
                     intros i v
-                    simp[Term.denote]
-                    congr 1
-                    cbv
+                    simp[Term.denote, Term.freeVarsSem]
 
 
                   simp only [hv, Term.denote_neg] at ha

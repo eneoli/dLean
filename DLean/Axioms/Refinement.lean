@@ -42,13 +42,13 @@ theorem refAntiSym : sound [Formula| a ≃ b ↔ a ≼ b ∧ b ≼ a] := by
   simpFormula
   simp_all only [iff_iff_implies_and_implies, implies_true, and_self]
 
-theorem refBox : sound [Formula| a ≼ b → [b]P → [a]P] := by
+theorem refBox : sound [Formula| a ≼ b → [b]P(||) → [a]P(||)] := by
   unfold sound
   simpFormula
   unfold Formula.denote
   simp_all only [SetRel.mem_core, implies_true]
 
-theorem refDia : sound [Formula| a ≼ b → ⟨a⟩P → ⟨b⟩P] := by
+theorem refDia : sound [Formula| a ≼ b → ⟨a⟩P(||) → ⟨b⟩P(||)] := by
   unfold sound
   simpFormula
   unfold Formula.denote
@@ -266,7 +266,7 @@ theorem refdWL : sound [Formula| ?q(x);x’=f(x)&q(x) ≃ x’=f(x)&q(x)] := by
  trivial
 
 
-theorem refdWR : sound [Formula| (x’=f(x)&P);?P ≃ x’=f(x)&P] := by
+theorem refdWR : sound [Formula| (x’=f(x)&P(||));?P(||) ≃ x’=f(x)&P(||)] := by
  unfold sound
  simpFormula
  intros i s
@@ -281,7 +281,7 @@ theorem refdWR : sound [Formula| (x’=f(x)&P);?P ≃ x’=f(x)&P] := by
 
 
 
-theorem refDom : sound [Formula| [x’=f(x)&P]Q → (x’=f(x)&P) ≼ x’=f(x)&Q] := by
+theorem refDom : sound [Formula| [x’=f(x)&P(||)]Q(||) → (x’=f(x)&P(||)) ≼ x’=f(x)&Q(||)] := by
   unfold sound
   intros i s
   simpFormula
@@ -295,6 +295,7 @@ theorem refDom : sound [Formula| [x’=f(x)&P]Q → (x’=f(x)&P) ≼ x’=f(x)&
   have h1' := h1 ζ h2
   refine ⟨⟨h1'.1.1, ?_⟩, h1'.2⟩
   clear h1'
+  simp only [Formula.denote, Set.mem_setOf]
   apply Hfml
   refine ⟨ζ, ?_, φ, h0, rfl, ?_⟩
   . grind only [= Set.mem_Icc]
@@ -306,7 +307,7 @@ theorem refDom : sound [Formula| [x’=f(x)&P]Q → (x’=f(x)&P) ≼ x’=f(x)&
     apply HasDerivWithinAt.mono (h1.2.2 x hx)
     grind only [= Set.mem_Icc, = Set.subset_def]
 
-theorem refOde : sound [Formula| [x’=f(x)&P]x’=g(x) → (x’=f(x)&P) ≼ (x’=g(x)&P)] := by
+theorem refOde : sound [Formula| [x’=f(x)&P(||)]x’=g(x) → (x’=f(x)&P(||)) ≼ (x’=g(x)&P(||))] := by
   unfold sound
   intros i s
   simpFormula
@@ -334,7 +335,7 @@ theorem refOde : sound [Formula| [x’=f(x)&P]x’=g(x) → (x’=f(x)&P) ≼ (x
 
 
 /- Real refDE derivable by ←seqIdR, refSeq, refRefl -/
-theorem refDE : sound [Formula| [x’=f(x)&P](?true ≃ x’:=f(x))] := by
+theorem refDE : sound [Formula| [x’=f(x)&P(||)](?true ≃ x’:=f(x))] := by
   unfold sound
   intros i s
   simp only [Formula.denote, SetRel.mem_core]
@@ -354,7 +355,7 @@ theorem refDE : sound [Formula| [x’=f(x)&P](?true ≃ x’:=f(x))] := by
   simp only [Term.denote]
   exact fun x => x.1
 
-theorem DX : sound [Formula| x’:=f(x);?P ≼ x’=f(x) & P] := by
+theorem DX : sound [Formula| x’:=f(x);?P(||) ≼ x’=f(x) & P(||)] := by
   unfold sound
   intros i s
   simpFormula
@@ -385,7 +386,7 @@ theorem DX : sound [Formula| x’:=f(x);?P ≼ x’=f(x) & P] := by
       simp only [nhdsWithin_singleton, Asymptotics.isLittleO_pure]
       simp only [sub_self, smul_eq_mul, zero_mul]
 
-theorem odeIdem : sound [Formula| (x’=f(x)&P);(x’=f(x)&P) ≃ x’=f(x)&P] := by
+theorem odeIdem : sound [Formula| (x’=f(x)&P(||));(x’=f(x)&P(||)) ≃ x’=f(x)&P(||)] := by
   unfold sound
   intros i s
   simpFormula
@@ -550,8 +551,8 @@ theorem subODE {i} {r : ℝ} {φ : ℝ → State} {system} {Q} :
         grind only [= Set.mem_Icc, cases Or]
 
 /-- (Unofficial axiom) Continuous evolution either reaches Q at a point or never. -/
-theorem refdReach : sound [Formula| (x’=f(x)&P) ≼ (x’=f(x)&P); ?Q; (x’=f(x)&P)
-                                                          ∪ x’=f(x) & P ∧ ¬Q] := by
+theorem refdReach : sound [Formula| (x’=f(x)&P(||)) ≼ (x’=f(x)&P(||)); ?Q(||); (x’=f(x)&P(||))
+                                                          ∪ x’=f(x) & P(||) ∧ ¬Q(||)] := by
   unfold sound
   intros I s
   simpFormula
@@ -559,7 +560,7 @@ theorem refdReach : sound [Formula| (x’=f(x)&P) ≼ (x’=f(x)&P); ?Q; (x’=f
   simp only [Program.denote, Set.mem_setOf] at H
   rcases H with ⟨r, hr, φ, h0, rfl, h⟩
   simp only [Program.denote_choice]
-  apply Classical.by_cases (p:=(∀ ζ ∈ Set.Icc 0 r, φ ζ ∉ (Q.denote I)))
+  apply Classical.by_cases (p:=(∀ ζ ∈ Set.Icc 0 r, φ ζ ∉ ([Formula|Q(||)].denote I)))
   . simp only [Set.mem_Icc, and_imp]
     intro h'
     apply Or.inr

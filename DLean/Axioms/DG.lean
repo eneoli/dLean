@@ -24,8 +24,16 @@ In this file, we prove both variants of the differential ghost axiom.
 open Semantics
 open Embedding
 
-theorem DG_forall : sound [Formula| [x’=f(x) & p1(x)]p2(x)
-                              → ∀y,[x’=f(x),y’=a(x)*y+b(x) & p1(x)]p2(x)] := by
+lemma unitPred_coincidence (s₁ s₂ : State) (S : Finset Assignable) (P : (↑(S : Set Assignable)ᶜ → ℝ) → Prop) (h : s₁.isEqExcept s₂ S)
+                           : P (fun x ↦ s₁ x) = P (fun x ↦ s₂ x) := by
+  suffices (fun x : ↑(S : Set Assignable)ᶜ ↦ s₁ ↑x) = (fun x : ↑(S : Set Assignable)ᶜ ↦ s₂ ↑x) by
+    rw[this]
+  funext x
+  apply h
+  apply x.property
+
+theorem DG_forall : sound [Formula| [x’=f(x) & P(|y,y’|)]Q(|y,y’|)
+                              → ∀y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’|)]Q(|y,y’|)] := by
   unfold sound
   intros i s
   simpFormula
@@ -44,8 +52,11 @@ theorem DG_forall : sound [Formula| [x’=f(x) & p1(x)]p2(x)
   set f   := i (Symbol.Function (.udef "f" 1))
   set a   := i (Symbol.Function (.udef "a" 1))
   set b   := i (Symbol.Function (.udef "b" 1))
-  set p1  := i (Symbol.Predicate { name := "p1", arity := 1 })
-  set p2  := i (Symbol.Predicate { name := "p2", arity := 1 })
+  set P  := i (Symbol.UnitPred { name := "P", taboo := [vy,vy.diff] })
+  set Q  := i (Symbol.UnitPred { name := "Q", taboo := [vy,vy.diff] })
+
+  rw[unitPred_coincidence s2 s2' _ Q (by simp[State.isEqExcept, Set.EqOn]; grind only [=
+      Function.update.eq_1])]
 
   have Hφφ' : ∀ ζ, (φ ζ).isEqExcept (φ' ζ) {vy, vy.diff} := by
     simp only [φ', vy]
@@ -71,7 +82,10 @@ theorem DG_forall : sound [Formula| [x’=f(x) & p1(x)]p2(x)
     and_intros
     . unfold φ'
       grind only [Function.update_of_ne]
-    . exact h3
+    . clear * - h3
+      rw[unitPred_coincidence _ (φ ζ) _ P (by simp[State.isEqExcept, Set.EqOn]; grind only [=
+      Function.update.eq_1])]
+      assumption
     . simp_all only [Assignable.diff_emb, Function.Embedding.coeFn_mk,
                      State.isEqExcept, Set.EqOn, φ', Function.update_apply]
       grind only [= Set.mem_singleton_iff, = Set.mem_image, = Set.mem_union,
@@ -91,64 +105,64 @@ lemma nnnorm_coe_le_nnnorm {α E : Type}
                            (BoundedContinuousFunction.mkOfCompact f).nnnorm_coe_le_nnnorm x
 
 
-/-- Two ODE solutions intersecting over a non-singleton interval agree on it by uniqueness.
-This allows the construction of a solution on the union of domains. -/
-lemma ODE_concat {x₀ : ℝ} {a b c d : ℝ} {K} {F : ℝ → ℝ → ℝ} : (a ≤ b ∧ b < c ∧ c ≤ d) →
-          (∀ t ∈ Set.Icc a d, LipschitzWith K (F t)) →
-          (∃α, α a = x₀ ∧ (∀ t ∈ Set.Icc a c, HasDerivWithinAt α (F t (α t)) (Set.Icc a c) t) ∧
-          ∃β, β b = α b ∧ ∀ t ∈ Set.Icc b d, HasDerivWithinAt β (F t (β t)) (Set.Icc b d) t) →
-          (∃γ, γ a = x₀ ∧ ∀ t ∈ Set.Icc a d, HasDerivWithinAt γ (F t (γ t)) (Set.Icc a d) t) := by
-  rintro hbc hL ⟨α, hα₀, hα, β, hβ₀, hβ⟩
-  have : ∀ t ∈ Set.Icc b c, α t = β t := by
-    apply ODE_solution_unique_of_mem_Icc_right (s:=fun _ ↦ Set.univ) (K:=K) (v:=F)
+/-- Two ODE solutions over an interval with the same initial value agree on it by uniqueness. -/
+lemma ODE_unique {b c : ℝ} {K} {F : ℝ → ℝ → ℝ} {α β : ℝ → ℝ} {s : ℝ → Set ℝ} :
+          (∀ t ∈ Set.Icc b c, α t ∈ s t ∧ β t ∈ s t) →
+          (∀ t ∈ Set.Icc b c, LipschitzOnWith K (F t) (s t)) →
+          ((∀ t ∈ Set.Icc b c, HasDerivWithinAt α (F t (α t)) (Set.Icc b c) t) ∧
+          β b = α b ∧ ∀ t ∈ Set.Icc b c, HasDerivWithinAt β (F t (β t)) (Set.Icc b c) t) →
+          ∀ t ∈ Set.Icc b c, α t = β t := by
+  by_cases (b < c)
+  next hbc =>
+    rintro hs hL ⟨hα, hβ₀, hβ⟩
+    apply ODE_solution_unique_of_mem_Icc_right (s:=s) (K:=K) (v:=F)
     -- Lipschitz
     . intros t ht
       simp_all only [Set.mem_Icc, Set.mem_Ico]
-      apply LipschitzWith.lipschitzOnWith
       grind only
 
     -- proofs for α
-    . have : Set.Icc b c ⊆ Set.Icc a c := by grind only [= Set.mem_Icc, = Set.subset_def]
-      exact (fun x hx => HasDerivWithinAt.continuousWithinAt
-        (HasDerivWithinAt.mono (hα x (this hx)) this))
-
-    . have : Set.Ico b c ⊆ Set.Icc a c := by
-        grind only [= Set.mem_Icc, = Set.subset_def, = Set.mem_Ico]
-      intros t ht
-      apply HasDerivWithinAt.mono (t:= Set.Ici a)
-      . apply HasDerivWithinAt.mono_of_mem_nhdsWithin (hα t (this ht))
+    . exact (fun x hx => HasDerivWithinAt.continuousWithinAt (hα x hx))
+    . intros t ht
+      apply HasDerivWithinAt.mono (t:= Set.Ici b)
+      . apply HasDerivWithinAt.mono_of_mem_nhdsWithin (hα t (Set.Ico_subset_Icc_self ht))
         apply mem_nhdsWithin.mpr
         exists Set.Iio c
         grind only [= Set.mem_Ici, = Set.mem_Icc, = Set.subset_def, = Set.mem_Iio,
           = Set.mem_inter_iff, = Set.mem_Ico, isOpen_Iio]
       . grind only [= Set.mem_Ici, = Set.mem_Icc, = Set.subset_def, = Set.mem_Ico]
-    . simp only [Set.mem_univ, implies_true]
+    . grind only [= Set.mem_Ico, = Set.mem_Icc]
 
     -- same proofs for β
-    . have : Set.Icc b c ⊆ Set.Icc b d := by grind only [= Set.mem_Icc, = Set.subset_def]
-      exact (fun x hx => HasDerivWithinAt.continuousWithinAt
-        (HasDerivWithinAt.mono (hβ x (this hx)) this))
-
-    . have : Set.Ico b c ⊆ Set.Icc b d := by
-        grind only [= Set.mem_Icc, = Set.subset_def, = Set.mem_Ico]
-      intros t ht
+    . exact (fun x hx => HasDerivWithinAt.continuousWithinAt (hβ x hx))
+    . intros t ht
       apply HasDerivWithinAt.mono (t:= Set.Ici b)
-      . apply HasDerivWithinAt.mono_of_mem_nhdsWithin (hβ t (this ht))
+      . apply HasDerivWithinAt.mono_of_mem_nhdsWithin (hβ t (Set.Ico_subset_Icc_self ht))
         apply mem_nhdsWithin.mpr
         exists Set.Iio c
         grind only [= Set.mem_Ici, = Set.mem_Icc, = Set.subset_def, = Set.mem_Iio,
           = Set.mem_inter_iff, = Set.mem_Ico, isOpen_Iio]
       . grind only [= Set.mem_Ici, = Set.mem_Icc, = Set.subset_def, = Set.mem_Ico]
-    . simp only [Set.mem_univ, implies_true]
+    . grind only [= Set.mem_Ico, = Set.mem_Icc]
 
     -- equal at b
     . simp_all only
+  -- interval reduced to at most {b}
+  . grind only [= Set.mem_Icc]
 
-  let γ := (Set.Icc a c).piecewise α β
-  have hγα : (Set.Icc a c).EqOn γ α := by
+/-- This allows the construction of a solution on the union of domains. -/
+lemma ODE_concat {x₀ : ℝ} {a b c : ℝ} {K} {F : ℝ → ℝ → ℝ} : (a ≤ b ∧ b ≤ c) →
+          (∀ t ∈ Set.Icc a c, LipschitzWith K (F t)) →
+          (∃α, α a = x₀ ∧ (∀ t ∈ Set.Icc a b, HasDerivWithinAt α (F t (α t)) (Set.Icc a b) t) ∧
+          ∃β, β b = α b ∧ ∀ t ∈ Set.Icc b c, HasDerivWithinAt β (F t (β t)) (Set.Icc b c) t) →
+          (∃γ, γ a = x₀ ∧ ∀ t ∈ Set.Icc a c, HasDerivWithinAt γ (F t (γ t)) (Set.Icc a c) t) := by
+  rintro hbc hL ⟨α, hα₀, hα, β, hβ₀, hβ⟩
+
+  let γ := (Set.Icc a b).piecewise α β
+  have hγα : (Set.Icc a b).EqOn γ α := by
     intro
     grind only [= Set.mem_Icc, = Set.piecewise_eq_of_mem]
-  have hγβ : (Set.Icc b d).EqOn γ β := by
+  have hγβ : (Set.Icc b c).EqOn γ β := by
     intro
     grind only [= Set.mem_Icc, = Set.piecewise_eq_of_mem, = Set.piecewise_eq_of_notMem]
 
@@ -156,7 +170,7 @@ lemma ODE_concat {x₀ : ℝ} {a b c d : ℝ} {K} {F : ℝ → ℝ → ℝ} : (a
   apply And.intro
   . grind only [= Set.mem_Icc, Set.piecewise_eq_of_mem]
   . intros t ht
-    obtain (ht|ht) : t ∈ Set.Ico a c ∨ t ∈ Set.Ioc b d := by
+    obtain (ht|ht|ht) : t ∈ Set.Ico a b ∨ t = b ∨ t ∈ Set.Ioc b c := by
       grind only [= Set.mem_Icc, = Set.mem_Ioc, = Set.mem_Ico]
     -- case where γ = α
     . have htw := Set.Ico_subset_Icc_self ht
@@ -166,11 +180,31 @@ lemma ODE_concat {x₀ : ℝ} {a b c d : ℝ} {K} {F : ℝ → ℝ → ℝ} : (a
       rw[hγα]
       specialize this hγα
       clear * - hbc ht this
-      apply HasDerivWithinAt.mono_of_mem_nhdsWithin (t:=Set.Ico a c)
+      apply HasDerivWithinAt.mono_of_mem_nhdsWithin (t:=Set.Ico a b)
       . apply HasDerivWithinAt.mono this Set.Ico_subset_Icc_self
       . apply mem_nhdsWithin.mpr
-        exists Set.Iio c
+        exists Set.Iio b
         simp_all[isOpen_Iio, Set.subset_def]
+    . -- middle point
+      have hta : t ∈ Set.Icc a b := by grind only [= Set.mem_Icc]
+      specialize hα t hta
+      have derivA := HasDerivWithinAt.congr hα hγα
+      specialize hγα hta
+      specialize derivA hγα
+      rw[←hγα] at derivA
+
+      have htc : t ∈ Set.Icc b c := by grind only [= Set.mem_Icc]
+      specialize hβ t htc
+      have derivC := HasDerivWithinAt.congr hβ hγβ
+      specialize hγβ htc
+      specialize derivC hγβ
+      rw[←hγβ] at derivC
+
+      have := HasDerivWithinAt.union derivA derivC
+      rw[Set.Icc_union_Icc_eq_Icc] at this
+      all_goals
+      simp_all only
+
     -- case where γ = β
     . have htw := Set.Ioc_subset_Icc_self ht
       specialize hβ t htw
@@ -179,7 +213,7 @@ lemma ODE_concat {x₀ : ℝ} {a b c d : ℝ} {K} {F : ℝ → ℝ → ℝ} : (a
       rw[hγβ]
       specialize this hγβ
       clear * - hbc ht this
-      apply HasDerivWithinAt.mono_of_mem_nhdsWithin (t:=Set.Ioc b d)
+      apply HasDerivWithinAt.mono_of_mem_nhdsWithin (t:=Set.Ioc b c)
       . apply HasDerivWithinAt.mono this Set.Ioc_subset_Icc_self
       . apply mem_nhdsWithin.mpr
         exists Set.Ioi b
@@ -213,7 +247,7 @@ lemma merge {K} {x₀} {F : ℝ → ℝ → ℝ} : ∀r ≥ 0, (∀ t ∈ Set.Ic
           have : (K : ℝ) ≠ 0 := by simp; intro; simp_all
           positivity
         let b₀ := (b + n/K) / 2
-        let b₁ := (b₀ + (n+1)/K) / 2
+        -- let b₁ := (b₀ + (n+1)/K) / 2
         simp only [nr, ←NNReal.coe_le_coe, ←NNReal.coe_lt_coe, NNReal.coe_mk,
           Nat.cast_add, Nat.cast_one, not_lt, NNReal.coe_add,
           NNReal.coe_natCast, NNReal.coe_one, NNReal.coe_mul, gt_iff_lt] at *
@@ -229,42 +263,20 @@ lemma merge {K} {x₀} {F : ℝ → ℝ → ℝ} : ∀r ≥ 0, (∀ t ∈ Set.Ic
               _ = 2 * (n + 1) := by ring
           . simp
 
-        have b1n : (b₁ : ℝ) < (n+1)/K := by
-          simp[b₁]
-          apply lt_of_mul_lt_mul_of_nonneg_right (a:=2) ?_ (by simp)
-          rw[div_mul_cancel₀]
-          . calc (b₀ : ℝ) + (n + 1) / K
-            _ < (n + 1) / K + (n + 1) / K := by simp[b0n]
-            _ = (n + 1) / K * 2 := by ring
-          . simp
-
-        have b01 : (b₀ : ℝ) < b₁ := by
-          simp[b₁]
-          apply lt_of_mul_lt_mul_of_nonneg_right (a:=2) ?_ (by simp)
-          rw[div_mul_cancel₀ _ (by simp)]
-          calc (b₀ : ℝ) * 2
-            _ = b₀ + b₀ := by ring
-            _ < b₀ + (n + 1) / K := by simp[b0n]
-
-        have b1b : (b₁ : ℝ) ≤ b := by
-          calc (b₁ : ℝ)
-            _ ≤ (n + 1) / K := Std.le_of_lt b1n
+        have b0b : (b₀ : ℝ) ≤ b :=
+          calc (b₀ : ℝ)
+            _ ≤ (n+1)/K := Std.le_of_lt b0n
             _ ≤ b := by
               apply (div_le_iff₀ ?_).mpr
               . field_simp at *; trivial
               . trivial
 
-        have b0b : (b₀ : ℝ) ≤ b :=
-          calc (b₀ : ℝ)
-            _ ≤ b₁ := Std.le_of_lt b01
-            _ ≤ b := b1b
-
         obtain ⟨β, hβ, hind⟩ := by
-          apply hind b₁
-          . calc (b₁ : ℝ)
-              _ ≤ b := b1b
+          apply hind b₀
+          . calc (b₀ : ℝ)
+              _ ≤ b := b0b
               _ ≤ r := hb
-          . calc (K : ℝ) * b₁
+          . calc (K : ℝ) * b₀
               _ < K * ((n + 1) / K) := by simp_all only [mul_lt_mul_iff_right₀]
               _ = n + 1 := by field_simp
 
@@ -298,8 +310,8 @@ lemma merge {K} {x₀} {F : ℝ → ℝ → ℝ} : ∀r ≥ 0, (∀ t ∈ Set.Ic
     _ < ↑n₀ + 1 := by simp only [n₀, lt_add_iff_pos_right, zero_lt_one]
 
 
-theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & p1(x)]p2(x)
-                              → [x’=f(x) & p1(x)]p2(x)] := by
+theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’|)]Q(|y,y’|)
+                              → [x’=f(x) & P(|y,y’|)]Q(|y,y’|)] := by
   intros i s
   simpFormula
   simp only [Formula.denote, SetRel.mem_core, Set.mem_setOf_eq]
@@ -314,8 +326,8 @@ theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & p1(x)]p2(
   simp[Interpretation.ReturnType] at f
   set a := i (Symbol.Function (.udef "a" 1))
   set b := i (Symbol.Function (.udef "b" 1))
-  set p1 := i (Symbol.Predicate { name := "p1", arity := 1})
-  set p2 := i (Symbol.Predicate { name := "p2", arity := 1})
+  set P := i (Symbol.UnitPred { name := "P", taboo := [[Var|y],[Var|y’]]})
+  set Q := i (Symbol.UnitPred { name := "Q", taboo := [[Var|y],[Var|y’]]})
 
   have φ_cont_x : ContinuousOn (fun t ↦ φ t [Var|x]) (Set.Icc 0 r) := by
     intro x hx
@@ -461,7 +473,7 @@ theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & p1(x)]p2(
 
   let φ2 := fun t ↦ ((φ t).update [Var|y’] (F t (φy t))).update [Var|y] (φy t)
   specialize @h (φ2 r) r Hr φ2
-  have : p2 fun x ↦ φ2 r [Var|x] := by
+  have : Q fun x ↦ φ2 r x := by
     have Hφφ2 : ∀ ζ, (φ ζ).isEqExcept (φ2 ζ) {[Var|y], [Var|y’]} := by
       simp only [φ2]
       clear * -
@@ -484,6 +496,9 @@ theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & p1(x)]p2(
       apply And.intro
       . simp[φ2,F,a,b,Hmid, Term.denote, TermVector.toVector, getElem]
         simp[Term.denote, Vector.get]
+        rw[unitPred_coincidence _ (φ ζ) _ P (by simp[State.isEqExcept, Set.EqOn]; grind only [=
+            Function.update.eq_1])]
+        exact Hmid.1.2
       . and_intros
         . simp_all only [Assignable.diff_emb, Function.Embedding.coeFn_mk,
                      State.isEqExcept, Set.EqOn, φ2, Function.update_apply]
@@ -497,10 +512,12 @@ theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & p1(x)]p2(
             Function.update_of_ne, φ2]
 
   clear * - this Hend
-  simp_all[φ2]
+  rw[unitPred_coincidence _ (φ2 r) _ Q (by simp[State.isEqExcept, Set.EqOn]; grind only [=
+      Function.update.eq_1])]
+  assumption
 
-theorem forall_exists : sound [Formula| ∀y,[x’=f(x),y’=a(x)*y+b(x) & p1(x)]p2(x)
-                                        → ∃y,[x’=f(x),y’=a(x)*y+b(x) & p1(x)]p2(x) ] := by
+theorem forall_exists : sound [Formula| ∀y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’|)]Q(|y,y’|)
+                                        → ∃y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’|)]Q(|y,y’|) ] := by
   intros i s
   simpFormula
   simp_all only [exists_const, implies_true]
