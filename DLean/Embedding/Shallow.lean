@@ -5,6 +5,9 @@ import DLean.Semantics.DynamicSemantics
 
 open Semantics
 
+def sound (φ : Formula) : Prop := ∀ (i: Interpretation) (s : State), s ∈ φ.denote i
+
+
 section simpDenote
 -- dL format
 -- Term := `t.denote i s : ℝ`
@@ -163,7 +166,7 @@ macro "simpTerm": tactic => `(tactic| simp only [Term.denote_var, Term.denote_ne
 macro "simpState" : tactic => `(tactic| simp only [
   Function.update_of_ne, Function.update_self, -- simplify `State.update`
   -- The following allows proving hypothesis `a ≠ b` of `Function.update_of_ne`
-  Assignable.diff.injEq, Assignable.var.injEq, Variable.mk.injEq,
+  Variable.diff.injEq, Variable.var.injEq, Variable.mk.injEq,
   ne_eq, String.reduceEq, not_false_eq_true])
 
 end simpDenote
@@ -173,8 +176,8 @@ end simpDenote
 --   | .False => _root_.False
 --   | .and Φ₁ Φ₂ => Formula.eval i s Φ₁ ∧ Formula.eval i s Φ₂
 --   | .not Φ' => ¬Formula.eval i s Φ'
---   | .forall x Φ' => ∀ (r : ℝ), Formula.eval i (s.update (Assignable.var x) r) Φ'
---   | .exists x Φ' => ∃ (r : ℝ), Formula.eval i (s.update (Assignable.var x) r) Φ'
+--   | .forall x Φ' => ∀ (r : ℝ), Formula.eval i (s.update (Variable.var x) r) Φ'
+--   | .exists x Φ' => ∃ (r : ℝ), Formula.eval i (s.update (Variable.var x) r) Φ'
 --   | .box α Φ' => ∀ (s' : State), ⟨s, s'⟩ ∈ Program.denote i α → Formula.eval i s' Φ'
 --   | .diamond α Φ' => ∃ (s' : State), ⟨s, s'⟩ ∈ Program.denote i α → Formula.eval i s' Φ'
 --   | .eq t₁ t₂ => ∀ (i : Interpretation), Term.denote i s t₁ = Term.denote i s t₂

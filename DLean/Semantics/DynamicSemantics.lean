@@ -24,7 +24,7 @@ noncomputable def Term.denote (i : Interpretation) (s : State) (t : Term) : ℝ 
           have : f.arity = fnSym.arity := by simp_all only [Fn.arity]
           (i (Symbol.Function fnSym)).1 (argValues[·])
     | Term.differential t =>
-      ∑ x ∈ t.freeVarsSem i, s (Assignable.diff x) *
+      ∑ x ∈ t.freeVarsSem i, s (Variable.diff x) *
                         (
                           deriv (
                             fun y => denote i (
@@ -114,14 +114,14 @@ def Program.denote (i : Interpretation) (α : Program) : SetRel State State := m
   | Program.ode system Q  => {
       (s₁, s₂) | ∃r ≥ 0,
                  ∃φ:ℝ → State,
-                  State.isEqExcept s₁ (φ 0) (system.assignables.map Assignable.diff_emb) ∧
+                  State.isEqExcept s₁ (φ 0) (system.variables.map Variable.diff_emb) ∧
                   s₂ = φ r ∧
                   (
                     ∀ζ ∈ Set.Icc 0 r, φ ζ ∈ (odeEvolutionFormula system Q).denote i ∧
                     State.isEqExcept (φ 0) (φ ζ)
-                    (system.assignables ∪ (system.assignables.map Assignable.diff_emb)) ∧
-                    ∀x∈system.assignables,
-                      HasDerivWithinAt (fun t => φ t x) (φ ζ (Assignable.diff x)) (Set.Icc 0 r) ζ
+                    (system.variables ∪ (system.variables.map Variable.diff_emb)) ∧
+                    ∀x∈system.variables,
+                      HasDerivWithinAt (fun t => φ t x) (φ ζ (Variable.diff x)) (Set.Icc 0 r) ζ
                   )
     }
 termination_by α.size
@@ -170,7 +170,7 @@ end
 
 -- We cannot parameterize the function over entire states as the (euclidian) norm could
 -- be possibly infinite. In theory there is something called L∞ norm but NormedAddCommGroup
--- requires us to return a real number. Also I'm not sure if the set of assignables is *countable*
+-- requires us to return a real number. Also I'm not sure if the set of.variables is *countable*
 -- infinite.
 
 -- We therefore fix a finite set of variables that is allowed to change.
@@ -179,11 +179,11 @@ end
 theorem Term.contDiff {n : ℕ}
                        (i : Interpretation)
                        (v : State)
-                       (A : Finset Assignable)
+                       (A : Finset Variable)
                        (t : Term)
                        : ContDiff ℝ ∞
                           (
-                            fun args : (Fin n → ℝ) × ({a : Assignable // a ∈ A } → ℝ) ↦
+                            fun args : (Fin n → ℝ) × ({a : Variable // a ∈ A } → ℝ) ↦
                               let dots := args.1
                               let as := args.2
                               Term.denote (i.assignDots dots) (v.finUpdate as) t
@@ -320,7 +320,7 @@ lemma ode_system_freeVars_union_iff
       : (Program.ode (head :: tail) Ψ).freeVars
       = {head.var} ∪ ↑head.term.freeVars ∪ (Program.ode tail Ψ).freeVars := by
   simp[Program.freeVars]
-  rw[OdeSystem.assignables_union_iff]
+  rw[OdeSystem.variables_union_iff]
   grind only [= Set.mem_union, = Set.mem_insert_iff,
     = Finset.mem_union, = Finset.mem_singleton, = Finset.mem_coe]
 
@@ -352,9 +352,9 @@ lemma ode_system_boundVars_union_iff
       {Ψ : Formula}
       : (Program.ode (head :: tail) Ψ).boundVars
       = {head.var} ∪ {head.var.diff} ∪ (Program.ode tail Ψ).boundVars := by
-  simp only [Program.boundVars, OdeSystem.assignables, List.map_cons, List.toFinset_cons,
+  simp only [Program.boundVars, OdeSystem.variables, List.map_cons, List.toFinset_cons,
              Finset.map_insert, Finset.coe_insert]
-  have : Assignable.diff_emb head.var = head.var.diff := by rfl
+  have : Variable.diff_emb head.var = head.var.diff := by rfl
   grind only [= Set.mem_union, = Set.mem_singleton_iff, = Set.mem_insert_iff]
 
 
@@ -364,7 +364,7 @@ lemma ode_evolution_formula_freeVars_eq_ode_freeVars
       : (odeEvolutionFormula system Ψ).freeVars \ (Program.ode system Ψ).mustBoundVars
         ⊆ (Program.ode system Ψ).freeVars := by
     induction system
-    . simp[OdeSystem.assignables, odeEvolutionFormula,
+    . simp[OdeSystem.variables, odeEvolutionFormula,
            Program.freeVars, Program.mustBoundVars, Program.boundVars]
     . next hd _ h =>
       simp_all only [Program.mustBoundVars]

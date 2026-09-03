@@ -8,54 +8,54 @@ section Term
 
 mutual
 
-def Term.freeVars : (t : Term) → Set Assignable
+def Term.freeVars : (t : Term) → Set Variable
   | Term.var  v         => {v}
   | Term.neg  t'        => Term.freeVars t'
   | Term.plus  t₁ t₂
   | Term.times t₁ t₂    => Term.freeVars t₁ ∪ Term.freeVars t₂
   | Term.differential t => let fvars := Term.freeVars t;
-                           fvars ∪ fvars.image Assignable.diff
+                           fvars ∪ fvars.image Variable.diff
   | Term.unit F         => F.taboo.toFinsetᶜ
   | Term.applyFn _ ts   => ts.freeVars
 
 def TermVector.freeVars {n : ℕ}
                         (ts : TermVector n)
-                        : Set Assignable :=
+                        : Set Variable :=
   match ts with
   | .nil => ∅
   | .cons t ts => t.freeVars ∪ ts.freeVars
 
 end
 
-instance Assignable.base_dec : DecidablePred fun x ↦ x ∈ Set.univ.image Assignable.var := fun x ↦
+instance Variable.base_dec : DecidablePred fun x ↦ x ∈ Set.univ.image Variable.base := fun x ↦
   match x with
-  | .var z => .isTrue ⟨z, Set.mem_univ _, rfl⟩
+  | .base z => .isTrue ⟨z, Set.mem_univ _, rfl⟩
   | .diff _ => .isFalse (fun ⟨_, _, h⟩ ↦ by contradiction)
 
 
 /- Need custom definition to prove that V ∪ V' can be represented as a FCSet -/
-def FCSet.addDiff (A : FCSet Assignable) : FCSet Assignable :=
+def FCSet.addDiff (A : FCSet Variable) : FCSet Variable :=
   match A with
-  | .Finite A => .Finite (A ∪ A.map Assignable.diff_emb)
-  | .Infinite A => .Infinite (A.filter (· ∈ Set.univ.image Assignable.var) ∪ (A ∩ A.map Assignable.diff_emb))
+  | .Finite A => .Finite (A ∪ A.map Variable.diff_emb)
+  | .Infinite A => .Infinite (A.filter (· ∈ Set.univ.image Variable.base) ∪ (A ∩ A.map Variable.diff_emb))
 
 @[simp, grind .]
-theorem FCSet.to_set_add_diff {A : FCSet Assignable} :
-  (A.addDiff : Set Assignable) = (A : Set Assignable) ∪ (A : Set Assignable).image .diff := by
+theorem FCSet.to_set_add_diff {A : FCSet Variable} :
+  (A.addDiff : Set Variable) = (A : Set Variable) ∪ (A : Set Variable).image .diff := by
   match A with
-  | .Finite A => simp[FCSet.addDiff, Assignable.diff_emb]
+  | .Finite A => simp[FCSet.addDiff, Variable.diff_emb]
   | .Infinite A =>
     apply Set.ext
-    simp[FCSet.addDiff, FCSet.toSet, Assignable.diff_emb]
+    simp[FCSet.addDiff, FCSet.toSet, Variable.diff_emb]
     intro x
     apply Iff.intro
     . let := Finset.decidableMem x A
-      grind only[Assignable]
+      grind only[Variable]
     . grind only
 
 mutual
 
-def Term.freeVars' : (t : Term) → FCSet Assignable
+def Term.freeVars' : (t : Term) → FCSet Variable
   | Term.var  v         => {v}
   | Term.neg  t'        => Term.freeVars' t'
   | Term.plus  t₁ t₂
@@ -67,7 +67,7 @@ def Term.freeVars' : (t : Term) → FCSet Assignable
 
 def TermVector.freeVars' {n : ℕ}
                         (ts : TermVector n)
-                        : FCSet Assignable :=
+                        : FCSet Variable :=
   match ts with
   | .nil => ∅
   | .cons t ts => t.freeVars' ∪ ts.freeVars'
@@ -155,7 +155,7 @@ theorem Term.freeVars_subset_TermVector_freeVars {t : Term}
 
 
 theorem Term.freeVar_lifts_to_diff (t : Term)
-                                   (a : Assignable)
+                                   (a : Variable)
                                    : a ∈ t.freeVars → a.diff ∈ t.differential.freeVars := by
   simp[Term.freeVars]
   exact Or.inr
@@ -168,7 +168,7 @@ section FormulaProgram
 
 mutual
 
-def Formula.freeVars (Φ : Formula) : Set Assignable := match Φ with
+def Formula.freeVars (Φ : Formula) : Set Variable := match Φ with
   | .True
   | .False          => ∅
   | .gte t₁ t₂
@@ -184,7 +184,7 @@ def Formula.freeVars (Φ : Formula) : Set Assignable := match Φ with
   | .ref α β        => α.freeVars ∪ β.freeVars ∪ ((α.boundVars ∪ β.boundVars)
                                                   \ (α.mustBoundVars ∩ β.mustBoundVars))
 
-def Program.freeVars (α : Program) : Set Assignable := match α with
+def Program.freeVars (α : Program) : Set Variable := match α with
   | .const _      => .univ
   | .assign _ t   => t.freeVars
   | .random _     => ∅
@@ -192,7 +192,7 @@ def Program.freeVars (α : Program) : Set Assignable := match α with
   | .seq α β
   | .choice α β   => Program.freeVars α ∪ Program.freeVars β
   | .loop α       => Program.freeVars α
-  | .ode system Ψ => let ode_vars := system.assignables
+  | .ode system Ψ => let ode_vars := system.variables
                      let fvars_ode := ⋃ ode ∈ system, ode.term.freeVars
                      let fvars_constraint := Formula.freeVars Ψ
                      ode_vars ∪ fvars_ode ∪ fvars_constraint
@@ -202,7 +202,7 @@ end
 mutual
 
 /-- Decidable version. -/
-def Formula.freeVars' (Φ : Formula) : FCSet Assignable := match Φ with
+def Formula.freeVars' (Φ : Formula) : FCSet Variable := match Φ with
   | .True
   | .False          => ∅
   | .gte t₁ t₂
@@ -218,7 +218,7 @@ def Formula.freeVars' (Φ : Formula) : FCSet Assignable := match Φ with
   | .ref α β        => α.freeVars' ∪ β.freeVars' ∪ ((α.boundVars' ∪ β.boundVars')
                                                   \ (α.mustBoundVars' ∩ β.mustBoundVars'))
 /-- Decidable version. -/
-def Program.freeVars' (α : Program) : FCSet Assignable := match α with
+def Program.freeVars' (α : Program) : FCSet Variable := match α with
   | .const _      => .univ
   | .assign _ t   => t.freeVars'
   | .random _     => ∅
@@ -226,7 +226,7 @@ def Program.freeVars' (α : Program) : FCSet Assignable := match α with
   | .seq α β
   | .choice α β   => Program.freeVars' α ∪ Program.freeVars' β
   | .loop α       => Program.freeVars' α
-  | .ode system Ψ => let ode_vars := system.assignables
+  | .ode system Ψ => let ode_vars := system.variables
                      let fvars_ode := system.foldr (fun ode acc ↦ ode.term.freeVars' ∪ acc) ∅
                      let fvars_constraint := Formula.freeVars' Ψ
                      (.Finite ode_vars) ∪ fvars_ode ∪ fvars_constraint

@@ -11,8 +11,8 @@ open Embedding
 #check [Formula| [x’ = f(x) & q(x)]q(x)]
 theorem DW_example : sound [Formula| [x’ = 1 & x > 1] x > 1] := by
   let σ : Subst := ⟨[
-      .fn   (.udef "f" 1) [Term| 1],
-      .pred ⟨"q", 1⟩      [Formula| ·₀ > 1],
+      .unitFun  {name := "F", taboo := ∅} [Term| 1]        (by cbv),
+      .unitPred {name := "Q", taboo := ∅} [Formula| x > 1] (by cbv),
     ], ?_⟩
 
   .
@@ -59,7 +59,7 @@ example : sound [Formula| ∀x, [x := f] p(x) ↔ p(f)] := by
   --           (by simp_all[σ] ; cbv ; congr ; sorry)
   --           (by cbv ; congr )
 
-  apply US (σ := σ) ?_ Forall
+  -- apply US (σ := σ) ?_ Forall
   sorry
 
 example : sound [Formula| ([v := 2]⟨?v ≥ 1⟩true)] := by
@@ -77,10 +77,10 @@ example : sound [Formula| [x := 1 ; x := 2] x ≥ 1] := by
   have : sound [Formula| ([x := 1 ; x := 2] x ≥ 1)
                        ↔ ([x := 1] [x := 2] x ≥ 1)] := by
     let σ : Subst := ⟨[
-      .prog ⟨"a"⟩         [Program| x := 1],
-      .prog ⟨"b"⟩         [Program| x := 2],
-      .pred ⟨"p", 1⟩      [Formula| ·₀ ≥ 1],
-      .prog ⟨"k"⟩         [Program| ?v ≥ 0],
+      .prog     ⟨"a"⟩                      [Program| x := 1],
+      .prog     ⟨"b"⟩                      [Program| x := 2],
+      .pred     ⟨"p", 1⟩                   [Formula| ·₀ ≥ 1],
+      .unitPred {name := "P", taboo := ∅} [Formula| x ≥ 1] (by cbv),
     ], by cbv ; grind⟩
 
     apply US (σ := σ) ?_ boxSeq
@@ -134,17 +134,17 @@ example : sound [Formula| [x := 1 ; x := 2] x ≥ 1] := by
 example : sound [Formula| [x’ = v ; v’ = A & true] v ≥ 0] := by
 
   -- [Formula| [a;b]p(x) ↔ [a][b]p(x)]
-  have : sound [Formula| ([x’ = v ; v’ = A]⟨?v ≥ 0⟩true)
-                       ↔ ([x’ = v] [v’ = A]⟨?v ≥ 0⟩true)] := by
+  have : sound [Formula| ([x’ = v ; v’ = A]v ≥ 0)
+                       ↔ ([x’ = v] [v’ = A]v ≥ 0)] := by
     let σ : Subst := ⟨[
-      .prog ⟨"a"⟩         [Program| x’ = v],
-      .prog ⟨"b"⟩         [Program| v’ = A & true],
-      .prog ⟨"k"⟩         [Program| ?v ≥ 0],
+      .prog ⟨"a"⟩                           [Program| x’ = v],
+      .prog ⟨"b"⟩                           [Program| v’ = A & true],
+      .unitPred {name := "P",  taboo := ∅} [Formula| v ≥ 0] (by cbv),
       -- .pred ⟨"p", 1⟩      [Formula| ·₀ ≥ 0],
       -- .fn   (.udef "x" 0) [Term| v],
     ], by cbv ; grind⟩
 
-    apply US (σ := σ) ?_ boxSeq'
+    apply US (σ := σ) ?_ boxSeq
     cbv
 
   have : sound [Formula| [x’ = v][v’ = A & true]⟨?v ≥ 0⟩true] := by
@@ -152,9 +152,6 @@ example : sound [Formula| [x’ = v ; v’ = A & true] v ≥ 0] := by
 
   unfold sound at this
   simp[Formula.denote_equiv] at this
-  have pred := pred
-  unfold sound at pred
-  simp[Formula.denote_equiv] at pred
 
   have : sound [Formula| (([x’ = v ; v’ = A & true]⟨?v ≥ 0⟩ true) ↔ ([x’ = v][v’ = A & true]⟨?v ≥ 0⟩ true))
                        ↔ (([x’ = v ; v’ = A & true] v ≥ 0) ↔ ([x’ = v][v’ = A & true] v ≥ 0))] := by
@@ -167,13 +164,7 @@ example : sound [Formula| [x’ = v ; v’ = A & true] v ≥ 0] := by
       -- .fn   (.udef "x" 0) [Term| v],
     ], by cbv ; grind⟩
 
-    apply US (σ := σ) ?_ boxSeq'
+    apply US (σ := σ) ?_ boxSeq
 
     sorry
-
-
-  simp[pred] at this
-
-
-
   sorry

@@ -10,8 +10,6 @@ import DLean.Semantics.DynamicSemantics
 
 import DLean.Embedding.Shallow
 
-import DLean.Axioms.Base
-
 open Semantics
 open Embedding
 
@@ -36,7 +34,7 @@ lemma diffAux {n : ℕ} {f : { g : (Fin n → ℝ) → ℝ // ContDiff ℝ ∞ g
             (ContDiff.differentiable f.property (Ne.symm (not_eq_of_beq_eq_false rfl)))
             (by simp[differentiable_pi.mpr])
 
-lemma diffAux₂ {taboo : Finset Assignable} {F : Σ x : { s : Finset Assignable // Disjoint s taboo}, {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}} (x : Assignable) (s : State)
+lemma diffAux₂ {taboo : Finset Variable} {F : Σ x : { s : Finset Variable // Disjoint s taboo}, {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}} (x : Variable) (s : State)
   : DifferentiableAt ℝ (fun y ↦ F.snd.val fun x_1 ↦ s.update x y ↑x_1) (s x) := by
     apply ContDiff.differentiable (n:=∞) _ (Ne.symm (not_eq_of_beq_eq_false rfl))
     apply ContDiff.fun_comp F.snd.property
@@ -44,7 +42,7 @@ lemma diffAux₂ {taboo : Finset Assignable} {F : Σ x : { s : Finset Assignable
     intro
     apply State.update_contDiff s x
 
-lemma diffAux₃ {taboo : Finset Assignable} {F : Σ x : { s : Finset Assignable // Disjoint s taboo}, {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}} (x : Assignable) (s : State)
+lemma diffAux₃ {taboo : Finset Variable} {F : Σ x : { s : Finset Variable // Disjoint s taboo}, {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}} (x : Variable) (s : State)
   : x ∉ F.fst.val → deriv (fun y ↦ F.snd.val fun x_1 ↦ s.update x y ↑x_1) (s x) = 0 := by
   intro h
   trans deriv (fun y ↦ F.snd.val fun x_1 ↦ s ↑x_1) (s x)
@@ -128,7 +126,7 @@ theorem comp' : sound [Formula| [y:=G(|y,y’|)][y’:=1]((f(G(|y,y’|)))’ = 
   simp[Vector.get]
 
   set f := i (Symbol.Function (.udef "f" 1))
-  set z := Assignable.var { name := "y" }
+  set z := Variable.base "y"
   set G := i (Symbol.UnitFun (UnitFunctional.mk "G" [z, z.diff]))
 
   simp only [Interpretation.ReturnType, FunctionSymbol.arity] at f G

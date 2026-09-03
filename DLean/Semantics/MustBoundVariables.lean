@@ -2,7 +2,7 @@ import DLean.Syntax.Syntax
 import DLean.Semantics.BoundVariables
 import DLean.Util.FCSet
 
-def Program.mustBoundVars (α : Program) : Set Assignable := match α with
+def Program.mustBoundVars (α : Program) : Set Variable := match α with
   | .assign _ _
   | .random _
   | .test _
@@ -13,7 +13,7 @@ def Program.mustBoundVars (α : Program) : Set Assignable := match α with
   | .loop _     => ∅
 
 /-- Decidable version. -/
-def Program.mustBoundVars' (α : Program) : FCSet Assignable := match α with
+def Program.mustBoundVars' (α : Program) : FCSet Variable := match α with
   | .assign _ _
   | .random _
   | .test _

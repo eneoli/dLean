@@ -6,8 +6,6 @@ import Mathlib.Analysis.Calculus.Deriv.Add
 
 import DLean.Embedding.Shallow
 
-import DLean.Axioms.Base
-
 open Semantics
 
 lemma ref_img_subset : ∀ i α₁ α₂, ∀ S ⊆ (Formula.ref α₁ α₂).denote i,
@@ -251,7 +249,7 @@ theorem refdWL : sound [Formula| ?q(x);x’=f(x)&q(x) ≃ x’=f(x)&q(x)] := by
  simpProgram
  simp only [existsAndEq, true_and]
  simp only [Program.denote, ge_iff_le, Finset.coe_map, Set.mem_Icc, and_imp, Set.mem_setOf_eq]
- simp[odeEvolutionFormula, Formula.denote, OdeSystem.assignables, TermVector.toVector]
+ simp[odeEvolutionFormula, Formula.denote, OdeSystem.variables, TermVector.toVector]
  intro w
  intros r Hr φ Hstart Hend H
  specialize H 0 (by simp) Hr
@@ -261,7 +259,7 @@ theorem refdWL : sound [Formula| ?q(x);x’=f(x)&q(x) ≃ x’=f(x)&q(x)] := by
    simp[Term.freeVars, Term.signature, Interpretation.isEqOn]
    simp[Set.EqOn, State.isEqExcept] at *
    apply Hstart
-   simp[Assignable.diff_emb]
+   simp[Variable.diff_emb]
  simp[Heq]
  trivial
 
@@ -273,7 +271,7 @@ theorem refdWR : sound [Formula| (x’=f(x)&P(||));?P(||) ≃ x’=f(x)&P(||)] :
  simpProgram
  simp only [existsAndEq, true_and]
  simp only [Program.denote, ge_iff_le, Finset.coe_map, Set.mem_Icc, and_imp, Set.mem_setOf_eq]
- simp[odeEvolutionFormula, Formula.denote, OdeSystem.assignables]
+ simp[odeEvolutionFormula, Formula.denote, OdeSystem.variables]
 --  grind only
  intros w r Hr φ Hstart Hend H
  rw[Hend]
@@ -365,7 +363,7 @@ theorem DX : sound [Formula| x’:=f(x);?P(||) ≼ x’=f(x) & P(||)] := by
   simp only [Program.denote, Set.mem_setOf, odeEvolutionFormula]
   refine ⟨0, le_refl 0, fun _ ↦ s.update [Var|x’] ([Term|f(x)].denote i s), ?_⟩
   and_intros
-  . simp[OdeSystem.assignables, Assignable.diff_emb, State.isEqExcept, State.update]
+  . simp[OdeSystem.variables, Variable.diff_emb, State.isEqExcept, State.update]
     simp_all[Set.EqOn, Function.update_of_ne]
   . trivial
   . simp only [Set.Icc_self, Set.mem_singleton_iff, forall_eq]
@@ -376,8 +374,8 @@ theorem DX : sound [Formula| x’:=f(x);?P(||) ≼ x’=f(x) & P(||)] := by
         simp[Term.denote, Vector.get]
       . trivial
     . simp only [State.isEqExcept, State.eq_rfl]
-    . have : OdeSystem.assignables [.mk [Var|x] [Term|f(x)]] = {[Var|x]} := by
-        simp[OdeSystem.assignables]
+    . have : OdeSystem.variables [.mk [Var|x] [Term|f(x)]] = {[Var|x]} := by
+        simp[OdeSystem.variables]
       rw[this]
       simp only [Finset.mem_singleton, forall_eq]
       simp only [Function.update_of_ne, Function.update_self,
@@ -394,7 +392,7 @@ theorem odeIdem : sound [Formula| (x’=f(x)&P(||));(x’=f(x)&P(||)) ≃ x’=f
   intros w
   apply Iff.intro
   . simp only [Program.denote, Set.mem_setOf]
-    simp only [OdeSystem.assignables, Assignable.diff_emb,
+    simp only [OdeSystem.variables, Variable.diff_emb,
           List.map_cons, List.map_nil, List.toFinset_cons, List.toFinset_nil,
           insert_empty_eq, forall_eq, Function.Embedding.coeFn_mk,
           Finset.mem_singleton, Finset.map_singleton, Finset.coe_singleton, Set.union_singleton]
@@ -517,9 +515,9 @@ theorem subODE {i} {r : ℝ} {φ : ℝ → State} {system} {Q} :
                   (
                     ∀ζ ∈ Set.Icc 0 r, φ ζ ∈ (odeEvolutionFormula system Q).denote i ∧
                     State.isEqExcept (φ 0) (φ ζ)
-                    (system.assignables ∪ (system.assignables.map Assignable.diff_emb)) ∧
-                    ∀x∈system.assignables,
-                      HasDerivWithinAt (fun t => φ t x) (φ ζ (Assignable.diff x)) (Set.Icc 0 r) ζ
+                    (system.variables ∪ (system.variables.map Variable.diff_emb)) ∧
+                    ∀x∈system.variables,
+                      HasDerivWithinAt (fun t => φ t x) (φ ζ (Variable.diff x)) (Set.Icc 0 r) ζ
                   ) → ∀ (x y : ℝ),
                     0 ≤ x ∧ x ≤ y ∧ y ≤ r
                     → (φ x, φ y) ∈ (Program.ode system Q).denote i := by

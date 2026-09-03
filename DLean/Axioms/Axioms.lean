@@ -5,7 +5,6 @@ import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.DynamicSemantics
 
-import DLean.Axioms.Base
 import DLean.Axioms.DC
 import DLean.Axioms.DI
 import DLean.Axioms.DE

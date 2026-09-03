@@ -9,7 +9,6 @@ import DLean.Semantics.DynamicSemantics
 
 import DLean.Embedding.Shallow
 
-import DLean.Axioms.Base
 import DLean.Axioms.DiffTerm -- for `diffAux`
 
 /-!
@@ -24,9 +23,9 @@ In this file, we prove both variants of the differential ghost axiom.
 open Semantics
 open Embedding
 
-lemma unitPred_coincidence (s₁ s₂ : State) (S : Finset Assignable) (P : (↑(S : Set Assignable)ᶜ → ℝ) → Prop) (h : s₁.isEqExcept s₂ S)
+lemma unitPred_coincidence (s₁ s₂ : State) (S : Finset Variable) (P : (↑(S : Set Variable)ᶜ → ℝ) → Prop) (h : s₁.isEqExcept s₂ S)
                            : P (fun x ↦ s₁ x) = P (fun x ↦ s₂ x) := by
-  suffices (fun x : ↑(S : Set Assignable)ᶜ ↦ s₁ ↑x) = (fun x : ↑(S : Set Assignable)ᶜ ↦ s₂ ↑x) by
+  suffices (fun x : ↑(S : Set Variable)ᶜ ↦ s₁ ↑x) = (fun x : ↑(S : Set Variable)ᶜ ↦ s₂ ↑x) by
     rw[this]
   funext x
   apply h
@@ -40,7 +39,7 @@ theorem DG_forall : sound [Formula| [x’=f(x) & P(|y,y’|)]Q(|y,y’|)
   simp only [Formula.denote, SetRel.mem_core, Set.mem_setOf_eq]
   simp only [Program.denote, ge_iff_le, Finset.coe_map, Set.mem_Icc, and_imp, Set.mem_setOf_eq,
     forall_exists_index]
-  simp[OdeSystem.assignables, odeEvolutionFormula, Formula.denote]
+  simp[OdeSystem.variables, odeEvolutionFormula, Formula.denote]
   simp[Term.denote, TermVector.toVector, getElem]
   simp[Vector.get, Term.denote]
   intros H y s2 r Hr φ Hstart Hend Hmid
@@ -52,8 +51,8 @@ theorem DG_forall : sound [Formula| [x’=f(x) & P(|y,y’|)]Q(|y,y’|)
   set f   := i (Symbol.Function (.udef "f" 1))
   set a   := i (Symbol.Function (.udef "a" 1))
   set b   := i (Symbol.Function (.udef "b" 1))
-  set P  := i (Symbol.UnitPred { name := "P", taboo := [vy,vy.diff] })
-  set Q  := i (Symbol.UnitPred { name := "Q", taboo := [vy,vy.diff] })
+  set P   := i (Symbol.UnitPred { name := "P", taboo := [vy,vy.diff] })
+  set Q   := i (Symbol.UnitPred { name := "Q", taboo := [vy,vy.diff] })
 
   rw[unitPred_coincidence s2 s2' _ Q (by simp[State.isEqExcept, Set.EqOn]; grind only [=
       Function.update.eq_1])]
@@ -73,7 +72,7 @@ theorem DG_forall : sound [Formula| [x’=f(x) & P(|y,y’|)]Q(|y,y’|)
     -- simp_all only [Set.EqOn]
     clear * - this
     simp_all[Set.EqOn, φ', State.update]
-    simp_all only [Assignable.diff_emb, Function.Embedding.coeFn_mk, Function.update_apply]
+    simp_all only [Variable.diff_emb, Function.Embedding.coeFn_mk, Function.update_apply]
     grind only []
   . simp only [s2', φ', Hend]
   . intro ζ Hζ1 Hζ2
@@ -86,7 +85,7 @@ theorem DG_forall : sound [Formula| [x’=f(x) & P(|y,y’|)]Q(|y,y’|)
       rw[unitPred_coincidence _ (φ ζ) _ P (by simp[State.isEqExcept, Set.EqOn]; grind only [=
       Function.update.eq_1])]
       assumption
-    . simp_all only [Assignable.diff_emb, Function.Embedding.coeFn_mk,
+    . simp_all only [Variable.diff_emb, Function.Embedding.coeFn_mk,
                      State.isEqExcept, Set.EqOn, φ', Function.update_apply]
       grind only [= Set.mem_singleton_iff, = Set.mem_image, = Set.mem_union,
                   = Set.mem_compl_iff, = Set.mem_insert_iff]
@@ -96,7 +95,7 @@ theorem DG_forall : sound [Formula| [x’=f(x) & P(|y,y’|)]Q(|y,y’|)
       trivial
 
 
-instance State.TopologicalSpace_aux : TopologicalSpace (Assignable → ℝ) := inferInstance
+instance State.TopologicalSpace_aux : TopologicalSpace (Variable → ℝ) := inferInstance
 instance State.TopologicalSpace : TopologicalSpace State := State.TopologicalSpace_aux
 
 lemma nnnorm_coe_le_nnnorm {α E : Type}
@@ -317,7 +316,7 @@ theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’
   simp only [Formula.denote, SetRel.mem_core, Set.mem_setOf_eq]
   simp only [Program.denote, ge_iff_le, Finset.coe_map, Set.mem_Icc, and_imp, Set.mem_setOf_eq,
     forall_exists_index]
-  simp[OdeSystem.assignables, odeEvolutionFormula, Formula.denote]
+  simp[OdeSystem.variables, odeEvolutionFormula, Formula.denote]
   simp[Term.denote, TermVector.toVector, getElem]
   simp[Vector.get, Term.denote]
   intros y h s2 r Hr φ Hstart Hend Hmid
@@ -487,7 +486,7 @@ theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’
       unfold φ2 at Hφφ2
       have := State.eq_on_trans Hstart Hφφ2
       simp_all[Set.EqOn, φ2, State.update]
-      simp_all only [Assignable.diff_emb, Function.Embedding.coeFn_mk, Function.update_apply]
+      simp_all only [Variable.diff_emb, Function.Embedding.coeFn_mk, Function.update_apply]
       grind only []
     . rfl
     . clear * - Hmid h2
@@ -500,7 +499,7 @@ theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’
             Function.update.eq_1])]
         exact Hmid.1.2
       . and_intros
-        . simp_all only [Assignable.diff_emb, Function.Embedding.coeFn_mk,
+        . simp_all only [Variable.diff_emb, Function.Embedding.coeFn_mk,
                      State.isEqExcept, Set.EqOn, φ2, Function.update_apply]
           grind only [usr Set.subset_insert, = Set.mem_compl_iff, = Set.mem_union,
             = Set.singleton_subset_iff, = Set.mem_insert_iff, = Set.mem_image,

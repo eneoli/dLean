@@ -5,8 +5,6 @@ import DLean.Semantics.DynamicSemantics
 
 import DLean.Embedding.Shallow
 
-import DLean.Axioms.Base
-
 open Semantics
 open Embedding
 

@@ -1,20 +1,20 @@
 import DLean.Syntax.Syntax
 import DLean.Util.FCSet
 
-def Program.boundVars (α : Program) : Set Assignable := match α with
+def Program.boundVars (α : Program) : Set Variable := match α with
   | .const _      => .univ
-  | .assign x _
+  | .assign x _Variable
   | .random x     => {x}
   | .test _       => ∅
   | .seq α β
   | .choice α β   => Program.boundVars α ∪ Program.boundVars β
   | .loop α       => Program.boundVars α
-  | .ode system _ => let fvars  := system.assignables
-                     let fvars' := system.assignables.map Assignable.diff_emb
+  | .ode system _ => let fvars  := system.variables
+                     let fvars' := system.variables.map Variable.diff_emb
                      fvars ∪ fvars'
 
 /-- Decidable version. -/
-def Program.boundVars' (α : Program) : FCSet Assignable := match α with
+def Program.boundVars' (α : Program) : FCSet Variable := match α with
   | .const _      => .univ
   | .assign x _
   | .random x     => {x}
@@ -22,8 +22,8 @@ def Program.boundVars' (α : Program) : FCSet Assignable := match α with
   | .seq α β
   | .choice α β   => Program.boundVars' α ∪ Program.boundVars' β
   | .loop α       => Program.boundVars' α
-  | .ode system _ => let fvars  := system.assignables |> .Finite
-                     let fvars' := system.assignables.map Assignable.diff_emb |> .Finite
+  | .ode system _ => let fvars  := system.variables |> .Finite
+                     let fvars' := system.variables.map Variable.diff_emb |> .Finite
                      fvars ∪ fvars'
 
 section Theorems

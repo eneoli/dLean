@@ -96,10 +96,10 @@ open scoped ContDiff
 
 def Interpretation.ReturnType : (symbol : Symbol) → Type
   | Symbol.Function  f => {g : (Fin f.arity → ℝ) → ℝ // ContDiff ℝ ∞ g}
-  | Symbol.UnitFun   F => Σ x : { s : Finset Assignable // Disjoint s F.taboo.toFinset},
+  | Symbol.UnitFun   F => Σ x : { s : Finset Variable // Disjoint s F.taboo.toFinset},
                             {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g}
   | Symbol.Predicate p => (Fin p.arity → ℝ) → Prop
-  | Symbol.UnitPred P => (↑(P.taboo.toFinset : Set Assignable)ᶜ → ℝ) → Prop
+  | Symbol.UnitPred P => (↑(P.taboo.toFinset : Set Variable)ᶜ → ℝ) → Prop
   | Symbol.Program   _ => State × State → Prop
 
 def Interpretation : Type := (s : Symbol) → Interpretation.ReturnType s

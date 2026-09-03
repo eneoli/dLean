@@ -3,24 +3,16 @@ import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finite.Defs
 import Mathlib.Data.Fintype.EquivFin
 
-structure Variable : Type where
-  name : String
+inductive Variable : Type where
+  | base : String   → Variable
+  | diff : Variable → Variable
 deriving Repr, DecidableEq, BEq, Inhabited
 
-inductive Assignable : Type where
-  | var  : Variable   → Assignable
-  | diff : Assignable → Assignable
-deriving Repr, DecidableEq, BEq, Inhabited
-
-instance : Coe Variable Assignable where
-  coe := Assignable.var
-
-
-protected def Assignable.emb : Nat → Assignable
-  | 0 => .var ⟨"a"⟩
+protected def Variable.emb : Nat → Variable
+  | 0 => .base "a"
   | n + 1 => .diff (.emb n)
 
-theorem Assignable_emb_inj : Function.Injective Assignable.emb := by
+theorem Variable_emb_inj : Function.Injective Variable.emb := by
   simp[Function.Injective]
   intros n
   induction n
@@ -28,28 +20,28 @@ theorem Assignable_emb_inj : Function.Injective Assignable.emb := by
     intro m h
     match m with
       | 0 => rfl
-      | m + 1 => simp_all[Assignable.emb]
+      | m + 1 => simp_all[Variable.emb]
   .
     next n ih =>
     intros m h
     match m with
-      | 0 => simp_all[Assignable.emb]
+      | 0 => simp_all[Variable.emb]
       | m + 1 =>
-        simp[Assignable.emb] at h
+        simp[Variable.emb] at h
         simp[ih h]
 
-instance : Infinite Assignable :=
-  .of_injective Assignable.emb Assignable_emb_inj
+instance : Infinite Variable :=
+  .of_injective Variable.emb Variable_emb_inj
 
-def Assignable.orderOfDerivate : Assignable → ℕ
-  | .var _  => 0
+def Variable.orderOfDerivate : Variable → ℕ
+  | .base _  => 0
   | .diff a => 1 + a.orderOfDerivate
 
-def Assignable.baseVariable : Assignable → Variable
-  | .var v  => v
+def Variable.baseVariable : Variable → String
+  | .base v  => v
   | .diff a => a.baseVariable
 
-def Assignable.diff_emb : Assignable ↪ Assignable := {
+def Variable.diff_emb : Variable ↪ Variable := {
   toFun:= diff
   inj':= by simp[Function.Injective]
 }
@@ -66,7 +58,7 @@ def FunctionSymbol.arity : FunctionSymbol → ℕ
 -- In the theory: "f(ȳ \ sp)" i.e., talks about all but "sp"
 structure UnitFunctional : Type where
   name : String
-  taboo : List Assignable -- List over Finset for deriving Repr
+  taboo : List Variable -- List over Finset for deriving Repr
 deriving Repr, DecidableEq, BEq
 
 inductive Fn : Type where
@@ -86,7 +78,7 @@ deriving Repr, DecidableEq, BEq
 -- In the theory: "p(ȳ \ sp)" i.e., talks about all but "sp"
 structure UnitPredicational : Type where
   name : String
-  taboo : List Assignable -- List over Finset for deriving Repr
+  taboo : List Variable -- List over Finset for deriving Repr
 deriving Repr, DecidableEq, BEq
 
 structure ProgramSymbol : Type where
@@ -102,7 +94,7 @@ inductive TermVector : ℕ → Type where
 deriving Repr, DecidableEq
 
 inductive Term : Type where
-  | var          : Assignable     → Term
+  | var          : Variable     → Term
   | neg          : Term           → Term
   | plus         : Term           → Term               → Term
   | times        : Term           → Term               → Term
@@ -161,13 +153,13 @@ def Term.minus (t₁ : Term) (t₂ : Term) :=
   Term.plus t₁ (Term.neg t₂)
 
 structure ODE : Type where
-  var: Assignable
+  var: Variable
   term: Term
 deriving Repr, DecidableEq, BEq
 
 abbrev OdeSystem := List ODE
 
-def OdeSystem.assignables (system : OdeSystem) : Finset Assignable :=
+def OdeSystem.variables (system : OdeSystem) : Finset Variable :=
   (List.map ODE.var system).toFinset
 
 def OdeSystem.terms (system : OdeSystem) : Finset Term :=
@@ -177,8 +169,8 @@ def OdeSystem.terms (system : OdeSystem) : Finset Term :=
 mutual
 inductive Program : Type where
   | const   : ProgramSymbol → Program
-  | assign  : Assignable    → Term    → Program
-  | random  : Assignable    → Program
+  | assign  : Variable      → Term    → Program
+  | random  : Variable      → Program
   | test    : Formula       → Program
   | ode     : OdeSystem     → Formula → Program
   | choice  : Program       → Program → Program
@@ -195,8 +187,8 @@ inductive Formula : Type where
   | gte       : Term → Term → Formula
   | not       : Formula → Formula
   | and       : Formula → Formula → Formula
-  | forall    : Assignable → Formula → Formula
-  | exists    : Assignable → Formula → Formula
+  | forall    : Variable → Formula → Formula
+  | exists    : Variable → Formula → Formula
   | diamond   : Program  → Formula → Formula
   | box       : Program  → Formula → Formula
   | ref       : Program  → Program → Formula

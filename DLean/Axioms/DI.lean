@@ -9,8 +9,6 @@ import DLean.Axioms.DiffTerm
 
 import DLean.Embedding.Shallow
 
-import DLean.Axioms.Base
-
 import DLean.USubst.Semantics
 
 import Mathlib.Analysis.Calculus.Deriv.Comp
@@ -23,15 +21,15 @@ open scoped ContDiff
 
 -- lemma term_vector_singleton {t : Term} : (TermVector.cons t TermVector.nil).toVector[0] = t := by cbv
 
-lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Assignable} {θ : Term} {Ψ : Formula} {η : Term}
+lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Variable} {θ : Term} {Ψ : Formula} {η : Term}
         (hr : r > 0) (hfv : η.freeVarsSem i ⊆ {x})
         (h :
           ∀ (ζ : ℝ),
             0 ≤ ζ →
             ζ ≤ r →
             φ ζ ∈ (odeEvolutionFormula [⟨x, θ⟩] Ψ).denote i ∧
-            State.isEqExcept (φ 0) (φ ζ) {x, Assignable.diff x} ∧
-            HasDerivWithinAt (fun t => φ t x) (φ ζ (Assignable.diff x)) (Set.Icc 0 r) ζ)
+            State.isEqExcept (φ 0) (φ ζ) {x, Variable.diff x} ∧
+            HasDerivWithinAt (fun t => φ t x) (φ ζ (Variable.diff x)) (Set.Icc 0 r) ζ)
   : ∀ (ζ : ℝ), 0 ≤ ζ → ζ ≤ r → Term.denote i (φ ζ) (η.differential) = derivWithin (fun t => Term.denote i (φ t) η) (Set.Icc 0 r) ζ := by
   intros ζ hl hr
   simp[Term.denote]
@@ -74,13 +72,13 @@ lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Assi
         have := Term.contDiff (n := 0) i (φ ζ) (A := {x}) (t := η)
         simp at this
 
-        have h₁ : ContDiff ℝ ∞ (fun a : (AssignableOf {x} → ℝ) ↦ Term.denote i ((φ ζ).finUpdate a) η) := by
+        have h₁ : ContDiff ℝ ∞ (fun a : (VariableOf {x} → ℝ) ↦ Term.denote i ((φ ζ).finUpdate a) η) := by
           have := this.comp (f := fun b : _ ↦ ((0 : _), b))
             (contDiff_const.prodMk contDiff_id)
           exact ContDiff.of_succ this
 
-        have : (fun a : (AssignableOf {x} → ℝ) ↦ Term.denote i ((φ ζ).finUpdate a) η)
-             = ((fun v ↦ Term.denote i ((φ ζ).update x v) η) ∘ (fun a : (AssignableOf {x} → ℝ) ↦ a ⟨x, by grind⟩)) := by
+        have : (fun a : (VariableOf {x} → ℝ) ↦ Term.denote i ((φ ζ).finUpdate a) η)
+             = ((fun v ↦ Term.denote i ((φ ζ).update x v) η) ∘ (fun a : (VariableOf {x} → ℝ) ↦ a ⟨x, by grind⟩)) := by
           funext y
           simp_all
           congr
@@ -91,7 +89,7 @@ lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Assi
 
         rw[this] at h₁
         apply contDiff_g_of_contDiff_comp_of_rightInverse
-          (E := AssignableOf {x} → ℝ)
+          (E := VariableOf {x} → ℝ)
           (s := fun x => fun _ => x)
         . exact h₁
         .
@@ -150,7 +148,7 @@ theorem ContDiff.hasDerivWithinAt_derivWithin_Icc_Ici
 theorem term_denote_differentiableWithinAt
   {i : Interpretation}
   {φ : ℝ → State}
-  {x : Assignable}
+  {x : Variable}
   {t : Term}
   {r : ℝ}
   (y : ℝ)
@@ -174,10 +172,10 @@ theorem term_denote_differentiableWithinAt
   have := Term.contDiff (n := 0) i (φ 0) (A := {x}) (t := t)
   simp at this
 
-  set g := fun ζ ↦ fun _ : Set Assignable ↦ φ ζ x
+  set g := fun ζ ↦ fun _ : Set Variable ↦ φ ζ x
 
   have : (fun ζ ↦ Term.denote i ((φ 0).update x (φ ζ x)) t)
-       = (fun (args: (Fin 0 → ℝ) × (_ → ℝ)) ↦ Term.denote i ((φ 0).finUpdate args.2) t) ∘ (fun f ↦ ⟨fun _ ↦ 0, f⟩)  ∘ (fun ζ ↦ fun _ : AssignableOf {x} ↦ φ ζ x) := by
+       = (fun (args: (Fin 0 → ℝ) × (_ → ℝ)) ↦ Term.denote i ((φ 0).finUpdate args.2) t) ∘ (fun f ↦ ⟨fun _ ↦ 0, f⟩)  ∘ (fun ζ ↦ fun _ : VariableOf {x} ↦ φ ζ x) := by
        funext
        simp_all[State.update_finUpdate]
 
@@ -228,7 +226,7 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
       simp_all[Program.denote, odeEvolutionFormula, Formula.denote_and]
     .
       simp[Formula.freeVars, Program.freeVars, Program.mustBoundVars, Program.boundVars]
-      simp_all[State.isEqExcept, Assignable.diff_emb, OdeSystem.assignables]
+      simp_all[State.isEqExcept, Variable.diff_emb, OdeSystem.variables]
       simp[Formula.freeVars, Formula.lte]
       and_intros
       . simp_all[Set.EqOn, Term.freeVars]
@@ -241,8 +239,8 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
     -- I, ϕ |= (p(x))′
     -- have : Formula.denote
     simp[
-      OdeSystem.assignables,
-      Assignable.diff_emb,
+      OdeSystem.variables,
+      Variable.diff_emb,
       State.isEqExcept,
       odeEvolutionFormula,
       Formula.denote_and
@@ -258,14 +256,14 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
     simp[Formula.denote, Program.denote] at h₁₁
     specialize h₁₁ (b := t) r (by grind) φ
 
-    simp[State.isEqExcept, OdeSystem.assignables, Assignable.diff_emb] at h₁₁
+    simp[State.isEqExcept, OdeSystem.variables, Variable.diff_emb] at h₁₁
     specialize h₁₁ (by grind) (by grind)
     specialize h₁₁ (by grind)
 
     simp[Formula.denote_box, Program.denote_test] at h₂
 
     have hd := Differential (η := [Term| h(x) - g(x)])
-                            (x := .var ⟨"x"⟩)
+                            (x := .base "x")
                             (θ := [Term| f(x)])
                             (Ψ := [Formula| q(x)])
                             (r := r)
@@ -274,7 +272,7 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
                          (by grind)
                          (by simp[Term.minus, Term.freeVarsSem, TermVector.freeVarsSem])
                          (by
-                            simp_all[odeEvolutionFormula, State.isEqExcept, OdeSystem.assignables, Assignable.diff_emb, Set.EqOn]
+                            simp_all[odeEvolutionFormula, State.isEqExcept, OdeSystem.variables, Variable.diff_emb, Set.EqOn]
                             grind
                           )
 
@@ -346,7 +344,7 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
                   set B := fun t ↦ Term.denote i (φ t) [Term| h(x) - g(x)]
 
                   have : DifferentiableWithinAt ℝ B (Set.Icc 0 r) x := by
-                    apply term_denote_differentiableWithinAt (x := .var ⟨"x"⟩)
+                    apply term_denote_differentiableWithinAt (x := .base "x")
                     . simp[Term.minus, Term.freeVars, FunctionSymbol.arity]
                     . grind
                     . grind
@@ -361,12 +359,12 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
                   have := hd x (by grind) (by grind)
                   rw[← this]
                   simp[Formula.denote, Program.denote] at h₁
-                  specialize @h₁ (φ x) x (by grind) φ (by simp[State.isEqExcept, Assignable.diff_emb, OdeSystem.assignables] ; grind) (by grind)
+                  specialize @h₁ (φ x) x (by grind) φ (by simp[State.isEqExcept, Variable.diff_emb, OdeSystem.variables] ; grind) (by grind)
                             (
                               by
                                 intros ζ hr hl
                                 have := hp.2.2 ζ (by grind) (by grind)
-                                simp[odeEvolutionFormula, State.isEqExcept, Formula.denote_and, OdeSystem.assignables, Assignable.diff_emb]
+                                simp[odeEvolutionFormula, State.isEqExcept, Formula.denote_and, OdeSystem.variables, Variable.diff_emb]
                                 grind[HasDerivWithinAt.mono]
                             )
 
@@ -433,7 +431,7 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
       simp_all[Program.denote, odeEvolutionFormula, Formula.denote_and]
     .
       simp[Formula.freeVars, Program.freeVars, Program.mustBoundVars, Program.boundVars]
-      simp_all[State.isEqExcept, Assignable.diff_emb, OdeSystem.assignables]
+      simp_all[State.isEqExcept, Variable.diff_emb, OdeSystem.variables]
       simp[Formula.freeVars, Formula.lt, Formula.gt]
       and_intros
       . simp_all[Set.EqOn, Term.freeVars]
@@ -446,8 +444,8 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
     -- I, ϕ |= (p(x))′
     -- have : Formula.denote
     simp[
-      OdeSystem.assignables,
-      Assignable.diff_emb,
+      OdeSystem.variables,
+      Variable.diff_emb,
       State.isEqExcept,
       odeEvolutionFormula,
       Formula.denote_and
@@ -463,14 +461,14 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
     simp[Formula.denote, Program.denote] at h₁₁
     specialize h₁₁ (b := t) r (by grind) φ
 
-    simp[State.isEqExcept, OdeSystem.assignables, Assignable.diff_emb] at h₁₁
+    simp[State.isEqExcept, OdeSystem.variables, Variable.diff_emb] at h₁₁
     specialize h₁₁ (by grind) (by grind)
     specialize h₁₁ (by grind)
 
     simp[Formula.denote_box, Program.denote_test] at h₂
 
     have hd := Differential (η := [Term| h(x) - g(x)])
-                            (x := .var ⟨"x"⟩)
+                            (x := .base "x")
                             (θ := [Term| f(x)])
                             (Ψ := [Formula| q(x)])
                             (r := r)
@@ -479,7 +477,7 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
                          (by grind)
                          (by simp[Term.minus, Term.freeVarsSem, TermVector.freeVarsSem])
                          (by
-                            simp_all[odeEvolutionFormula, State.isEqExcept, OdeSystem.assignables, Assignable.diff_emb, Set.EqOn]
+                            simp_all[odeEvolutionFormula, State.isEqExcept, OdeSystem.variables, Variable.diff_emb, Set.EqOn]
                             grind
                           )
 
@@ -551,7 +549,7 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
                   set B := fun t ↦ Term.denote i (φ t) [Term| h(x) - g(x)]
 
                   have : DifferentiableWithinAt ℝ B (Set.Icc 0 r) x := by
-                    apply term_denote_differentiableWithinAt (x := .var ⟨"x"⟩)
+                    apply term_denote_differentiableWithinAt (x := .base "x")
                     . simp[Term.minus, Term.freeVars, FunctionSymbol.arity]
                     . grind
                     . grind
@@ -566,12 +564,12 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
                   have := hd x (by grind) (by grind)
                   rw[← this]
                   simp[Formula.denote, Program.denote] at h₁
-                  specialize @h₁ (φ x) x (by grind) φ (by simp[State.isEqExcept, Assignable.diff_emb, OdeSystem.assignables] ; grind) (by grind)
+                  specialize @h₁ (φ x) x (by grind) φ (by simp[State.isEqExcept, Variable.diff_emb, OdeSystem.variables] ; grind) (by grind)
                             (
                               by
                                 intros ζ hr hl
                                 have := hp.2.2 ζ (by grind) (by grind)
-                                simp[odeEvolutionFormula, State.isEqExcept, Formula.denote_and, OdeSystem.assignables, Assignable.diff_emb]
+                                simp[odeEvolutionFormula, State.isEqExcept, Formula.denote_and, OdeSystem.variables, Variable.diff_emb]
                                 grind[HasDerivWithinAt.mono]
                             )
 

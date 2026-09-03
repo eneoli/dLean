@@ -8,15 +8,15 @@ import DLean.Syntax.Syntax
 
 namespace Semantics
 
-def State : Type := Assignable → ℝ
+def State : Type := Variable → ℝ
 
-abbrev State.update : State → Assignable → ℝ → State := Function.update
+abbrev State.update : State → Variable → ℝ → State := Function.update
 
-abbrev AssignableOf (A : Finset Assignable) : Type := {a : Assignable // a ∈ A }
+abbrev VariableOf (A : Finset Variable) : Type := {a : Variable // a ∈ A }
 
-def State.finUpdate {A : Finset Assignable}
+def State.finUpdate {A : Finset Variable}
                     (s : State)
-                    (f : AssignableOf A → ℝ) : State :=
+                    (f : VariableOf A → ℝ) : State :=
   fun a =>
     if h : a ∈ A then
       f ⟨a, h⟩
@@ -24,24 +24,24 @@ def State.finUpdate {A : Finset Assignable}
       s a
 
 def State.isEq (s₁ : State) (s₂ : State) : Prop :=
-    ∀x:Assignable, s₁ x = s₂ x
+    ∀x:Variable, s₁ x = s₂ x
 
-abbrev State.isEqOn (s₁ : State) (s₂ : State) (on : Set Assignable) : Prop :=
+abbrev State.isEqOn (s₁ : State) (s₂ : State) (on : Set Variable) : Prop :=
     on.EqOn s₁ s₂
 
-def State.isEqExcept (s₁ : State) (s₂ : State) (except : Set Assignable) :=
+def State.isEqExcept (s₁ : State) (s₂ : State) (except : Set Variable) :=
   Set.EqOn s₁ s₂ exceptᶜ
 
 def State.zero : State := fun _ => 0
 
-def State.singleton (x : Assignable) (r : ℝ) := State.zero.update x r
+def State.singleton (x : Variable) (r : ℝ) := State.zero.update x r
 
 section Theorems
 
 theorem State.eq_on_except_eq_on_if_update {v : State}
                                            {w : State}
-                                           {S : Set Assignable}
-                                           (a : Assignable)
+                                           {S : Set Variable}
+                                           (a : Variable)
                                            (y : ℝ)
                                            : Set.EqOn v w (S \ {a}) ↔
                                              Set.EqOn (v.update a y) (w.update a y) S := by
@@ -54,8 +54,8 @@ theorem State.eq_on_except_eq_on_if_update {v : State}
 
 theorem State.eq_on_extends_if_update {v : State}
                                       {w : State}
-                                      {S : Set Assignable}
-                                      (a : Assignable)
+                                      {S : Set Variable}
+                                      (a : Variable)
                                       (y : ℝ)
                                       : Set.EqOn v w S
                                         → Set.EqOn (v.update a y) (w.update a y) (S ∪ {a}) := by
@@ -64,15 +64,15 @@ theorem State.eq_on_extends_if_update {v : State}
 
 -- Even if redundant, Set.eqOn_refl is not tagged `@[simp]`, so better keep this version
 @[simp]
-theorem State.eq_rfl {v : State} {S : Set Assignable} : Set.EqOn v v S := by
+theorem State.eq_rfl {v : State} {S : Set Variable} : Set.EqOn v v S := by
   exact Set.eqOn_refl _ _
 
 /- For backward reasoning, see `Set.EqOn.trans` -/
 theorem State.eq_on_trans {v : State}
                           {w : State}
                           {x : State}
-                          {S₁ : Set Assignable}
-                          {S₂ : Set Assignable}
+                          {S₁ : Set Variable}
+                          {S₂ : Set Variable}
                           : Set.EqOn v x S₁
                           → Set.EqOn x w S₂
                           → Set.EqOn v w (S₁ ∩ S₂) := by
@@ -80,22 +80,22 @@ theorem State.eq_on_trans {v : State}
 
 theorem State.eq_except_superset {v : State}
                                  {w : State}
-                                 {S : Set Assignable}
-                                 {V : Set Assignable}
+                                 {S : Set Variable}
+                                 {V : Set Variable}
                                  : State.isEqExcept v w S → V ⊇ S → State.isEqExcept v w V := by
   exact fun h hs x a ↦ h fun b ↦ a (hs b)
 
 theorem State.eq_except_union {v : State}
                               {w : State}
-                              {S₁ : Set Assignable}
-                              {S₂ : Set Assignable}
+                              {S₁ : Set Variable}
+                              {S₂ : Set Variable}
                               : State.isEqExcept v w S₁ → State.isEqExcept v w (S₁ ∪ S₂) := by
   exact fun h ↦ State.eq_except_superset h (by simp)
 
 theorem State.eq_except_intersect {v : State}
                                   {w : State}
-                                  {S₁ : Set Assignable}
-                                  {S₂ : Set Assignable}
+                                  {S₁ : Set Variable}
+                                  {S₂ : Set Variable}
                                  : State.isEqExcept v w (S₁ ∩ S₂)
                                  → State.isEqExcept v w S₁ ∧ State.isEqExcept v w S₂ := by
   intro h
@@ -106,8 +106,8 @@ theorem State.eq_except_intersect {v : State}
 theorem State.eq_except_trans {v : State}
                               {w : State}
                               {x : State}
-                              {S₁ : Set Assignable}
-                              {S₂ : Set Assignable}
+                              {S₁ : Set Variable}
+                              {S₂ : Set Variable}
                               : State.isEqExcept v x S₁
                               → State.isEqExcept x w S₂
                               → State.isEqExcept v w (S₁ ∪ S₂) := by
@@ -121,13 +121,13 @@ theorem State.eq_except_univ {v : State}
   simp[State.isEqExcept]
 
 theorem State.update_self {v : State}
-                          {a : Assignable}
+                          {a : Variable}
                           {v₁ v₂ : ℝ}
   : State.update (State.update v a v₁) a v₂ = State.update v a v₂ := by
   simp[State.update]
 
 theorem State.update_other {v : State}
-                           {a₁ a₂ : Assignable}
+                           {a₁ a₂ : Variable}
                            {v₁ v₂ : ℝ}
   : a₁ ≠ a₂
   → State.update (State.update v a₁ v₁) a₂ v₂ = State.update (State.update v a₂ v₂) a₁ v₁ := by
@@ -136,23 +136,23 @@ theorem State.update_other {v : State}
   grind
 
 
-theorem AssignableOf.singleton {x : Assignable} (f : AssignableOf {x} → ℝ)
+theorem VariableOf.singleton {x : Variable} (f : VariableOf {x} → ℝ)
   : ∃ r : ℝ, f = fun _ ↦ r := by
-    simp_all[AssignableOf]
+    simp_all[VariableOf]
     apply Exists.intro (f ⟨x, by grind⟩)
     grind
 
 @[simp]
 theorem State.finUpdate_empty {v : State}
-                              {f : AssignableOf ∅ → ℝ}
+                              {f : VariableOf ∅ → ℝ}
                               : v.finUpdate f = v := by
   funext
   simp[State.finUpdate]
 
 theorem State.finUpdate_extend {v : State}
-                               {A : Finset Assignable}
-                               {f : AssignableOf A → ℝ}
-                               {a : Assignable}
+                               {A : Finset Variable}
+                               {f : VariableOf A → ℝ}
+                               {a : Variable}
                                {y : ℝ}
                                : (v.finUpdate f).update a y
                                = @v.finUpdate (A ∪ {a}) (
@@ -165,8 +165,8 @@ theorem State.finUpdate_extend {v : State}
       funext
       grind[Function.update, State.finUpdate]
 
-theorem State.update_finUpdate {s : State} {x : Assignable} {v : ℝ}
-  : State.finUpdate s (fun _ : AssignableOf {x} ↦ v) = State.update s x v := by
+theorem State.update_finUpdate {s : State} {x : Variable} {v : ℝ}
+  : State.finUpdate s (fun _ : VariableOf {x} ↦ v) = State.update s x v := by
   funext y
   simp[State.update, State.finUpdate]
   grind
@@ -174,8 +174,8 @@ theorem State.update_finUpdate {s : State} {x : Assignable} {v : ℝ}
 open scoped ContDiff
 
 theorem State.update_contDiff (v : State)
-                              (x : Assignable)
-                              (y : Assignable)
+                              (x : Variable)
+                              (y : Variable)
   : ContDiff ℝ ∞ (fun r ↦ (v.update x r) y) := by
   simp[State.update, Function.update]
   by_cases h : y = x
@@ -187,9 +187,9 @@ theorem State.update_contDiff (v : State)
     apply contDiff_const
 
 theorem State.finUpdate_contDiff {v : State}
-                                 {A : Finset Assignable}
-                                 {a : Assignable}
-                                 : ContDiff ℝ ∞ fun (x : AssignableOf A → ℝ) ↦ v.finUpdate x a := by
+                                 {A : Finset Variable}
+                                 {a : Variable}
+                                 : ContDiff ℝ ∞ fun (x : VariableOf A → ℝ) ↦ v.finUpdate x a := by
   simp[State.finUpdate]
   by_cases h : a ∈ A
   .

@@ -8,7 +8,7 @@ open Semantics
 
 lemma ode_evolution_formula_applySubst
   {σ : Subst}
-  {U : FCSet Assignable}
+  {U : FCSet Variable}
   {system ssystem : OdeSystem}
   {Ψ Ψ' : Formula}
   : Formula.applySubst σ U Ψ = some Ψ'
@@ -30,7 +30,7 @@ lemma ode_evolution_formula_applySubst
 
 /-- Decidable version.
  -- Restricts σ on the symbols contained in S if some. -/
-def Subst.freeVarsSem (σ : Subst) (i : Interpretation) (S : Option (Finset Symbol)) : Finset Assignable :=
+def Subst.freeVarsSem (σ : Subst) (i : Interpretation) (S : Option (Finset Symbol)) : Finset Variable :=
   match σ with
     | ⟨.nil, _⟩ => ∅
     | ⟨e::xs, h⟩ =>
@@ -127,7 +127,7 @@ termination_by
 theorem Subst.free_vars_sem_subset_fun {σ : Subst}
                                    {f : FunctionSymbol}
                                    {i : Interpretation}
-                                   : ((σ.get f).freeVarsSem i : Set Assignable)
+                                   : ((σ.get f).freeVarsSem i : Set Variable)
                                    ⊆ σ.freeVarsSem i (some (Function.signature (Fn.sym f))) := by
   match h : σ with
     | ⟨.nil, _⟩ =>
@@ -222,7 +222,7 @@ noncomputable def Subst.adjoint (σ : Subst)
           by
             have hg := @Term.contDiff f.arity i v ∅ t
             have hf : ContDiff ℝ ∞ (fun x ↦ (⟨x, fun _ ↦ 0⟩ :
-              (Fin f.arity → ℝ) × ({a // a ∈ (∅ : Finset Assignable)} → ℝ))) :=
+              (Fin f.arity → ℝ) × ({a // a ∈ (∅ : Finset Variable)} → ℝ))) :=
                 contDiff_prodMk_left (fun _ ↦ 0)
 
             exact ContDiff.comp hg hf
@@ -420,9 +420,9 @@ theorem subst_adjoint_of_term_vector_to_subst
 section depEqAux
 open scoped ContDiff
 -- Because it is dependent, Lean struggles to instantiate this congruence in a complex proof
-lemma depEqAux (S : Finset Assignable)
+lemma depEqAux (S : Finset Variable)
                (v : State)
-               (f g : Σ x : { s : Finset Assignable // Disjoint s S},
+               (f g : Σ x : { s : Finset Variable // Disjoint s S},
                       {g : (↑x → ℝ) → ℝ // ContDiff ℝ ∞ g})
                : f = g → (f.snd).val (fun x ↦ v ↑x) = (g.snd).val (fun x ↦ v ↑x) := by
   intro h
@@ -453,7 +453,7 @@ section applySubstFreeVarSem
 -- Since the interpretation matters for `freeVarsSem` we have to add an `adjoint` when computing `t.freeVarsSem` similar to `Subst.preserve_semantics.term`.
 mutual
 
-theorem TermVector.freeVarsSem_applySubst_subset {n : ℕ} (σ : Subst) (i : Interpretation) (U : FCSet Assignable) (ts as : TermVector n) (w : State)
+theorem TermVector.freeVarsSem_applySubst_subset {n : ℕ} (σ : Subst) (i : Interpretation) (U : FCSet Variable) (ts as : TermVector n) (w : State)
   : TermVector.applySubst σ U ts = some as
   → ↑(as.freeVarsSem i) ⊆ ↑(ts.freeVarsSem (σ.adjoint i w)) ∪ (↑(σ.freeVarsSem i (some ts.signature)) \ U.toSet) := by
   intro h₁
@@ -486,7 +486,7 @@ all_goals simp_wf
 all_goals grind only [= Prod.lex_def]
 
 
-theorem Term.freeVarsSem_applySubst_subset (σ : Subst) (i : Interpretation) (U : FCSet Assignable) (t a : Term) (w : State)
+theorem Term.freeVarsSem_applySubst_subset (σ : Subst) (i : Interpretation) (U : FCSet Variable) (t a : Term) (w : State)
   : Term.applySubst σ U t = some a
   → ↑(a.freeVarsSem i) ⊆ ↑(t.freeVarsSem (σ.adjoint i w)) ∪ (↑(σ.freeVarsSem i (some t.signature)) \ U.toSet) := by
   intro h₁
@@ -619,7 +619,7 @@ end applySubstFreeVarSem
 
 theorem Subst.preserve_semantics.term
   (σ : Subst)
-  (U : FCSet Assignable)
+  (U : FCSet Variable)
   (i : Interpretation)
   (v w : State)
   (hvw : v.isEqExcept w U)
@@ -796,7 +796,7 @@ mutual
 
 theorem Subst.preserve_semantics.formula
   (σ : Subst)
-  (U : FCSet Assignable)
+  (U : FCSet Variable)
   (i : Interpretation)
   (v w : State)
   (hvw : v.isEqExcept w U)
@@ -884,7 +884,7 @@ theorem Subst.preserve_semantics.formula
         split at hs
         . contradiction
         simp_all
-        rename FCSet Assignable × Program => Vα'
+        rename FCSet Variable × Program => Vα'
         rcases Vα' with ⟨V,α'⟩
         rename Formula => Φ'
         simp_all[Formula.denote]
@@ -908,7 +908,7 @@ theorem Subst.preserve_semantics.formula
         split at hs
         . contradiction
         simp_all
-        rename FCSet Assignable × Program => Vα'
+        rename FCSet Variable × Program => Vα'
         rcases Vα' with ⟨V,α'⟩
         rename Formula => Φ'
         simp_all[Formula.denote]
@@ -1005,7 +1005,7 @@ decreasing_by
 
 theorem Subst.preserve_semantics.program
   (σ : Subst)
-  (U V : FCSet Assignable)
+  (U V : FCSet Variable)
   (i : Interpretation)
   (v v' w : State)
   (hvv' : v.isEqExcept v' U)
@@ -1077,7 +1077,7 @@ theorem Subst.preserve_semantics.program
         . contradiction
         -- first pass to get bound variables
         simp at hs
-        rename FCSet Assignable × Program => Vα'
+        rename FCSet Variable × Program => Vα'
         rcases Vα' with ⟨V, α'⟩
         set V' := Program.substBoundVars σ α ∪ U
         have := Subst.preserve_semantics.program σ U V i v _ w hvv' α α'
@@ -1112,10 +1112,10 @@ theorem Subst.preserve_semantics.program
         simp_all[Program.denote, -FCSet.to_set_eq]
         rename List ODE => ssystem
         rename Formula => Ψ'
-        set V' := FCSet.Finite (system.assignables ∪ Finset.map Assignable.diff_emb system.assignables) ∪ U
+        set V' := FCSet.Finite (system.variables ∪ Finset.map Variable.diff_emb system.variables) ∪ U
 
-        have hassign : OdeSystem.assignables ssystem = OdeSystem.assignables system :=
-          ode_mapM_assignables_eq (show _ = some ssystem from ‹_›)
+        have hassign : OdeSystem.variables ssystem = OdeSystem.variables system :=
+          ode_mapM_variables_eq (show _ = some ssystem from ‹_›)
 
         rw[hassign]
         apply Iff.intro
@@ -1142,7 +1142,7 @@ theorem Subst.preserve_semantics.program
                 have hφv' : (φ ζ).isEqExcept v' V'.toSet := by
                   specialize hflow ζ h₁ h₂
                   clear * - hvv' heq0 hflow
-                  grind[State.isEqExcept, Set.EqOn, OdeSystem.assignables]
+                  grind[State.isEqExcept, Set.EqOn, OdeSystem.variables]
                 have := Subst.preserve_semantics.formula σ V' i (φ ζ) v' hφv'
                           (odeEvolutionFormula system Ψ)
                           (odeEvolutionFormula ssystem Ψ') (by grind)

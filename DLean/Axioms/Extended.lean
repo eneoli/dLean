@@ -4,8 +4,9 @@ import Mathlib.Analysis.ODE.PicardLindelof
 import Mathlib.Analysis.Calculus.ContDiff.RCLike
 import Mathlib.Topology.ContinuousMap.Compact
 
+import DLean.Embedding.Shallow
+
 import DLean.Semantics.Coincidence
-import DLean.Axioms.Base
 import DLean.Axioms.DG
 
 open Embedding
@@ -44,7 +45,7 @@ theorem uniqueness : sound [Formula| (⟨x’=f(x) & Q₁(||)⟩P(||) ∧ ⟨x�
   unfold sound
   intro i s
   simpFormula
-  simp[Formula.denote, Program.denote, OdeSystem.assignables, Assignable.diff_emb, odeEvolutionFormula]
+  simp[Formula.denote, Program.denote, OdeSystem.variables, Variable.diff_emb, odeEvolutionFormula]
   apply Iff.intro
   . -- hard way
     simp[Term.denote] at *
@@ -181,7 +182,7 @@ theorem cont : sound [Formula| t = y → (⟨x’ = f(x), t’=1 & F(|x’,t’|
   simpFormula
   intro hxy
   apply Iff.intro
-  . simp[Formula.denote, Program.denote, OdeSystem.assignables, Assignable.diff_emb, odeEvolutionFormula]
+  . simp[Formula.denote, Program.denote, OdeSystem.variables, Variable.diff_emb, odeEvolutionFormula]
     intro r ζ _ hr h h'
     specialize h' 0 (by simp) hr
     apply Formula.coincidence _ i _ (ζ 0)
@@ -190,7 +191,7 @@ theorem cont : sound [Formula| t = y → (⟨x’ = f(x), t’=1 & F(|x’,t’|
       assumption
     . simp_all only
   . -- hard way (probably need t'=1)
-    simp[Formula.denote, Formula.denote_gt, Formula.neq, Program.denote, OdeSystem.assignables, Assignable.diff_emb, odeEvolutionFormula, Term.denote]
+    simp[Formula.denote, Formula.denote_gt, Formula.neq, Program.denote, OdeSystem.variables, Variable.diff_emb, odeEvolutionFormula, Term.denote]
     simp[FunctionSymbol.arity, Term.denote]
 
     set f := (i (.Function (.udef "f" 1))).val
@@ -282,7 +283,7 @@ theorem Dadj : sound [Formula| ⟨x’ = f(x) & q(x)⟩x = y ↔ ⟨y’ = -f(y)
   let vy := [Var|y]
 
   apply Iff.intro
-  . simp[Formula.denote, Program.denote, Term.denote, OdeSystem.assignables, Assignable.diff_emb]
+  . simp[Formula.denote, Program.denote, Term.denote, OdeSystem.variables, Variable.diff_emb]
     intro r φ hend hr hinit hfw
     exists r, (fun t ↦ (s.update vy (φ (r-t) vx)).update vy.diff (-φ (r-t) vx.diff))
     simp
@@ -318,7 +319,7 @@ theorem Dadj : sound [Formula| ⟨x’ = f(x) & q(x)⟩x = y ↔ ⟨y’ = -f(y)
           apply hasDerivWithinAt_id
         . grind[Set.MapsTo]
   . -- same as above
-    simp[Formula.denote, Program.denote, Term.denote, OdeSystem.assignables, Assignable.diff_emb]
+    simp[Formula.denote, Program.denote, Term.denote, OdeSystem.variables, Variable.diff_emb]
     intro r φ hend hr hinit hfw
     exists r, (fun t ↦ (s.update vx (φ (r-t) vy)).update vx.diff (-φ (r-t) vy.diff))
     simp
@@ -450,7 +451,7 @@ theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x�
   simpFormula
   apply Iff.intro
   . intro h
-    simp[Formula.denote, Program.denote, OdeSystem.assignables, Assignable.diff_emb] at *
+    simp[Formula.denote, Program.denote, OdeSystem.variables, Variable.diff_emb] at *
     intro vy b r hr0 φ hφ0 hφb hφ
     let φ' := fun t ↦ (φ t).update [Var|y] (s [Var| y])
     have hφφ' : ∀ t ∈ Set.Icc 0 r, (φ' t).update [Var|y] vy = φ t := by
@@ -491,13 +492,13 @@ theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x�
       . simp[Formula.freeVars]
         grind only [Set.EqOn, = Function.update.eq_1, = Set.mem_compl_iff, = Set.mem_singleton_iff]
       . simp[Formula.denote, h']
-    simp[Formula.denote, Formula.neq, Program.denote, OdeSystem.assignables, Assignable.diff_emb]
+    simp[Formula.denote, Formula.neq, Program.denote, OdeSystem.variables, Variable.diff_emb]
     intro r₂ φ₂ hend hr₂ hinit hφ₂
     refine ⟨r₂, φ₂, hend, hr₂, hinit, ?_⟩
     intro ζ' hζ'0 hζ'r
 
     have hφφ₂: φ₂ 0 = φ r := by
-      have : ∀ y ∈ ({[Var|x’],[Var|t’]} : Set Assignable), φ₂ 0 y = φ r y := by
+      have : ∀ y ∈ ({[Var|x’],[Var|t’]} : Set Variable), φ₂ 0 y = φ r y := by
         specialize hφ₂ 0 (Std.le_refl _) hr₂
         specialize hφ r hr0 (Std.le_refl _)
         simp[odeEvolutionFormula, Formula.denote, Term.denote] at hφ hφ₂
@@ -701,7 +702,7 @@ theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x�
     . simp[Formula.denote, h]
 
   . intro h
-    simp[Formula.denote, Program.denote, Assignable.diff_emb, OdeSystem.assignables] at *
+    simp[Formula.denote, Program.denote, Variable.diff_emb, OdeSystem.variables] at *
     intro b r hr0 φ hφ0 hφb hφ
     rw[hφb]
     suffices Set.Icc 0 r ≤ {t | φ t ∈ ([Formula|P(|y|)].denote i)} by
@@ -752,7 +753,7 @@ theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x�
 
     rcases h with ⟨_, h⟩
     intro hζr
-    simp[Formula.denote, Program.denote, OdeSystem.assignables, Assignable.diff_emb] at h
+    simp[Formula.denote, Program.denote, OdeSystem.variables, Variable.diff_emb] at h
 
     have hprog : ∀ t ∈ Set.Icc 0 r, φ (r-t) [Var|t] = φ r [Var|t] - t := by
       apply @ODE_unique 0 r 0 (fun _ _ ↦ -1) (fun t ↦ φ (r-t) [Var|t]) (fun t ↦ φ r [Var|t] - t) (fun _ ↦ Set.univ)

@@ -8,8 +8,6 @@ import DLean.Semantics.FreeVariables
 
 import DLean.Embedding.Shallow
 
-import DLean.Axioms.Base
-
 import Mathlib.Analysis.ODE.Gronwall
 
 open Semantics
@@ -51,8 +49,8 @@ theorem fin_0_fn : ∀ t : Fin 0 → ℝ, (fun x : Fin 0 ↦ t x) = (fun x : Fin
 theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x + f() * s))) → [x := x + f()*t]p(x)))
                             → [x’ = f() & q(x)]p(x)] := by
   intros i s₁
-  set x : Assignable := .var ⟨"x"⟩
-  set x' : Assignable := .diff x
+  set x : Variable := .base "x"
+  set x' : Variable := .diff x
   set f : FunctionSymbol := .udef "f" 0
 
 
@@ -65,12 +63,12 @@ theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → 
       simp_all[
         Formula.freeVars,
         Program.freeVars,
-        OdeSystem.assignables,
+        OdeSystem.variables,
         Set.EqOn,
         Term.freeVars,
         Program.mustBoundVars,
         Program.boundVars,
-        Assignable.diff_emb,
+        Variable.diff_emb,
         FunctionSymbol.arity,
         Formula.implies,
         Formula.or,
@@ -100,9 +98,9 @@ theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → 
     rhs ; rhs ; rhs ; simp[Formula.denote]
 
 
-  simp[odeEvolutionFormula, Formula.denote, OdeSystem.assignables, Assignable.diff_emb] at hp
+  simp[odeEvolutionFormula, Formula.denote, OdeSystem.variables, Variable.diff_emb] at hp
 
-  set t : Assignable := .var ⟨"t"⟩
+  set t : Variable := .base "t"
   have : Term.denote i s₂ (.var x) = Term.denote i (s₂.update t r) (.var x) := by
     simp[Term.denote]
     grind
@@ -114,7 +112,7 @@ theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → 
     simp[Formula.denote, Term.denote]
     grind
   .
-    set s : Assignable := .var ⟨"s"⟩
+    set s : Variable := .base "s"
 
     simp[Formula.denote_forall, Formula.denote_implies]
     intros y h₃
@@ -193,9 +191,9 @@ theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → 
 
     funext y
 
-    -- set x : Assignable := .var ⟨"x"⟩
-    -- set x' : Assignable := .diff x
-    -- set t : Assignable := .var ⟨"t"⟩
+    -- set x : Variable := .var ⟨"x"⟩
+    -- set x' : Variable := .diff x
+    -- set t : Variable := .var ⟨"t"⟩
 
     by_cases y = x'
     .

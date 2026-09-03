@@ -141,21 +141,21 @@ theorem Term.coincidence' (t : Term)
       intro a ha
       congr
       . apply h.1
-        simp_all[Term.freeVarsSem, Assignable.diff_emb]
+        simp_all[Term.freeVarsSem, Variable.diff_emb]
       .
         have : ∀ y : ℝ, Term.denote i (v.update a y) t = Term.denote j (w.update a y) t := by
                 intro y
                 apply Term.coincidence' _ _ _ (v.update a y) (w.update a y)
                 apply And.intro
                 . simp_all[(State.eq_on_except_eq_on_if_update a y).mp,
-                           Set.EqOn.mono (s₂:= (t.freeVarsSem i : Set Assignable)), Term.freeVarsSem]
+                           Set.EqOn.mono (s₂:= (t.freeVarsSem i : Set Variable)), Term.freeVarsSem]
                 . simp_all only
 
         simp_all only [Equiv.refl_apply]
       .
         simp[Set.EqOn] at h
         apply h.1
-        simp_all[Term.freeVarsSem, Assignable.diff_emb]
+        simp_all[Term.freeVarsSem, Variable.diff_emb]
 end
 
 theorem TermVector.coincidence {n : ℕ}
@@ -219,8 +219,8 @@ theorem Formula.coincidence (Φ : Formula)
       simp only [Set.EqOn, Formula.freeVars, Set.mem_compl_iff, SetLike.mem_coe,
         Interpretation.isEqOn, Formula.signature, Finset.coe_singleton, Set.mem_singleton_iff,
         forall_eq] at h
-      have : (fun x : ↑(P.taboo.toFinset : Set Assignable)ᶜ ↦ v ↑x) =
-             (fun x : ↑(P.taboo.toFinset : Set Assignable)ᶜ ↦ w ↑x) := by
+      have : (fun x : ↑(P.taboo.toFinset : Set Variable)ᶜ ↦ v ↑x) =
+             (fun x : ↑(P.taboo.toFinset : Set Variable)ᶜ ↦ w ↑x) := by
         funext
         grind only [= Set.mem_compl_iff, = Finset.mem_coe]
       grind only
@@ -344,7 +344,7 @@ theorem Program.coincidence (α  : Program)
                             (j  : Interpretation)
                             (v  : State)
                             (v' : State)
-                            (S  : Set Assignable)
+                            (S  : Set Variable)
                             (hs : α.freeVars ⊆ S)
                             : Set.EqOn v v' S
                               → Interpretation.isEqOn i j α.signature
@@ -450,7 +450,7 @@ theorem Program.coincidence (α  : Program)
       simp[Program.denote] at h3
       obtain ⟨r, hr, φ, hφ⟩ := h3
 
-      let evolving_vars := system.assignables ∪ (system.assignables.map Assignable.diff_emb)
+      let evolving_vars := system.variables ∪ (system.variables.map Variable.diff_emb)
       let φ' : ℝ → State := fun t => evolving_vars.piecewise (φ t) v'
       let w' := φ' r
 

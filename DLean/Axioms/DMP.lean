@@ -2,8 +2,11 @@ import DLean.Axioms.DW
 import DLean.Axioms.Refinement
 import DLean.USubst.Semantics
 
+import DLean.Embedding.Shallow
+
 open Embedding
 open Semantics
+
 theorem DMP : sound [Formula|[x’ = f(x) & Q(||)](Q(||) → R(||)) → ([x’ = f(x) & R(||)]P(||) → [x’ = f(x) & Q(||)]P(||))] := by
   unfold sound
   intro i s

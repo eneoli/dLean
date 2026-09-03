@@ -4,20 +4,20 @@ import DLean.Semantics.FreeVariables
 
 mutual -- Semantic definition (for differential and adjoint)
 
-def Term.freeVarsSem (i : Interpretation) : (t : Term) → Finset Assignable
+def Term.freeVarsSem (i : Interpretation) : (t : Term) → Finset Variable
   | Term.var  v         => {v}
   | Term.neg  t'        => Term.freeVarsSem i t'
   | Term.plus  t₁ t₂
   | Term.times t₁ t₂    => Term.freeVarsSem i t₁ ∪ Term.freeVarsSem i t₂
   | Term.differential t => let fvars := Term.freeVarsSem i t;
-                           fvars ∪ Finset.map Assignable.diff_emb fvars
+                           fvars ∪ Finset.map Variable.diff_emb fvars
   | Term.unit F         => (i F).1
   | Term.applyFn _ ts   => ts.freeVarsSem i
 
 def TermVector.freeVarsSem {n : ℕ}
                         (i : Interpretation)
                         (ts : TermVector n)
-                        : Finset Assignable :=
+                        : Finset Variable :=
   match ts with
   | .nil => ∅
   | .cons t ts => t.freeVarsSem i ∪ ts.freeVarsSem i
@@ -64,7 +64,7 @@ theorem Term.freeVarsSem_subset_freeVars (t : Term) (i : Interpretation) : ↑(t
       = Set.mem_union, = Finset.mem_union]
   | .differential t =>
     have := Term.freeVarsSem_subset_freeVars t
-    simp only [Term.freeVarsSem, Assignable.diff_emb, Finset.coe_union, Finset.coe_map,
+    simp only [Term.freeVarsSem, Variable.diff_emb, Finset.coe_union, Finset.coe_map,
       Function.Embedding.coeFn_mk, Term.freeVars]
     grind only [= Set.subset_def, = Set.mem_union, = Set.mem_preimage, = Set.mem_image]
   | .unit F =>

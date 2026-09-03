@@ -2,16 +2,16 @@ import Mathlib.Data.Finset.Image
 import Mathlib.Logic.Embedding.Basic
 import DLean.Syntax.Definitions
 
-section Assignable
+section Variable
 
 @[simp, grind .]
-theorem Assignable.neq_diff : ∀ {x : Assignable}, ¬ x = Assignable.diff x := by
+theorem Variable.neq_diff : ∀ {x : Variable}, ¬ x = Variable.diff x := by
   intros x
   induction x
   . grind
   . grind
 
-end Assignable
+end Variable
 
 section TermVector
 
@@ -172,10 +172,10 @@ end TermVector
 
 section OdeSystem
 
-lemma OdeSystem.assignables_union_iff {head : ODE}
+lemma OdeSystem.variables_union_iff {head : ODE}
                                       {tail : OdeSystem}
-                                      : OdeSystem.assignables (head :: tail)
-                                      = {head.var} ∪ OdeSystem.assignables tail := by
-  simp[OdeSystem.assignables]
+                                      : OdeSystem.variables (head :: tail)
+                                      = {head.var} ∪ OdeSystem.variables tail := by
+  simp[OdeSystem.variables]
 
 end OdeSystem

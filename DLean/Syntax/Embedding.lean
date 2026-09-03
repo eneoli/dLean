@@ -84,22 +84,22 @@ end SyntaxCategories
 
 section Elaborators
 
-def parseVariable (str : String) : MetaM Q(Variable) := do
+def parseBaseVariable (str : String) : MetaM Q(Variable) := do
   let ⟨pre, post⟩ := str.toList.span Char.isAlphanum
   if post.length > 0 then
     throwError "Variables can only contain alphanumeric chars."
   else
     let variableName : Q(String) := mkStrLit (String.ofList pre)
-    pure q(Variable.mk $variableName)
+    pure q(Variable.base $variableName)
 
-partial def elabVar : Syntax → MetaM Q(Assignable)
+partial def elabVar : Syntax → MetaM Q(Variable)
   | `(dL_var| $var:ident) => do
-    let varExpr : Q(Variable) ← parseVariable var.getId.toString
-    pure q(Assignable.var $varExpr)
+    let varExpr : Q(Variable) ← parseBaseVariable var.getId.toString
+    pure varExpr
 
   | `(dL_var| $var’) => do
     let varExpr ← elabVar var
-    pure q(Assignable.diff $varExpr)
+    pure q(Variable.diff $varExpr)
 
   | _ => Lean.Elab.throwUnsupportedSyntax
 
@@ -158,7 +158,7 @@ partial def elabTerm : Syntax → MetaM Q(_root_.Term)
 
   | `(dL_term|$f:ident (|$[$args:dL_var],*|)) => do
     let vars ← args.mapM elabVar
-    let taboo : Q(List Assignable) := vars.foldr (fun v acc ↦ q(List.cons $v $acc)) q([])
+    let taboo : Q(List Variable) := vars.foldr (fun v acc ↦ q(List.cons $v $acc)) q([])
     let FName : Q(String) := mkStrLit f.getId.toString
     let unitFun : Q(UnitFunctional) := q(UnitFunctional.mk $FName $taboo)
     pure q(Term.unit $unitFun)
@@ -222,7 +222,7 @@ partial def elabFormula : Syntax → MetaM Q(Formula)
 
   | `(dL_formula|$f:ident (|$[$args:dL_var],*|)) => do
     let vars ← args.mapM elabVar
-    let taboo : Q(List Assignable) := vars.foldr (fun v acc ↦ q(List.cons $v $acc)) q([])
+    let taboo : Q(List Variable) := vars.foldr (fun v acc ↦ q(List.cons $v $acc)) q([])
     let FName : Q(String) := mkStrLit f.getId.toString
     let unitPred : Q(UnitPredicational) := q(UnitPredicational.mk $FName $taboo)
     pure q(Formula.unit $unitPred)
@@ -368,22 +368,16 @@ def delabStructString (expr : Q(String)) : Delab := do
       | _ => throwError "Exptected String Literal"
     | _ => failure
 
-@[app_delab Variable.mk]
-def delabVariable.mk : Delab := do
+@[app_delab Variable.base]
+def delabVariable.base : Delab := do
   let expr ← getExpr
-  guard <| expr.isAppOfArity' ``Variable.mk 1
-  delabStructString expr.appArg!
-
-@[app_delab Assignable.var]
-def delabAssignable.var : Delab := do
-  let expr ← getExpr
-  guard <| expr.isAppOfArity' ``Assignable.var 1
+  guard <| expr.isAppOfArity' ``Variable.base 1
   delab expr.appArg!
 
-@[app_delab Assignable.diff]
+@[app_delab Variable.diff]
 def delabAssignable.diff : Delab := do
   let expr ← getExpr
-  guard <| expr.isAppOfArity' ``Assignable.diff 1
+  guard <| expr.isAppOfArity' ``Variable.diff 1
   let a := ⟨← delab expr.appArg!⟩
   return ⟨←`(dL_var| $a’)⟩
 
