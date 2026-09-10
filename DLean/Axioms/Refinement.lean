@@ -1,5 +1,5 @@
-import DLean.Syntax.Syntax
-import DLean.Semantics.Semantics
+import DLean.Syntax.Basic
+import DLean.Semantics.Basic
 
 import Mathlib.Analysis.Calculus.Deriv.Comp
 import Mathlib.Analysis.Calculus.Deriv.Add
@@ -373,7 +373,7 @@ theorem DX : sound [Formula| x’:=f(x);?P(||) ≼ x’=f(x) & P(||)] := by
       . simp[Term.denote, State.update, TermVector.toVector, FunctionSymbol.arity, getElem]
         simp[Term.denote, Vector.get]
       . trivial
-    . simp only [State.isEqExcept, State.eq_rfl]
+    . simp only [State.isEqExcept, Set.eqOn_refl]
     . have : OdeSystem.variables [.mk [Var|x] [Term|f(x)]] = {[Var|x]} := by
         simp[OdeSystem.variables]
       rw[this]

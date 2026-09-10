@@ -4,7 +4,7 @@ import Mathlib.Analysis.Calculus.ContDiff.Defs
 import Mathlib.Analysis.Calculus.ContDiff.Operations
 
 import DLean.Util.Finset
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Semantics.State
 
 open Semantics
@@ -34,8 +34,10 @@ instance : Coe ProgramSymbol Symbol where
 
 abbrev Symbol.arity : Symbol → ℕ
   | .Predicate p => p.arity
-  | .Function f => f.arity
-  | .UnitFun _ | .UnitPred _ | .Program _ => 0
+  | .Function f  => f.arity
+  | .UnitFun _
+  | .UnitPred _
+  | .Program _   => 0
 
 mutual
 
@@ -154,7 +156,6 @@ theorem TermVector.signature_in {n : ℕ}
       . have := TermVector.signature_in (t:=t) (ts:=ts')
         grind only [= Finset.subset_iff, = Finset.mem_union]
 
--- If only used once, maybe not worth having this theorem
 theorem TermVector.signature_elem {n : ℕ}
                                   {ts : TermVector n}
                                   {x : Fin n}

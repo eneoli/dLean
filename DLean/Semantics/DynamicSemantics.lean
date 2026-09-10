@@ -3,10 +3,11 @@ import Mathlib.Topology.Algebra.Module.LinearMap
 import Mathlib.Data.Rel
 
 import DLean.Util.ContDiff
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.FreeVarsSem
+
 open Semantics
 
 noncomputable def Term.denote (i : Interpretation) (s : State) (t : Term) : ℝ :=
@@ -170,11 +171,9 @@ end
 
 -- We cannot parameterize the function over entire states as the (euclidian) norm could
 -- be possibly infinite. In theory there is something called L∞ norm but NormedAddCommGroup
--- requires us to return a real number. Also I'm not sure if the set of.variables is *countable*
--- infinite.
+-- requires us to return a real number.
 
 -- We therefore fix a finite set of variables that is allowed to change.
--- This set has to be fixed as otherwise we cannot compare/"wiggle" states.
 
 theorem Term.contDiff {n : ℕ}
                        (i : Interpretation)
@@ -293,7 +292,6 @@ termination_by
   sizeOf t
 decreasing_by
   all_goals try decreasing_tactic
-  -- TODO automate this?
   have ha : sizeOf fargs.toVector[x] < sizeOf fargs := by
     apply TermVector.sizeOf_lt_of_mem
     simp[TermVector.mem_toVector_iff]

@@ -3,7 +3,7 @@ import Mathlib.Analysis.Calculus.Deriv.Add
 import Mathlib.Analysis.Calculus.Deriv.Mul
 import Mathlib.Analysis.Calculus.Deriv.Comp
 
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.DynamicSemantics
@@ -13,13 +13,13 @@ import DLean.Embedding.Shallow
 open Semantics
 open Embedding
 
-/-- doc -/
+/-- The derivative of constant functions is zero -/
 theorem const' : sound [Formula| (f())’ = 0] := by
   unfold sound Formula.denote
   intros i s
   simp[Term.denote, Term.freeVarsSem, TermVector.freeVarsSem, FunctionSymbol.arity]
 
-/-- doc -/
+/-- The derivative of a variable is its differential variable -/
 theorem var' : sound [Formula| (x)’ = x’] := by
   unfold sound Formula.denote
   intros i s
@@ -56,7 +56,7 @@ lemma diffAux₃ {taboo : Finset Variable} {F : Σ x : { s : Finset Variable // 
     rw[this]
   . simp only [deriv_const]
 
-/-- doc -/
+/-- The sum rule -/
 theorem sum' : sound [Formula| (F(||) + G(||))’ = (F(||))’ + (G(||))’] := by
   unfold sound Formula.denote
   intros i s
@@ -85,7 +85,7 @@ theorem sum' : sound [Formula| (F(||) + G(||))’ = (F(||))’ + (G(||))’] := 
       rw[diffAux₃ _ _ h]
       simp only [mul_zero]
 
-/-- doc -/
+/-- The product rule -/
 theorem prod' : sound [Formula| (F(||) * G(||))’ = (F(||))’ * G(||) + F(||) * (G(||))’] := by
   intros i s
   simpFormula
@@ -117,7 +117,7 @@ theorem prod' : sound [Formula| (F(||) * G(||))’ = (F(||))’ * G(||) + F(||) 
         rw[diffAux₃ _ _ h]
         simp only [mul_zero]
 
-/-- doc -/
+/-- The chain rule -/
 theorem comp' : sound [Formula| [y:=G(|y,y’|)][y’:=1]((f(G(|y,y’|)))’ = (f(y))’*(G(|y,y’|))’)] := by
   intros i s
   simp only [Formula.denote, SetRel.mem_core, Set.mem_setOf_eq]

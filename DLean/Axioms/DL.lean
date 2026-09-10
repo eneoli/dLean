@@ -1,4 +1,4 @@
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.DynamicSemantics
@@ -121,13 +121,5 @@ theorem MP : ∀ i,
     ------------------------------------
   → (∀ s, s ∈ [Formula| Q(||)].denote i) := by
   simp_all[Formula.denote_implies]
-
--- todo x-
--- Maybe dont add it
--- theorem CQ : ∀ i,
---     (∀ s, s ∈ [Formula| f() = g()].denote i)
---     -----------------------------------------------
---   → (∀ s, s ∈ [Formula| p(f()) ↔  p(g())].denote i) := by
---     sorry
 
 end Axioms

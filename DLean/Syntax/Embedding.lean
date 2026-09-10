@@ -18,7 +18,7 @@ declare_syntax_cat dL_ode_system (behavior := symbol)
 scoped syntax:max ident : dL_var
 scoped syntax:max dL_var "’" : dL_var
 
--- FIXME: We only support parsing for 0,1,2,3,4,5,6,7,8,9 but not more like ·₄₂ for now.
+-- We only support parsing for 0,1,2,3,4,5,6,7,8,9 but not more like ·₄₂ for now.
 scoped syntax:max "·₀" : dL_dot
 scoped syntax:max "·₁" : dL_dot
 scoped syntax:max "·₂" : dL_dot
@@ -346,7 +346,7 @@ partial def elabProgram : Syntax → MetaM Q(Program)
 end
 
 scoped elab "[Var|" v:dL_var "]"         : term => elabVar v
-scoped elab "[Dot|" t:dL_term "]"       : term => elabDot t
+scoped elab "[Dot|" t:dL_term "]"        : term => elabDot t
 scoped elab "[Term|" t:dL_term "]"       : term => elabTerm t
 scoped elab "[Formula|" Φ:dL_formula "]" : term => elabFormula Φ
 scoped elab "[Program|" α:dL_program "]" : term => elabProgram α
@@ -397,8 +397,6 @@ def delabUnitFunctional.mk : Delab := do
   let expr ← getExpr
   guard <| expr.isAppOfArity' ``UnitFunctional.mk 2
   let F := ⟨← delabStructString expr.appFn!.appArg!⟩
-  -- FIXME
-  -- let taboo := ⟨← delabTaboo expr.appArg!⟩
   return ⟨← `(dL_term| $F:ident(||))⟩
 
 @[app_delab Fn.num]
@@ -427,8 +425,6 @@ partial def delabTermVector (expr : Expr) : DelabM (List (Lean.TSyntax `term)) :
     let tail := expr.appArg!
     let head := expr.appFn!.appArg!
     pure <| (← delab head) :: (← delabTermVector tail)
-
--- TODO unbox
 
 @[app_delab Term.var]
 def delabTerm.var : Delab := do
@@ -467,7 +463,6 @@ def delabTerm.unit : Delab := do
   let F ← withAppArg delab
   `($F)
 
--- TODO use dL_term category, adjust delabTermVector
 @[app_delab Term.applyFn]
 def delabTerm.applyFn : Delab := do
   let expr ← getExpr
@@ -615,8 +610,6 @@ def delabUnitPredicational.mk : Delab := do
   let expr ← getExpr
   guard <| expr.isAppOfArity' ``UnitPredicational.mk 2
   let P := ⟨← delabStructString expr.appFn!.appArg!⟩
-  -- FIXME
-  -- let taboo := ⟨← delabTaboo expr.appArg!⟩
   return ⟨← `(dL_term| $P:ident(||))⟩
 
 @[app_delab Formula.unit]

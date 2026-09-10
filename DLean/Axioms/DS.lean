@@ -1,4 +1,4 @@
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Syntax.Theorems
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
@@ -16,29 +16,58 @@ open Embedding
 open Set in
 theorem eq_add_mul_of_hasDerivWithinAt_const
     (f : ℝ → ℝ) (c r y : ℝ)
-    (hderiv : ∀ t ∈ Set.Icc (0 : ℝ) r,
-      HasDerivWithinAt f c (Set.Icc (0 : ℝ) r) t)
+    (hderiv : ∀ t ∈ Set.Icc (0 : ℝ) r, HasDerivWithinAt f c (Set.Icc (0 : ℝ) r) t)
     (hy₀ : 0 ≤ y) (hyr : y ≤ r) :
     f y = f 0 + c * y := by
   let g := fun t : ℝ => f 0 + c * t;
+
   -- By hypothesis, $f$ is differentiable on $[0, r]$ with derivative $c$.
   have hf_diff : DifferentiableOn ℝ f (Icc 0 r) := by
-    exact fun t ht => ( hderiv t ht |> HasDerivWithinAt.differentiableWithinAt );
-  -- By hypothesis, $g$ is differentiable on $[0, r]$ with derivative $c$.
-  have hg_diff : DifferentiableOn ℝ g (Icc 0 r) := by
-    fun_prop;
-  -- By hypothesis, $f$ and $g$ have the same derivative on $[0, r)$.
-  have h_deriv_eq : ∀ t ∈ Set.Ico 0 r, derivWithin f (Set.Icc 0 r) t = derivWithin g (Set.Icc 0 r) t := by
-    intro t ht; have := hderiv t ⟨ ht.1, ht.2.le ⟩ ; have := this.derivWithin ( uniqueDiffOn_Icc ( by linarith [ ht.1, ht.2 ] ) t ⟨ ht.1, ht.2.le ⟩ ) ; simp_all +decide [ mul_comm c ] ;
-    rw [ derivWithin_const_add, derivWithin_const_mul, derivWithin_id' ];
-    · ring;
-    · exact uniqueDiffOn_Icc ( by linarith ) t ⟨ by linarith, by linarith ⟩;
-    · exact differentiableWithinAt_id;
-  convert eq_of_derivWithin_eq hf_diff hg_diff h_deriv_eq _ y ⟨ hy₀, hyr ⟩;
-  simp [g]
+    intros t ht
+    apply HasDerivWithinAt.differentiableWithinAt
+    apply hderiv
+    assumption
 
-#check [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x + f() * s))) → [x := x + f()*t]p(x)))
-               → [x’ = f() & q(x)]p(x)]
+  -- the value of the derivative of f is c in [0, r]
+  have hf_diff_val : ∀ t ∈ Ico 0 r, derivWithin f (Icc 0 r) t = c := by
+    intros t ht
+    apply HasDerivWithinAt.derivWithin
+    . grind
+    .
+      apply uniqueDiffOn_Icc
+      . grind
+      . grind
+
+  -- $g$ is differentiable on $[0, r]$.
+  have hg_diff : DifferentiableOn ℝ g (Icc 0 r) := by
+    simp[g]
+    apply DifferentiableOn.const_mul
+    apply differentiableOn_id
+
+ -- the value of the derivative of g is c in [0, r]
+  have hg_diff_val : ∀ t ∈ Ico 0 r, derivWithin g (Icc 0 r) t = c := by
+    intros t ht
+    rw[derivWithin_const_add]
+    rw[derivWithin_const_mul]
+    .
+      rw[derivWithin_id']
+      . simp
+      .
+        apply uniqueDiffOn_Icc
+        . grind
+        . grind
+    . apply differentiableWithinAt_id'
+
+  -- $f$ and $g$ have the same derivative on $[0, r)$.
+  have h_deriv_eq : ∀ t ∈ Set.Ico 0 r, derivWithin f (Set.Icc 0 r) t = derivWithin g (Set.Icc 0 r) t := by
+    grind
+
+  apply eq_of_derivWithin_eq
+  . assumption
+  . assumption
+  . intros t ht ; grind
+  . simp
+  . grind
 
 theorem fin_0_fn : ∀ t : Fin 0 → ℝ, (fun x : Fin 0 ↦ t x) = (fun x : Fin 0 ↦ 0) := by
   intros
@@ -46,16 +75,13 @@ theorem fin_0_fn : ∀ t : Fin 0 → ℝ, (fun x : Fin 0 ↦ t x) = (fun x : Fin
   have := x.2
   grind
 
-theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x + f() * s))) → [x := x + f()*t]p(x)))
+theorem DS : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x + f() * s))) → [x := x + f()*t]p(x)))
                             → [x’ = f() & q(x)]p(x)] := by
   intros i s₁
   set x : Variable := .base "x"
   set x' : Variable := .diff x
   set f : FunctionSymbol := .udef "f" 0
 
-
-
-  -- this feels illegal
   apply Formula.coincidence (v := s₁.update x' ((i (Symbol.Function f)).1 fun x ↦ 0)) (i := i) (j := i)
   .
     and_intros
@@ -191,10 +217,6 @@ theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → 
 
     funext y
 
-    -- set x : Variable := .var ⟨"x"⟩
-    -- set x' : Variable := .diff x
-    -- set t : Variable := .var ⟨"t"⟩
-
     by_cases y = x'
     .
       simp_all[Term.denote]
@@ -217,7 +239,6 @@ theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → 
         simp[FunctionSymbol.arity] at foo
 
         rw[show (φ r).update t r x = φ r x by grind]
-        -- rw[show s₁.update t r x = s₁ x by grind]
 
         have : ∀ t : Fin 0 → ℝ, (fun x : Fin 0 ↦ t x) = (fun x : Fin 0 ↦ 0) := by
           intros
@@ -229,15 +250,12 @@ theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → 
         rw[this] at foo
         rw[← foo]
 
-        -- have : ((s₁).update t r) x = φ 0 x := by simp_all[State.isEqExcept, Set.EqOn]
-        -- rw[this]
         rw[show (s₁.update x' (φ r x')).update t r x = s₁ x by grind]
         rw[show s₁ x = φ 0 x by simp_all[State.isEqExcept, Set.EqOn] ; grind]
         rw[this]
 
         rw[← foo]
 
-        -- TODO code duplication
         apply eq_add_mul_of_hasDerivWithinAt_const (fun y ↦ φ y x) (y := r) (c := φ r x') (r := r)
         .
           intros t ht

@@ -1,4 +1,4 @@
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Semantics.BoundVariables
 import DLean.Util.FCSet
 

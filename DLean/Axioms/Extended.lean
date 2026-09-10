@@ -190,7 +190,7 @@ theorem cont : sound [Formula| t = y → (⟨x’ = f(x), t’=1 & F(|x’,t’|
       symm
       assumption
     . simp_all only
-  . -- hard way (probably need t'=1)
+  .
     simp[Formula.denote, Formula.denote_gt, Formula.neq, Program.denote, OdeSystem.variables, Variable.diff_emb, odeEvolutionFormula, Term.denote]
     simp[FunctionSymbol.arity, Term.denote]
 
@@ -441,8 +441,8 @@ theorem real_induction : ∀ a b S, inductiveSet a b S ↔ Set.Icc a b ≤ S := 
     unfold inductiveSet
     simp_all
 
-set_option maxHeartbeats 0 in
---
+set_option maxHeartbeats 1000000 in
+-- Large theorem, should be divided
 
 /-- `Q(|y|) ∨ t = y` probably reducible to just `Q(|y|)` -/
 theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x’ = f(x), t’=1 & Q(|y|) ∧ (P(|y|) ∨ t = y)](t = y → P(|y|) ∧ ((⟨x’ = f(x), t’=1 & Q(|y|) ∨ t = y⟩t ≠ y) → (⟨x’ = f(x), t’=1 & P(|y|) ∨ t = y⟩t ≠ y)))] := by
@@ -465,7 +465,7 @@ theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x�
       rw[←this]
       simp
 
-    -- We need to keep `h` for another instantiation latter
+    -- We need to keep `h` for another instantiation later
     have h' := @h (φ' r) r hr0 φ'
     specialize h' ?_ rfl ?_
     . grind only [State.isEqExcept, Set.EqOn, = Function.update.eq_1]

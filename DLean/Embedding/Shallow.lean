@@ -1,21 +1,20 @@
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.DynamicSemantics
 
 open Semantics
 
-def sound (φ : Formula) : Prop := ∀ (i: Interpretation) (s : State), s ∈ φ.denote i
+def sound (φ : Formula) : Prop :=
+  ∀ (i: Interpretation) (s : State), s ∈ φ.denote i
 
 
 section simpDenote
--- dL format
--- Term := `t.denote i s : ℝ`
--- Formula := `s ∈ Φ.denote i : Prop`
--- Program := `(s,w) ∈ α.denote i : Prop`
+
 variable {i : Interpretation} (s : State)
 
 -- Formula: First-order
+
 lemma Formula.denote_True : s ∈ Formula.True.denote i ↔ _root_.True := by
   simp only [denote, Set.mem_univ]
 
@@ -82,6 +81,7 @@ lemma Formula.denote_lte {t₁ t₂} : s ∈ (Formula.lte t₁ t₂).denote i
   simp only [lte, denote_gte]
 
 -- Formula: to programs
+
 lemma Formula.denote_box {α Φ} : s ∈ (Formula.box α Φ).denote i
                                 ↔ ∀ (w : State), (s, w) ∈ α.denote i → w ∈ Φ.denote i := by
   simp only [denote, SetRel.mem_core]
@@ -114,6 +114,7 @@ lemma Program.denote_test {s w} {p} : (s,w) ∈ (Program.test p).denote i
   grind only
 
 -- Program: base case
+
 lemma Program.denote_assign {s w} {x v} : (s,w) ∈ (Program.assign x v).denote i
                                       ↔ w = s.update x (v.denote i s) := by
   simp only [denote, Set.mem_setOf]
@@ -124,6 +125,7 @@ lemma Program.denote_loop {S} {a} : ((Program.loop a).denote i).image S
   rfl
 
 -- Term: combinators
+
 lemma Term.denote_var {s} {x} : (Term.var x).denote i s = s x := by
   apply Term.denote.eq_1
 
@@ -170,17 +172,3 @@ macro "simpState" : tactic => `(tactic| simp only [
   ne_eq, String.reduceEq, not_false_eq_true])
 
 end simpDenote
-
--- def Formula.eval (i : Interpretation) (s : State) (Φ : Formula) : Prop := match Φ with
---   | .True => _root_.True
---   | .False => _root_.False
---   | .and Φ₁ Φ₂ => Formula.eval i s Φ₁ ∧ Formula.eval i s Φ₂
---   | .not Φ' => ¬Formula.eval i s Φ'
---   | .forall x Φ' => ∀ (r : ℝ), Formula.eval i (s.update (Variable.var x) r) Φ'
---   | .exists x Φ' => ∃ (r : ℝ), Formula.eval i (s.update (Variable.var x) r) Φ'
---   | .box α Φ' => ∀ (s' : State), ⟨s, s'⟩ ∈ Program.denote i α → Formula.eval i s' Φ'
---   | .diamond α Φ' => ∃ (s' : State), ⟨s, s'⟩ ∈ Program.denote i α → Formula.eval i s' Φ'
---   | .eq t₁ t₂ => ∀ (i : Interpretation), Term.denote i s t₁ = Term.denote i s t₂
---   | .gte t₁ t₂ => ∀ (i : Interpretation), Term.denote i s t₁ >= Term.denote i s t₂
---   | .applyPred p args =>
---       ∀ (i : Interpretation), i (Symbol.Predicate p) <| args.toVector.map (Term.denote i s)

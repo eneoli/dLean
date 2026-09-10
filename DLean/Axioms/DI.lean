@@ -1,10 +1,11 @@
-import DLean.Syntax.Syntax
-import DLean.Syntax.Theorems
+import DLean.Syntax.Basic
 import DLean.Semantics.State
+
 import DLean.Semantics.Interpretation
 import DLean.Semantics.DynamicSemantics
 import DLean.Semantics.Coincidence
 import DLean.Semantics.FreeVariables
+
 import DLean.Axioms.DiffTerm
 
 import DLean.Embedding.Shallow
@@ -18,8 +19,6 @@ open Semantics
 open Embedding
 
 open scoped ContDiff
-
--- lemma term_vector_singleton {t : Term} : (TermVector.cons t TermVector.nil).toVector[0] = t := by cbv
 
 lemma Differential {i : Interpretation} {φ : ℝ → State} {r : ℝ} {x : Variable} {θ : Term} {Ψ : Formula} {η : Term}
         (hr : r > 0) (hfv : η.freeVarsSem i ⊆ {x})
@@ -186,7 +185,7 @@ theorem term_denote_differentiableWithinAt
     apply ContDiffWithinAt.differentiableWithinAt
     .
       apply ContDiff.contDiffWithinAt
-      . assumption
+      assumption
     . simp
   .
     apply DifferentiableWithinAt.comp
@@ -204,8 +203,7 @@ theorem term_denote_differentiableWithinAt
   . exact Set.mapsTo_iff_image_subset.mpr fun ⦃a⦄ a_1 ↦ hlr
 
 theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (h(x))’)
-                                   → ([?q(x)] g(x) ≤ h(x) → [x’ = f(x) & q(x)] g(x) ≤ h(x))
-  ] := by
+                                   → ([?q(x)] g(x) ≤ h(x) → [x’ = f(x) & q(x)] g(x) ≤ h(x))] := by
   intros i s
   simpFormula
   intros h₁ h₂
@@ -236,8 +234,7 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
     have : r > 0 := by grind
 
     have hp' := hp.2.2
-    -- I, ϕ |= (p(x))′
-    -- have : Formula.denote
+
     simp[
       OdeSystem.variables,
       Variable.diff_emb,
@@ -262,19 +259,26 @@ theorem DI.less_eq : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ �
 
     simp[Formula.denote_box, Program.denote_test] at h₂
 
-    have hd := Differential (η := [Term| h(x) - g(x)])
-                            (x := .base "x")
-                            (θ := [Term| f(x)])
-                            (Ψ := [Formula| q(x)])
-                            (r := r)
-                            (φ := φ)
-                            (i := i)
-                         (by grind)
-                         (by simp[Term.minus, Term.freeVarsSem, TermVector.freeVarsSem])
-                         (by
-                            simp_all[odeEvolutionFormula, State.isEqExcept, OdeSystem.variables, Variable.diff_emb, Set.EqOn]
-                            grind
-                          )
+    have hd := Differential
+                (η := [Term| h(x) - g(x)])
+                (x := .base "x")
+                (θ := [Term| f(x)])
+                (Ψ := [Formula| q(x)])
+                (r := r)
+                (φ := φ)
+                (i := i)
+                (by grind)
+                (by simp[Term.minus, Term.freeVarsSem, TermVector.freeVarsSem])
+                (by
+                   simp_all[
+                    odeEvolutionFormula,
+                    State.isEqExcept,
+                    OdeSystem.variables,
+                    Variable.diff_emb,
+                    Set.EqOn
+                   ]
+                   grind
+                 )
 
     simp at this
 
@@ -441,8 +445,7 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
     have : r > 0 := by grind
 
     have hp' := hp.2.2
-    -- I, ϕ |= (p(x))′
-    -- have : Formula.denote
+
     simp[
       OdeSystem.variables,
       Variable.diff_emb,
@@ -491,7 +494,6 @@ theorem DI.less : sound [Formula| (q(x) → [x’ = f(x) & q(x)] (g(x))’ ≤ (
       . grind
 
     have : φ r ∈ Formula.denote i [Formula| g(x) < h(x)]:= by
-      -- simp[Formula.lte]
 
       have := image_lt_of_deriv_right_le_deriv_boundary
                 (f  := fun _ ↦ 0)

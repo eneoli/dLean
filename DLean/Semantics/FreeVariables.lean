@@ -1,7 +1,7 @@
 import Mathlib.Data.Set.Lattice
 import Mathlib.Data.Finset.Basic
 import DLean.Util.Finset
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Semantics.MustBoundVariables
 
 section Term

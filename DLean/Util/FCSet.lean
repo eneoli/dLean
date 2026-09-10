@@ -3,9 +3,8 @@ import Mathlib.Data.SetLike.Basic
 import Mathlib.Data.Set.Finite.Basic
 
 -- Note: Only useful for infinite carrier sets.
--- Note: For finite carrier sets, we should define a custom equality because A = B^C is possible.
 inductive FCSet (α : Type) : Type where
-  | Finite : Finset α → FCSet α
+  | Finite   : Finset α → FCSet α
   | Infinite : Finset α → FCSet α
 deriving DecidableEq
 
@@ -37,14 +36,6 @@ instance {α : Type} [DecidableEq α] : SDiff (FCSet α) where
     | .Infinite A, .Infinite B => .Finite (B \ A)
     | .Infinite A, .Finite B => .Infinite (A ∪ B)
     | .Finite A, .Infinite B => .Finite (A ∩ B)
-
--- #check Set.compl
--- instance {α : Type} [DecidableEq α] : Complement (FCSet α) where
---   sdiff A B := match A, B with
---     | .Finite A, .Finite B => .Finite (A \ B)
---     | .Infinite A, .Infinite B => .Finite (B \ A)
---     | .Infinite A, .Finite B => .Infinite (A ∪ B)
---     | .Finite A, .Infinite B => .Finite (A ∩ B)
 
 def FCSet.toSet {α : Type} : FCSet α → Set α
   | .Finite A => A

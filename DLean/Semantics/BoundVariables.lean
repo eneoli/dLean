@@ -1,4 +1,4 @@
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Util.FCSet
 
 def Program.boundVars (α : Program) : Set Variable := match α with

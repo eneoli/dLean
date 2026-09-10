@@ -2,14 +2,14 @@ import Mathlib.Analysis.ODE.PicardLindelof
 import Mathlib.Analysis.ODE.Gronwall
 import Mathlib.Topology.ContinuousMap.Compact
 
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 import DLean.Semantics.State
 import DLean.Semantics.Interpretation
 import DLean.Semantics.DynamicSemantics
 
 import DLean.Embedding.Shallow
 
-import DLean.Axioms.DiffTerm -- for `diffAux`
+import DLean.Axioms.DiffTerm
 
 /-!
 In this file, we prove both variants of the differential ghost axiom.
@@ -32,7 +32,7 @@ lemma unitPred_coincidence (s₁ s₂ : State) (S : Finset Variable) (P : (↑(S
   apply x.property
 
 theorem DG_forall : sound [Formula| [x’=f(x) & P(|y,y’|)]Q(|y,y’|)
-                              → ∀y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’|)]Q(|y,y’|)] := by
+                                  → ∀y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’|)]Q(|y,y’|)] := by
   unfold sound
   intros i s
   simpFormula
@@ -69,7 +69,6 @@ theorem DG_forall : sound [Formula| [x’=f(x) & P(|y,y’|)]Q(|y,y’|)
     unfold State.isEqExcept at *
     unfold φ' at Hφφ'
     have := State.eq_on_trans Hstart Hφφ'
-    -- simp_all only [Set.EqOn]
     clear * - this
     simp_all[Set.EqOn, φ', State.update]
     simp_all only [Variable.diff_emb, Function.Embedding.coeFn_mk, Function.update_apply]
@@ -246,7 +245,6 @@ lemma merge {K} {x₀} {F : ℝ → ℝ → ℝ} : ∀r ≥ 0, (∀ t ∈ Set.Ic
           have : (K : ℝ) ≠ 0 := by simp; intro; simp_all
           positivity
         let b₀ := (b + n/K) / 2
-        -- let b₁ := (b₀ + (n+1)/K) / 2
         simp only [nr, ←NNReal.coe_le_coe, ←NNReal.coe_lt_coe, NNReal.coe_mk,
           Nat.cast_add, Nat.cast_one, not_lt, NNReal.coe_add,
           NNReal.coe_natCast, NNReal.coe_one, NNReal.coe_mul, gt_iff_lt] at *
@@ -516,7 +514,7 @@ theorem exists_DG : sound [Formula| ∃y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’
   assumption
 
 theorem forall_exists : sound [Formula| ∀y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’|)]Q(|y,y’|)
-                                        → ∃y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’|)]Q(|y,y’|) ] := by
+                                      → ∃y,[x’=f(x),y’=a(x)*y+b(x) & P(|y,y’|)]Q(|y,y’|) ] := by
   intros i s
   simpFormula
   simp_all only [exists_const, implies_true]

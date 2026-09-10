@@ -80,25 +80,6 @@ theorem Subst.freeVarsSem_symbol_subset (σ : Subst) (i : Interpretation)
 termination_by
   σ.1
 
-/- Unused -/
-theorem Subst.freeVarsSem_symbol_subset_none {σ : Subst}
-                                          {i : Interpretation}
-                                          {S : Finset Symbol}
-  : Subst.freeVarsSem σ i S ⊆ Subst.freeVarsSem σ i none := by
-  match σ with
-    | ⟨.nil, _⟩ =>
-      simp[Subst.freeVarsSem]
-    | ⟨e::σ', hsubst⟩ =>
-      have := @Subst.freeVarsSem_symbol_subset_none ⟨σ', Subst.tail_nodup hsubst⟩ i S
-      unfold Subst.freeVarsSem
-      simp only
-      split
-      . exact Finset.union_subset_union_right this
-      . grw[this]
-        exact Finset.subset_union_right
-termination_by
-  σ.1
-
 theorem Subst.freeVarsSem_symbol_union (σ : Subst) (i : Interpretation)
                                     {S₁ : Finset Symbol}
                                     {S₂ : Finset Symbol}
@@ -233,7 +214,9 @@ noncomputable def Subst.adjoint (σ : Subst)
           let T := σ.get (.UnitFun F)
           let fv := T.freeVarsSem i
           ⟨⟨fv, σ.get_unitFun_freeVarsSem F i⟩,
-          fun s' ↦ T.denote i (State.zero.finUpdate s'), by
+          fun s' ↦ T.denote i (State.zero.finUpdate s'),
+
+          by
             have hg := @Term.contDiff 0 i State.zero (fv) T
             simp at hg
             have hf : ContDiff ℝ ∞ (fun x ↦ (⟨fun _ ↦ 0, x⟩ :
@@ -429,7 +412,8 @@ lemma depEqAux (S : Finset Variable)
   rw[h]
 end depEqAux
 
-lemma Subst.adjoint_unitFun (v w : State) (i : Interpretation) (σ : Subst) (F : UnitFunctional) : Term.denote i v (σ.get (Symbol.UnitFun F)) = Term.denote (σ.adjoint i w) v (Term.unit F) := by
+lemma Subst.adjoint_unitFun (v w : State) (i : Interpretation) (σ : Subst) (F : UnitFunctional)
+  : Term.denote i v (σ.get (Symbol.UnitFun F)) = Term.denote (σ.adjoint i w) v (Term.unit F) := by
   simp[Term.denote]
   simp[Subst.adjoint]
   let := σ.mem_dec (Symbol.UnitFun F)
@@ -449,7 +433,21 @@ lemma Subst.adjoint_unitFun (v w : State) (i : Interpretation) (σ : Subst) (F :
       simp only [Interpretation.eq_on_rfl, and_true]
       simp_all only [Set.EqOn, SetLike.mem_coe, State.finUpdate, ↓reduceDIte, implies_true]
 
+lemma Subst.adjoint_unitPred (w : State) (i : Interpretation) (σ : Subst) (P : UnitPredicational)
+  : Formula.denote i (σ.get (Symbol.UnitPred P)) = Formula.denote (σ.adjoint i w) (Formula.unit P) := by
+    simp[Formula.denote, Subst.adjoint]
+    funext v
+    simp
+    change _ ↔ (fun x ↦ if x ∈ P.taboo.toFinset then 0 else v x) ∈ Formula.denote i (σ.get (Symbol.UnitPred P))
+    apply Iff.intro
+    all_goals
+    apply Formula.coincidence
+    have := Subst.get_unitPred_freeVars σ P
+    simp_all[Set.EqOn]
+    grind only [= Set.disjoint_left, usr Set.mem_setOf_eq]
+
 section applySubstFreeVarSem
+
 -- Since the interpretation matters for `freeVarsSem` we have to add an `adjoint` when computing `t.freeVarsSem` similar to `Subst.preserve_semantics.term`.
 mutual
 
@@ -608,7 +606,7 @@ end
 theorem Term.freeVarsSem_applySubst_univ_subset (σ : Subst) (i : Interpretation) (w : State) (t a : Term)
   : Term.applySubst σ FCSet.univ t = some a
   → a.freeVarsSem i ⊆ t.freeVarsSem (σ.adjoint i w) := by
-  intros h _
+  intros h
   have := Term.freeVarsSem_applySubst_subset σ i FCSet.univ t a w h
   simp only [FCSet.to_set_univ, Set.diff_univ, Set.union_empty,
     SetLike.coe_subset_coe, Finset.le_eq_subset] at this
@@ -700,7 +698,7 @@ theorem Subst.preserve_semantics.term
               -- we don't apply subst
               simp_all
 
-              -- remove adjoint by Subst.preserve_semantics.termVector
+              -- remove adjoint by induction hypothesis for each argument
               have : (fun (x : Fin s.arity) =>
                         Term.denote (σ.adjoint i w) v args.toVector[↑(x : ℕ)])
                    = (fun (x : Fin s.arity) => Term.denote i v a.toVector[↑x]) := by
@@ -752,7 +750,7 @@ theorem Subst.preserve_semantics.term
         apply Term.freeVarsSem_applySubst_univ_subset
         assumption
 
-      have : ∑ x ∈ a.freeVarsSem i, (v x.diff) * deriv (fun y ↦ Term.denote i (v.update x y) a) (v x)
+      have : ∑ x ∈ a.freeVarsSem i,               (v x.diff) * deriv (fun y ↦ Term.denote i (v.update x y) a) (v x)
            = ∑ x ∈ t.freeVarsSem (σ.adjoint i w), (v x.diff) * deriv (fun y ↦ Term.denote i (v.update x y) a) (v x)
            := by
            apply Finset.sum_subset
@@ -789,8 +787,9 @@ decreasing_by
     have := @TermVector.toSubst_size s.arity
     grind
 
-set_option maxHeartbeats 0 in
-/- Good things take time (dunno if that is one of them) --/
+set_option maxHeartbeats 300000 in
+-- Mutual Induction over a lot of cases exhausts default heartbeats
+-- Future work: split into separate theorems for each case
 
 mutual
 
@@ -896,8 +895,7 @@ theorem Subst.preserve_semantics.formula
         have hww' : w'.isEqExcept w V.toSet := by
           have := Program.bound_effect this
           have := Program.boundVars_applySubst_subset σ U V α α'
-          grind only [= Set.subset_def, State.isEqExcept, Set.EqOn, = Set.mem_compl_iff,
-            = Set.mem_union]
+          grind only [= Set.subset_def, State.isEqExcept, Set.EqOn, = Set.mem_compl_iff, = Set.mem_union]
         have := Subst.preserve_semantics.formula σ V i w' w hww' Φ Φ'
         grind only
       | .diamond α Φ =>
@@ -942,14 +940,9 @@ theorem Subst.preserve_semantics.formula
         grind
       | .unit P =>
         simp[Formula.applySubst] at hs
-        simp[hs, Formula.denote, Subst.adjoint]
-        change _ ↔ (fun x ↦ if x ∈ P.taboo.toFinset then 0 else v x) ∈ Formula.denote i (σ.get (Symbol.UnitPred P))
-        apply Iff.intro
-        all_goals
-        apply Formula.coincidence
-        have := Subst.get_unitPred_freeVars σ P
-        simp_all[Set.EqOn]
-        grind only [= Set.disjoint_left, usr Set.mem_setOf_eq]
+        rw[hs]
+        rw[Subst.adjoint_unitPred]
+
       | .applyPred p args =>
         simp[Formula.applySubst, Option.bind] at hs
         split at hs
@@ -1133,8 +1126,6 @@ theorem Subst.preserve_semantics.program
               intros ζ  h₁ h₂
               and_intros
               .
-                have := hflow ζ h₁ h₂
-
                 have := ode_evolution_formula_applySubst
                           (σ := σ) (U := V') (system := system) (ssystem := ssystem)
                           (Ψ := Ψ) (Ψ' := Ψ') (by grind) (by grind)
@@ -1143,6 +1134,7 @@ theorem Subst.preserve_semantics.program
                   specialize hflow ζ h₁ h₂
                   clear * - hvv' heq0 hflow
                   grind[State.isEqExcept, Set.EqOn, OdeSystem.variables]
+
                 have := Subst.preserve_semantics.formula σ V' i (φ ζ) v' hφv'
                           (odeEvolutionFormula system Ψ)
                           (odeEvolutionFormula ssystem Ψ') (by grind)
@@ -1162,7 +1154,6 @@ theorem US {σ : Subst} {Φ Φ' : Formula}
   → (∀ (i : Interpretation) (v : State), v ∈ Formula.denote i Φ)
   → (∀ (i : Interpretation) (v : State), v ∈ Formula.denote i Φ') := by
   intros h₁ h₂ i v
-  have := h₂ i v
   have := Subst.preserve_semantics.formula σ ∅ i v v (Set.eqOn_refl _ _) Φ Φ' (by grind)
   simp_all
 

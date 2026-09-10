@@ -18,11 +18,11 @@ inductive SubstEntry : Type where
   | prog : (a : ProgramSymbol) → Program → SubstEntry
 
 def SubstEntry.symbol : SubstEntry → Symbol
-  | .fn f _ => .Function f
-  | .unitFun F _ _ => .UnitFun F
-  | .pred p _ => .Predicate p
+  | .fn f _         => .Function f
+  | .unitFun F _ _  => .UnitFun F
+  | .pred p _       => .Predicate p
   | .unitPred P _ _ => .UnitPred P
-  | .prog a _ => .Program a
+  | .prog a _       => .Program a
 
 
 def Subst.Nodup (σ : List SubstEntry) : Prop :=
@@ -47,11 +47,11 @@ def SubstEntry.rhs (e : SubstEntry) : e.symbol.SubstType :=
     | .prog _ rhs => rhs
 
 def Symbol.default : (symbol : Symbol) → symbol.SubstType
-  | .Function f => Term.applyFn (.sym f) (Term.dots f.arity)
-  | .UnitFun F => Term.unit F
+  | .Function f  => Term.applyFn (.sym f) (Term.dots f.arity)
+  | .UnitFun F   => Term.unit F
   | .Predicate p => Formula.applyPred p (Term.dots p.arity)
-  | .UnitPred P => Formula.unit P
-  | .Program a => Program.const a
+  | .UnitPred P  => Formula.unit P
+  | .Program a   => Program.const a
 
 def Subst.get (σ : Subst) (symbol : Symbol) : symbol.SubstType :=
   match σ with
@@ -350,6 +350,7 @@ end
 end SubstApplication
 
 section Theorems
+
 /- Lemmas about `Subst.get` -/
 
 lemma Subst.notin_default (σ : Subst) (s : Symbol) : s ∉ σ → σ.get s = s.default := by
@@ -360,14 +361,6 @@ lemma Subst.notin_default (σ : Subst) (s : Symbol) : s ∉ σ → σ.get s = s.
       exact fun _ h ↦ Subst.notin_default _ _ h
 termination_by
   σ.1
-
--- Unused
-lemma Subst.get_fn_head {σ : Subst}
-                        {f : FunctionSymbol}
-                        {rhs : Term}
-                        {h : Subst.Nodup (.fn f rhs :: σ.1)}
-                        : Subst.get ⟨.fn f rhs :: σ.1, h⟩ (Symbol.Function f) = rhs := by
-  simp[Subst.get, SubstEntry.symbol, SubstEntry.rhs]
 
 lemma Subst.get_unitfun_head {σ : Subst}
                              {F : UnitFunctional}
@@ -812,57 +805,3 @@ theorem Subst.apply_subst_term_vector_to_term
             assumption
 
 end Theorems
-
-section TheoremsUnused
-
-/- Corollary: applySubst's output is unique (w.r.t the taboo), as long as it does not clash. Unused. -/
-
-lemma TermVector.applySubst_unique {σ : Subst} {U V : FCSet Variable} {n : ℕ} {ts ts₁ ts₂ : TermVector n} :
-  ts.applySubst σ U = ts₁ → ts.applySubst σ V = ts₂ → ts₁ = ts₂ := by
-  intro h₁ h₂
-  obtain ⟨hU,hV⟩ : (U ∩ V).toSet ⊆ U.toSet ∧ (U ∩ V).toSet ⊆ V.toSet := by
-    grind only [= Set.subset_def, FCSet.to_set_inter, = Set.mem_inter_iff]
-  apply TermVector.taboo_mono hU at h₁
-  apply TermVector.taboo_mono hV at h₂
-  grind only
-
-lemma Term.applySubst_unique {σ : Subst} {U V : FCSet Variable} {t t₁ t₂ : Term} :
-  t.applySubst σ U = t₁ → t.applySubst σ V = t₂ → t₁ = t₂ := by
-  intro h₁ h₂
-  obtain ⟨hU,hV⟩ : (U ∩ V).toSet ⊆ U.toSet ∧ (U ∩ V).toSet ⊆ V.toSet := by
-    grind only [= Set.subset_def, FCSet.to_set_inter, = Set.mem_inter_iff]
-  apply Term.taboo_mono hU at h₁
-  apply Term.taboo_mono hV at h₂
-  grind only
-
-
-lemma ode_mapM_applySubst_unique {σ : Subst} {U V : FCSet Variable} {sys sys₁ sys₂ : OdeSystem} :
-  sys.mapM (fun x => do return ODE.mk x.var (← Term.applySubst σ U x.term)) = some sys₁ →
-  sys.mapM (fun x => do return ODE.mk x.var (← Term.applySubst σ V x.term)) = some sys₂ →
-  sys₁ = sys₂ := by
-  intro h₁ h₂
-  obtain ⟨hU,hV⟩ : (U ∩ V).toSet ⊆ U.toSet ∧ (U ∩ V).toSet ⊆ V.toSet := by
-    grind only [= Set.subset_def, FCSet.to_set_inter, = Set.mem_inter_iff]
-  apply ode_mapM_taboo_mono hU at h₁
-  apply ode_mapM_taboo_mono hV at h₂
-  grind only
-
-lemma Formula.applySubst_unique {σ : Subst} {U V : FCSet Variable} {φ ψ₁ ψ₂ : Formula} :
-  φ.applySubst σ U = ψ₁ → φ.applySubst σ V = ψ₂ → ψ₁ = ψ₂ := by
-  intro h₁ h₂
-  obtain ⟨hU,hV⟩ : (U ∩ V).toSet ⊆ U.toSet ∧ (U ∩ V).toSet ⊆ V.toSet := by
-    grind only [= Set.subset_def, FCSet.to_set_inter, = Set.mem_inter_iff]
-  apply Formula.taboo_mono hU at h₁
-  apply Formula.taboo_mono hV at h₂
-  grind only
-
-lemma Program.applySubst_unique {σ : Subst} {U V W₁ W₂ : FCSet Variable} {α β₁ β₂ : Program} :
-  α.applySubst σ U = some ⟨W₁, β₁⟩ → α.applySubst σ V = some ⟨W₂, β₂⟩ → β₁ = β₂ := by
-  intro h₁ h₂
-  obtain ⟨hU,hV⟩ : (U ∩ V).toSet ⊆ U.toSet ∧ (U ∩ V).toSet ⊆ V.toSet := by
-    grind only [= Set.subset_def, FCSet.to_set_inter, = Set.mem_inter_iff]
-  apply Program.taboo_mono hU at h₁
-  apply Program.taboo_mono hV at h₂
-  grind only
-
-end TheoremsUnused

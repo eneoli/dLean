@@ -4,7 +4,7 @@ import Mathlib.Analysis.Calculus.ContDiff.Operations
 
 import Mathlib.Data.Set.Operations
 import Mathlib.Logic.Function.Basic
-import DLean.Syntax.Syntax
+import DLean.Syntax.Basic
 
 namespace Semantics
 
@@ -62,10 +62,8 @@ theorem State.eq_on_extends_if_update {v : State}
   simp[Set.EqOn, Function.update]
   exact fun h a_2 a_3 ↦ congrArg (ite (a_2 = a) y) (h a_3)
 
--- Even if redundant, Set.eqOn_refl is not tagged `@[simp]`, so better keep this version
-@[simp]
-theorem State.eq_rfl {v : State} {S : Set Variable} : Set.EqOn v v S := by
-  exact Set.eqOn_refl _ _
+
+attribute [simp] Set.eqOn_refl
 
 /- For backward reasoning, see `Set.EqOn.trans` -/
 theorem State.eq_on_trans {v : State}
