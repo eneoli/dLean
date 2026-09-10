@@ -4,6 +4,7 @@ import DLean.Axioms.DE
 import DLean.Axioms.DG
 import DLean.Axioms.DiffTerm
 import DLean.Axioms.DL
+import DLean.Axioms.DS
 import DLean.Axioms.DW
 import DLean.Axioms.Refinement
 import DLean.Axioms.Extended

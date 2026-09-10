@@ -372,7 +372,7 @@ def delabStructString (expr : Q(String)) : Delab := do
 def delabVariable.base : Delab := do
   let expr ← getExpr
   guard <| expr.isAppOfArity' ``Variable.base 1
-  delab expr.appArg!
+  delabStructString expr.appArg!
 
 @[app_delab Variable.diff]
 def delabAssignable.diff : Delab := do

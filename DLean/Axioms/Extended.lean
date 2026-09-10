@@ -12,15 +12,15 @@ import DLean.Axioms.DG
 open Embedding
 open Semantics
 
-lemma isLipschitzODE (r : ℝ) {f' : ℝ → ℝ} :
-  r > 0 →
-  ContDiff ℝ 1 f' →
+lemma isLipschitzODE (r : ℝ) {f' : ℝ → ℝ} {n} :
+  ContDiff ℝ n f' →
+  n ≠ 0 →
   ∃ K, LipschitzOnWith K f' (Set.Icc (-r) r) := by
-  intro hr hcont
+  intro hcont _
   apply ContDiffOn.exists_lipschitzOnWith
   . apply ContDiff.contDiffOn
     apply hcont
-  . simp
+  . trivial
   . apply convex_Icc
   . apply ConditionallyCompleteLinearOrder.isCompact_Icc
 
@@ -77,16 +77,13 @@ theorem uniqueness : sound [Formula| (⟨x’=f(x) & Q₁(||)⟩P(||) ∧ ⟨x�
       simp[abs_le]
 
     obtain ⟨K, hK⟩ : ∃ K, LipschitzOnWith K (fun x ↦ (i (.Function (.udef "f" 1))).val (fun _ ↦ x)) ximg := by
-      apply ContDiffOn.exists_lipschitzOnWith
-      . apply ContDiff.contDiffOn
-        apply ContDiff.comp
+      apply isLipschitzODE
+      . apply ContDiff.comp
         . apply (i (.Function (.udef "f" 1))).property
         . apply contDiff_pi.mpr
           intro
           apply contDiff_id
       . simp
-      . apply convex_Icc
-      . apply ConditionallyCompleteLinearOrder.isCompact_Icc
 
     have : ∀ t ∈ Set.Icc 0 (min r₁ r₂), φ₁ t [Var|x] = φ₂ t [Var|x] := by
       apply ODE_unique (s:=fun _ ↦ ximg) (K:=K) (F:=F)
@@ -701,7 +698,8 @@ theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x�
       grind only [Set.EqOn, = Set.mem_compl_iff, = Set.mem_singleton_iff, = Function.update.eq_1]
     . simp[Formula.denote, h]
 
-  . intro h
+  . -- hard direction
+    intro h
     simp[Formula.denote, Program.denote, Variable.diff_emb, OdeSystem.variables] at *
     intro b r hr0 φ hφ0 hφb hφ
     rw[hφb]
@@ -709,6 +707,8 @@ theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x�
       simp[Formula.denote] at this
       apply @this r
       simp[hr0]
+
+    -- Using real induction
     rw[←real_induction]
     simp[inductiveSet]
     intro ζ hζ0 hζr hind
@@ -887,6 +887,7 @@ theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x�
       suffices ∀ ζ' ∈ Set.Icc 0 (min ε (r-ζ)), φ' (ζ + ζ') [Var|x] = φ'' ζ' [Var|x] by
         intro t ht
         funext z
+        -- If the states are equal for `x`, then the other variables follow
         match Finset.decidableMem z {[Var|x],[Var|x’],[Var|t],[Var|t’],[Var|y]} with
         | isTrue hmem =>
           simp at hmem
@@ -989,16 +990,13 @@ theorem RI : sound [Formula| [x’ = f(x), t’=1 & Q(|y|)]P(|y|) ↔ ∀ y, [x�
         simp[abs_le]
 
       obtain ⟨K, hK⟩ : ∃ K, LipschitzOnWith K f ximg := by
-        apply ContDiffOn.exists_lipschitzOnWith
-        . apply ContDiff.contDiffOn
-          apply ContDiff.comp
+        apply isLipschitzODE
+        . apply ContDiff.comp
           . apply (i (.Function (.udef "f" 1))).property
           . apply contDiff_pi.mpr
             intro
             apply contDiff_id
         . simp
-        . apply convex_Icc
-        . apply ConditionallyCompleteLinearOrder.isCompact_Icc
 
       apply ODE_unique (α:=fun t ↦ φ' (ζ + t) [Var|x]) (F:=fun t x ↦ f x) (K:=K) (s:=fun _ ↦ ximg)
       . intro t ht

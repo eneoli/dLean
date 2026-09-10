@@ -168,7 +168,7 @@ macro "simpTerm": tactic => `(tactic| simp only [Term.denote_var, Term.denote_ne
 macro "simpState" : tactic => `(tactic| simp only [
   Function.update_of_ne, Function.update_self, -- simplify `State.update`
   -- The following allows proving hypothesis `a ≠ b` of `Function.update_of_ne`
-  Variable.diff.injEq, Variable.var.injEq, Variable.mk.injEq,
+  Variable.diff.injEq, Variable.base.injEq,
   ne_eq, String.reduceEq, not_false_eq_true])
 
 end simpDenote

@@ -242,6 +242,8 @@ theorem refUnloop : sound [Formula| [a*](a ≼ b) → a* ≼ b*] := by
 
 section ODE
 
+/- `q(x)` can equivalently be `Q(|x’|)`. The differential variable is removed as the
+ODE always assign them immediately, see `DX` -/
 theorem refdWL : sound [Formula| ?q(x);x’=f(x)&q(x) ≃ x’=f(x)&q(x)] := by
  unfold sound
  simpFormula

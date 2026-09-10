@@ -69,7 +69,7 @@ theorem eq_add_mul_of_hasDerivWithinAt_const
   . simp
   . grind
 
-theorem fin_0_fn : ∀ t : Fin 0 → ℝ, (fun x : Fin 0 ↦ t x) = (fun x : Fin 0 ↦ 0) := by
+theorem fin_0_fn : ∀ t : Fin 0 → ℝ, (fun x : Fin 0 ↦ t x) = (fun _ : Fin 0 ↦ 0) := by
   intros
   funext x
   have := x.2
@@ -198,7 +198,7 @@ theorem DS : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x
          simp_all[Term.denote, State.update, Function.update]
          split
          .
-          simp_all[Function.update, FunctionSymbol.arity]
+          simp_all [FunctionSymbol.arity]
           have hfn : ∀ t : Fin 0 → ℝ, (fun x : Fin 0 ↦ t x) = (fun x : Fin 0 ↦ 0) := by
             intros
             funext x
@@ -236,7 +236,7 @@ theorem DS : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x
         simp_all[Term.denote]
         simp_all[FunctionSymbol.arity]
         have foo := ((hp.2.2 r) (by grind) (by grind)).1.1
-        simp[FunctionSymbol.arity] at foo
+        simp at foo
 
         rw[show (φ r).update t r x = φ r x by grind]
 
@@ -264,10 +264,10 @@ theorem DS : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x
           have : φ t x' = φ r x' := by
             have hb' := (hp.2.2 t (by grind) (by grind)).1.1
             have hb'' := (hp.2.2 r (by grind) (by grind)).1.1
-            simp[Term.denote] at hb'
+            simp at hb'
             rw[hb']
             rw[hb'']
-            simp_all[FunctionSymbol.arity]
+            simp_all
           grind
         . grind
         . grind
@@ -278,3 +278,58 @@ theorem DS : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x
         .
           simp_all[State.isEqExcept, Set.EqOn]
           grind
+
+theorem DS₂ : sound [Formula| [x’ = f() & q(x)]p(x)
+                            → (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x + f() * s)))
+                                    → [x := x + f()*t]p(x)))] := by
+  intro i s
+
+  let s₁ := s.update [Var|x’] ([Term|f()].denote i s)
+  apply Formula.coincidence (v := s₁) (i := i)
+  .
+    simp[Formula.freeVars, Formula.implies, Formula.or, Program.freeVars, Program.mustBoundVars,
+      Program.boundVars, Term.freeVars, TermVector.freeVars, Formula.lte, Variable.diff_emb,
+      OdeSystem.variables]
+    grind only [Set.EqOn, = Function.update.eq_1, = Set.mem_insert_iff, = Set.mem_diff,
+      = Set.mem_singleton_iff]
+
+  simpFormula
+  simpTerm
+  simp only [Function.update_self, CharP.cast_eq_zero, Rat.cast_zero, ge_iff_le, ne_eq,
+    Variable.base.injEq, String.reduceEq, not_false_eq_true, Function.update_of_ne, and_imp]
+  intro h r hr hq
+  simp[Formula.denote, Program.denote_assign]
+  simpTerm
+  simp
+  simp[Formula.denote, Program.denote, OdeSystem.variables, Variable.diff_emb, Term.denote] at h
+  let φ := fun t ↦ s₁.update [Var|x] (s₁ [Var|x] + [Term|f()].denote i s₁ * t)
+  specialize @h (φ r) r hr φ _ rfl
+  . simp only [State.isEqExcept]
+    grind only [Set.EqOn, = Function.update.eq_1, = Set.mem_compl_iff, = Set.mem_singleton_iff]
+  have hf : ∀ s₁ s₂, [Term|f()].denote i s₂ = [Term|f()].denote i s₁ := by
+      intro _ _
+      apply Term.coincidence
+      simp[Term.freeVars, TermVector.freeVars]
+
+  suffices i (Symbol.Predicate {name:="p", arity:=1}) fun x ↦ φ r [Var|x] by
+    specialize hf (s₁.update [Var|t] r)
+    clear * - hf this
+    simp_all only [Function.update_self, φ]
+
+  apply h
+  intro ζ hζ0 hζr
+  and_intros
+  . simp[odeEvolutionFormula]
+    simpFormula
+    simpTerm
+    specialize hq ζ hζ0 hζr
+    simp[φ, hf s, s₁]
+    simp[Formula.denote, Term.denote_plus, Term.denote_times, Term.denote_var] at ⊢ hq
+    simp[hf s] at hq
+    assumption
+  . grind only [State.isEqExcept, Set.EqOn, = Function.update.eq_1, = Set.mem_compl_iff,
+    = Set.mem_insert_iff, = Set.mem_singleton_iff]
+  . simp [hf s, φ, s₁]
+
+    have := HasDerivWithinAt.const_mul ([Term|f()].denote i s) (hasDerivWithinAt_id ζ (Set.Icc 0 r))
+    simp_all only [id_eq, mul_one]
