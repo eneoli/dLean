@@ -75,7 +75,7 @@ theorem fin_0_fn : ∀ t : Fin 0 → ℝ, (fun x : Fin 0 ↦ t x) = (fun _ : Fin
   have := x.2
   grind
 
-theorem DS : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x + f() * s))) → [x := x + f()*t]p(x)))
+theorem DS₁ : sound [Formula| (∀t, (t≥0 → (∀s, (0≤s ∧ s ≤ t → q(x + f() * s))) → [x := x + f()*t]p(x)))
                             → [x’ = f() & q(x)]p(x)] := by
   intros i s₁
   set x : Variable := .base "x"
